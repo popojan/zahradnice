@@ -59,6 +59,7 @@ void apply(int ro, int co, const std::string& s) {
 
 int main()
 {
+  srand(time(NULL));
   int row, col;
   initscr();
   raw();
@@ -71,16 +72,15 @@ int main()
 
   start_color();
   
-  ContextFreeGrammar2D cfg('s', "xlr");
-  cfg.addRule('s', "x\nS");
-  cfg.addRule('x', "|\nx\nX");
-  cfg.addRule('x', "\\\nx\n X");
-  cfg.addRule('x', "/\n x\nX");
-  cfg.addRule('x', "|\nx   x\n \\_/ \n  X");
+  ContextFreeGrammar2D cfg('s', "xmlr");
+
+  cfg.loadFromFile("basic.cfg");
+
   Derivation w(cfg);
   w.start(row-2,col/2);
 
   std::unordered_map<char, std::vector<std::string> > rules;
+  
   rules['s'] = {{"x\nS"}};
   rules['x'] = {{"x\n|\nX"}};
   rules['x'] = {{"x\n|\nX"}};
