@@ -25,6 +25,7 @@ public:
     std::string rhs;
     int ro;
     int co;
+    int extra;
   };
 
   char S;
@@ -34,29 +35,25 @@ public:
   std::unordered_map<char, Rules> R;
 
   ContextFreeGrammar2D(char s, const std::string& nt):
-  S(s) {
+  S(s), numColors(1) {
   }
 
-  bool _process(const std::vector<std::pair<char,char> >& lhs, const std::string& rule) {
-      if(!rule.empty() && lhs.size() > 0)
-      {
-        std::for_each
-        (
-          lhs.begin(), lhs.end(),
-          [this,&rule](auto& x)
-          {
-            addRule(x, rule); 
-          }
-        );
-        return true;
-      }
-      return false;
+  bool _process(const std::vector<std::string>& lhs, const std::string& rule) {
+      std::for_each
+      (
+        lhs.begin(), lhs.end(),
+        [this,&rule](auto& x)
+        {
+          addRule(x, rule); 
+        }
+      );
+      return true;
   }
   void loadFromFile(const std::string& fname)
   {
     std::ifstream t(fname);
     std::string line;
-    std::vector<std::pair<char,char> > lhs;
+    std::vector<std::string> lhs;
     std::ostringstream rule;
 
     while(std::getline(t, line))
@@ -66,18 +63,19 @@ public:
         continue;
       if(line.size() > 0 && line.at(0) == '=') //new rule LHSs
       {
-       if(_process(lhs, rule.str())) {
+        if(!rule.str().empty() && _process(lhs, rule.str())) {
           rule.str("");
           rule.clear();
           lhs.clear();
         }
-        lhs.push_back(std::make_pair(line.at(1), line.at(3)));
+        lhs.push_back(line);
       }
       else {
         rule << line << std::endl;
       }
     }
-    _process(lhs, rule.str());
+    if(!rule.str().empty())
+      _process(lhs, rule.str());
   }
 /*
   void addRuleFromFile(char lhs, const std::string& fname) {
@@ -102,22 +100,39 @@ public:
     return std::pair<int, int>(-1,-1);
   } 
 
-  void addRule(std::pair<char, char> lhs, const std::string& rhs) {
-    if(R.find(lhs.first) == R.end()) {
-      R[lhs.first] = Rules();
-      V.insert(lhs.first);
+  void addRule(const std::string& lhs, const std::string& rhs) {
+    char s = lhs.at(1);
+    if(R.find(s) == R.end()) {
+      R[s] = Rules();
+      V.insert(s);
     }
     Rule rule;
-    rule.lhs = lhs.first;
-    auto o = origin(lhs.first, rhs);
+    auto o = origin(s, rhs);
+    rule.lhs = s;
     rule.ro = o.first;
     rule.co = o.second;
     rule.rhs = rhs;
-    std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.second);
-    R[lhs.first].push_back(rule);
+    char fore = 0;
+    char back = 0;
+    char colidx = 0;
+    if(lhs.size() > 5) {
+      fore = lhs.at(5) - '0';
+    }
+    if(lhs.size() > 6) {
+      back = lhs.at(6) - '0';
+    }
+    if(fore > 0 || back > 0) {
+      colidx = numColors;
+      init_pair(colidx, fore, back);
+      ++numColors;
+    }
+    rule.extra = colidx;
+    std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(3));
+    R[s].push_back(rule);
   }
 
   friend class Derivation;
+  int numColors;  
 
 };
 
@@ -139,10 +154,13 @@ public:
 
   void start(int r, int c) {
     x.push_back({g.S, r, c});
+    mvaddch(r, c, g.S);
   }
 
   void step() {
     //random nonterminal instance
+    if(x.size() <= 0)
+      return;
     int i = random() % x.size();
     auto& n = x[i];
     auto res = g.R.find(n.s);
@@ -174,8 +192,18 @@ private:
         c = co - 1;
         continue;
       }
-      if(*p != ' ') {
-        mvaddch(r, c, *p);
+      if(*p != ' ' || (r - ro == rule.ro && c- co == rule.co)) {
+
+        int flag = 0;
+ 
+        if(rule.extra > 0) {
+          attron(COLOR_PAIR(rule.extra));
+        }
+        
+        mvaddch(r, c, *p | flag);
+        if(rule.extra > 0)
+          attroff(COLOR_PAIR(rule.extra));
+   
       }
       if (g.V.find(*p) != g.V.end()) {
         x.push_back({*p, r, c});
@@ -185,5 +213,4 @@ private:
   }
 
   const ContextFreeGrammar2D& g;
-  
 };
