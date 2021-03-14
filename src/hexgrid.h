@@ -21,15 +21,15 @@
 class HexGrid {
 
 public:
-  HexGrid(int ry = 1, int rx = 1, int ex = 0)
-  : ry(ry), rx(rx), ex(ex) {
+  HexGrid(int ry = 1, int rx = 1, int ex = 0, int flag = 0)
+  : ry(ry), rx(rx), ex(ex), flag(flag) {
         
   }
 
   void render(int row, int col) {
-    row *= ry;
     col *= 2*(ry + 2*rx + ex);
-    col -= (row % 2) * (ry + 2*rx + ex) + ry + rx;
+    col -= (row % 2) * (ry + 2*rx + ex);
+    row *= ry;
     for(int r = row - 1; r < row + 2*ry; ++r) {
       int dx = std::abs(row + ry - r - 0.5) - 0.5;
       
@@ -41,17 +41,17 @@ public:
       }
       if ( r == row -1 || r == row + 2*ry - 1) {
         for(int c = col + dx; c < col + 2*ry + 2*rx + ex - dx; ++c) {
-          mvaddch(r, c, '_' | 0 );
+          mvaddch(r, c, '_' | flag );
         }
       }
       if(r > row - 1) {
-        mvaddch(r, col + dx, L | 0 );
-        mvaddch(r, col + 2*ry + 2*rx + ex -dx - 1 , R | 0 );
+        mvaddch(r, col + dx, L | flag );
+        mvaddch(r, col + 2*ry + 2*rx + ex -dx - 1 , R | flag );
       }
     }
   }
 
 private:
   const int ry, rx, ex;
-
+  const int flag;
 };

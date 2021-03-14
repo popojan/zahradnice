@@ -1,5 +1,5 @@
 all: zahr
 
 zahr:
-	g++ -lncurses zahradnice.cpp -o zahradnice -O3
+	g++ -std=c++14 -lncurses zahradnice.cpp -o zahradnice -O3
 
