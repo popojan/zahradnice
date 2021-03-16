@@ -32,30 +32,27 @@ int main(int argc, char* argv[])
   cfg.loadFromFile(config);
 
   Derivation w(cfg, row, col);
-  w.start(row-2,col/2);
+  w.start(row-1,col/2);
 
   char ch = ' ';
   while(ch != 'q') {
     ch = getch();
-    ++numKeyPress;
 
-    if (ch == 'n') {
-      w.start(row-2,rand() % col);
-    }
-    else if (ch == 'x') {
+    if (ch == 'x') {
       //numKeyPress = 0;
       //score = 0;
       w.restart();
-      w.start(row-2,col/2);
+      w.start(row-1,col/2);
     }
     else {
-      score += w.step(ch);
+      if(w.step(ch, score))
+        ++numKeyPress;
     }
 
     std::ostringstream ss;
     ss << "Score: " << score << " Steps: " << numKeyPress;
     ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    //mvprintw(1,1,ss.str().c_str());
+    mvprintw(1,2,ss.str().c_str());
     refresh();
   }
   endwin();
