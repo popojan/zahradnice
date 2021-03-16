@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     std::ostringstream ss;
     ss << "Score: " << score << " Steps: " << numKeyPress;
     ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    mvprintw(1,1,ss.str().c_str());
+    //mvprintw(1,1,ss.str().c_str());
     refresh();
   }
   endwin();

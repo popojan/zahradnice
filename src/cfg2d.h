@@ -151,11 +151,15 @@ public:
      rule.ctx = lhs.at(6);
     else
      rule.ctx = -1;
+    if(rule.ctx == '*')
+     rule.ctx = -1;
+      
     if(lhs.size() > 7)
      rule.ctxrep = lhs.at(7);
     else
      rule.ctxrep = ' ';
 
+    std::replace(rule.rhs.begin(), rule.rhs.end(), '*', rule.lhs);
     std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(3));
     std::replace(rule.rhs.begin(), rule.rhs.end(), '&', rule.ctxrep);
     R[s].push_back(rule);
@@ -179,9 +183,23 @@ public:
 
   std::vector<X> x;
 
-  Derivation(const ContextFreeGrammar2D& g, int row, int col)
-   : g(g), col(col), row(row) { } 
+  struct G {
+    char c;
+    int flag;
+    int cidx;
+  };
 
+  G * memory;
+
+  Derivation(const ContextFreeGrammar2D& g, int row, int col)
+   : g(g), col(col), row(row) {
+    memory = new G[row*col];
+    restart();
+  } 
+
+  ~Derivation() {
+    delete [] memory;
+  }
   void start(int r, int c) {
     x.push_back({g.S, r, c});
     mvaddch(r, c, g.S);
@@ -239,6 +257,11 @@ public:
   void restart() {
     x.clear();
     clear();
+    for(int r = 0; r < row; ++r) {
+      for(int c = 0; c < col; ++c) {
+        memory[r*col + c] = {-1, 0, 0};
+      }
+    } 
   }
 
 private:
@@ -253,23 +276,34 @@ private:
         c = co - 1;
         continue;
       }
+      G saved = {-1, 0, 0};
+      bool isNonTerminal = g.V.find(*p) != g.V.end();
       if((*p != ' ' || (r - ro == rule.ro && c- co == rule.co) ) 
         && r >= 0 && r < row && c >= 0 && c < col) {
 
         int flag = 0;
  
-        if(rule.extra > 0) {
-          attron(COLOR_PAIR(rule.extra));
+        G d = {*p, flag, rule.extra};
+        if(*p == '$') d = memory[col * r + c];
+        if(d.c == -1) d = {' ', flag, rule.extra};
+
+        if(d.cidx > 0) {
+          attron(COLOR_PAIR(d.cidx));
         }
-       
-        mvaddch(r, c, *p | flag);
-        if(rule.extra > 0)
-          attroff(COLOR_PAIR(rule.extra));
+
+        mvaddch(r, c, d.c | d.flag);
+        if(!isNonTerminal) {
+          saved = d;
+        }
+        if(d.cidx > 0)
+          attroff(COLOR_PAIR(d.cidx));
    
       }
       if(r >= 0 && r < row && c >= 0 && c < col) {
-        if (g.V.find(*p) != g.V.end()) {
+        if (isNonTerminal) {
           x.push_back({*p, r, c});
+        } else {
+          memory[col * r + c] = saved;
         }
       }
     }
