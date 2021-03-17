@@ -32,9 +32,10 @@ int main(int argc, char* argv[])
   cfg.loadFromFile(config);
 
   Derivation w(cfg, row, col);
-  w.start(row-1,col/2);
+  w.start();
 
   char ch = ' ';
+  char last = ' ';
   while(ch != 'q') {
     ch = getch();
 
@@ -42,17 +43,22 @@ int main(int argc, char* argv[])
       //numKeyPress = 0;
       //score = 0;
       w.restart();
-      w.start(row-1,col/2);
+      w.start();
     }
-    else {
+    else if (ch == 'F') {
+      for(int i = 0; i < 100;++i) {
+        if(w.step(last, score))
+          ++numKeyPress;
+      }
+    } else {
       if(w.step(ch, score))
         ++numKeyPress;
+      last = ch;
     }
-
     std::ostringstream ss;
     ss << "Score: " << score << " Steps: " << numKeyPress;
     ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    mvprintw(1,2,ss.str().c_str());
+    mvprintw(0,0,ss.str().c_str());
     refresh();
   }
   endwin();

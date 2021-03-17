@@ -27,6 +27,13 @@ public:
 
   // non terminals
   std::unordered_set<char> V;
+  struct Start {
+    char ul; //vertical placement
+    char lr; //horizontal placement
+    char s; //symbol
+  };
+
+  std::vector<Start> S;
 
   // terminals
   // ... any ASCII char not in nonterminal
@@ -47,17 +54,15 @@ public:
     bool ctxnegation;
     char ctxrep;
     int weight;
-
+    char zord;
   };
-
-  char S;
 
   typedef std::vector<Rule> Rules;
 
   std::unordered_map<char, Rules> R;
   
-  ContextFreeGrammar2D(char s, const std::string& nt):
-  S(s) {
+  ContextFreeGrammar2D(char s, const std::string& nt)
+  {
   }
 
   bool _process(const std::vector<std::string>& lhs, const std::string& rule) {
@@ -83,6 +88,13 @@ public:
       
       if(line.size() > 0 && line.at(0) == '#') //comment
         continue;
+      if(line.size() > 0 && line.at(0) == '^') //starting symbol
+      {
+        char s = line.size() > 1 ? line.at(1) : 's';
+        char ul = line.size() > 2 ? line.at(2) : 'c';
+        char lr = line.size() > 3 ? line.at(3) : 'c';
+        S.push_back({ul, lr, s});
+      }
       if(line.size() > 0 && line.at(0) == '=') //new rule LHSs
       {
         if(!rule.str().empty() && _process(lhs, rule.str())) {
@@ -98,6 +110,9 @@ public:
     }
     if(!rule.str().empty())
       _process(lhs, rule.str());
+    if(S.empty()) {
+      S.push_back({'c', 'c', 's'});
+    } 
   }
 /*
   void addRuleFromFile(char lhs, const std::string& fname) {
@@ -158,8 +173,8 @@ public:
     int reward = -1; //default reward
     int weight = 1;
     rule.key = lhs.at(2);
-    if(lhs.size() > 9) {
-      std::istringstream iss(lhs.substr(9));
+    if(lhs.size() > 10) {
+      std::istringstream iss(lhs.substr(10));
       iss >> reward;
       iss >> weight;
       if(weight < 1) weight = 1;
@@ -167,16 +182,21 @@ public:
     rule.reward = reward;
     rule.weight = weight;
     if(lhs.size() > 6)
-     rule.ctx = lhs.at(6);
+      rule.ctx = lhs.at(6);
     else
-     rule.ctx = -1;
+      rule.ctx = -1;
     if(rule.ctx == '?')
-     rule.ctx = -1;
+      rule.ctx = -1;
       
     if(lhs.size() > 7)
-     rule.ctxrep = lhs.at(7);
+      rule.ctxrep = lhs.at(7);
     else
-     rule.ctxrep = ' ';
+      rule.ctxrep = ' ';
+
+    if(lhs.size() > 8)
+      rule.zord = lhs.at(8);
+    else
+      rule.zord = 'a';
 
     std::replace(rule.rhs.begin(), rule.rhs.end(), '&', rule.ctxrep);
     std::replace(rule.rhs.begin(), rule.rhs.end(), '~', rule.ctxrep);
@@ -207,6 +227,7 @@ public:
     int flag;
     char fore;
     char back;
+    char zord;
   };
 
   G * memory;
@@ -246,9 +267,24 @@ public:
   ~Derivation() {
     delete [] memory;
   }
-  void start(int r, int c) {
-    x.push_back({g.S, r, c});
-    mvaddch(r, c, g.S);
+  void start() {
+    std::for_each(g.S.begin(), g.S.end(), [this](auto s){
+      int c = col/2;
+      int r = row/2;
+      if(s.lr == 'l') {
+        c = 0;
+      } else if(s.lr == 'r') {
+        c = col - 1;
+      }
+      if(s.ul == 'u') {
+        r = 0;
+      } else if(s.ul == 'l') {
+        r = row - 1;
+      }
+
+      x.push_back({s.s, r, c});
+      mvaddch(r, c, s.s);
+    });
   }
 
   bool step(char key, int &score) {
@@ -312,7 +348,7 @@ public:
     clear();
     for(int r = 0; r < row; ++r) {
       for(int c = 0; c < col; ++c) {
-        memory[r*col + c] = {' ', 0, 7, 0};
+        memory[r*col + c] = {' ', 0, 7, 0, 'a'};
       }
     } 
   }
@@ -329,7 +365,7 @@ private:
         c = co - 1;
         continue;
       }
-      G saved = {' ', 0, 7, 0};
+      G saved = {' ', 0, 7, 0, 'a'};
       bool isNonTerminal = g.V.find(*p) != g.V.end();
       if(*p != ' ' && r >= 0 && r < row && c >= 0 && c < col) {
 
@@ -343,36 +379,36 @@ private:
         } 
         // to be saved in memory
 
-        G d = {*p, flag, rule.fore, back};
+        G d = {*p, flag, rule.fore, back, rule.zord};
 
         // special char: restore from memory
         if(*p == '$') d = memory[col * r + c];
 
         // memory empty
-        if(d.c == -1) d = {' ', flag, rule.fore, back};
+        if(d.c == -1) d = {' ', flag, rule.fore, back, 'a'};
 
         int cidx = getColor(d.fore, d.back);
 
-        if(cidx > 0) {
-          attron(COLOR_PAIR(cidx));
-        }
-
-        mvaddch(r, c, d.c | d.flag);
-        if(!isNonTerminal) {
-          //terminal symbol: save all
-          saved = d;
-        } else {
-          //nonterminal symbol: replace bg color if any 
-          saved = memory[col * r + c];
-          saved.back = d.back;
-        }
-        if(cidx > 0)
-          attroff(COLOR_PAIR(cidx));
-   
+        if(rule.zord >= memory[col*r + c].zord) {
+          if(cidx > 0) {
+            attron(COLOR_PAIR(cidx));
+          }
+        
+            mvaddch(r, c, d.c | d.flag);
+          if(!isNonTerminal) {
+            //terminal symbol: save all
+            saved = d;
+          } else {
+            //nonterminal symbol: replace bg color if any 
+            saved = memory[col * r + c];
+          }
+          if(cidx > 0)
+            attroff(COLOR_PAIR(cidx));
+          memory[col * r + c] = saved;
+        } 
         if (isNonTerminal) {
           x.push_back({*p, r, c});
         }
-        memory[col * r + c] = saved;
       }
     }
     return true;
