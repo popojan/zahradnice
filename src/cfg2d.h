@@ -41,6 +41,7 @@ public:
   // starting symbol
   struct Rule {
     char lhs;
+    std::string lhsa;
     std::string rhs;
     int ro;
     int co;
@@ -51,7 +52,7 @@ public:
     int reward;
     char key;
     char ctx;
-    bool ctxnegation;
+    char rep;
     char ctxrep;
     int weight;
     char zord;
@@ -146,19 +147,10 @@ public:
     }
     Rule rule;
     auto o = origin(s, rhs, '@');
-    auto q = origin(s, rhs, '&');
-    rule.ctxnegation = false;
-    if(q.first < 0 || q.second < 0) {
-      q = origin(s, rhs, '~');
-      if(q.first >= 0 && q.second >= 0) {
-        rule.ctxnegation = true;
-      }
-    }
+    rule.lhsa = lhs;
     rule.lhs = s;
     rule.ro = o.first;
     rule.co = o.second;
-    rule.rq = q.first;
-    rule.cq = q.second;
     rule.rhs = rhs;
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
@@ -198,9 +190,11 @@ public:
     else
       rule.zord = 'a';
 
-    std::replace(rule.rhs.begin(), rule.rhs.end(), '&', rule.ctxrep);
-    std::replace(rule.rhs.begin(), rule.rhs.end(), '~', rule.ctxrep);
-    std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(3));
+    if(rule.ctxrep == '*') {
+      rule.ctxrep = rule.lhs;
+    }
+    rule.rep = lhs.at(3);
+    //std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(3));
     std::replace(rule.rhs.begin(), rule.rhs.end(), '*', rule.lhs);
     R[s].push_back(rule);
   }
@@ -306,39 +300,34 @@ public:
 
     if(xx.size() <= 0)
       return 0;
-    int i = random() % xx.size();
-    auto& n = x[xx[i]];
-    auto res = g.R.find(n.s);
-    if(res != g.R.end()) {
-      //random rule
-      auto rs = res->second;
-      std::vector<ContextFreeGrammar2D::Rule> r;
-      for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
-        if(rit->key == key) {
-          char rx = n.r - rit->ro + rit->rq;
-          char cx = n.c - rit->co + rit->cq;
-          char ctx = '#';
-          if (rx >= 0 && rx < row && cx >= 0 && cx < col) {
-            ctx = mvinch(rx, cx);
-          }
-          if(rit->ctx == -1 
-             || (!rit->ctxnegation == (ctx == rit->ctx)))
-          {
-            for(int k = 0; k < rit->weight; ++k) {
-              r.push_back(*rit);
+    std::vector<std::pair<size_t, ContextFreeGrammar2D::Rule> > nr;
+    for(auto nit = xx.begin(); nit != xx.end(); ++nit) {
+      auto& n = x[*nit];
+      auto res = g.R.find(n.s);
+      if(res != g.R.end()) {
+        //random rule
+        auto rs = res->second;
+        for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
+          if(rit->key == key) {
+            if(dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit)) {
+              for(int k = 0; k < rit->weight; ++k) {
+                nr.push_back(std::pair<size_t, ContextFreeGrammar2D::Rule>(*nit, *rit));
+              }
             }
           }
         }
       }
-      if(r.size() > 0) {
-        int j = random() % r.size();
-        auto rule = r[j];
-        bool applied = apply(n.s, n.r - rule.ro, n.c - rule.co, rule);
-        if(applied) {
-          x.erase(x.begin() + xx[i]);
-          score += rule.reward;
-          return true;
-        }
+    }
+    if(nr.size() > 0) {
+      int j = random() % nr.size();
+      auto rule = nr[j].second;
+      auto n = x[nr[j].first];
+      bool applied = apply(n.s, n.r - rule.ro, n.c - rule.co, rule);
+      if(applied) {
+        mvprintw(0,0,rule.lhsa.c_str());
+        x.erase(x.begin() + nr[j].first);
+        score += rule.reward;
+        return true;
       }
     }
     return false;
@@ -354,6 +343,29 @@ public:
   }
 
 private:
+  bool dryapply(char lhs, int ro, int co, const ContextFreeGrammar2D::Rule& rule) {
+    int r = ro;
+    int c = co;
+
+    for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
+      if(*p == '\n') {
+        ++r;
+        c = co - 1;
+        continue;
+      }
+      if(*p == '&' || *p == '~' ) {
+        char ctx = '#';
+        if(r >= 0 && r < row && c >= 0 && c < col) {
+          ctx = mvinch(r, c);
+        }
+        if(*p == '&' && rule.ctx  != ctx)
+          return false;
+        if(*p == '~' && rule.ctx  == ctx)
+          return false;
+      }
+    }
+    return true;
+  }
 
   bool apply(char lhs, int ro, int co, const ContextFreeGrammar2D::Rule& rule) {
     int r = ro;
@@ -365,10 +377,15 @@ private:
         c = co - 1;
         continue;
       }
-      G saved = {' ', 0, 7, 0, 'a'};
-      bool isNonTerminal = g.V.find(*p) != g.V.end();
-      if(*p != ' ' && r >= 0 && r < row && c >= 0 && c < col) {
-
+      G saved = {' ', 0, 7, 8, 'a'};
+      char rep = *p;
+      if(rep == '&' || rep == '~')
+        rep = rule.ctxrep;
+      if(rep == '@')
+        rep = rule.rep;
+      bool isNonTerminal = g.V.find(rep) != g.V.end();
+      if((rep != ' '||*p=='@') && r >= 0 && r < row && c >= 0 && c < col) {
+  
         int flag = 0;
  
         char back = rule.back;
@@ -379,10 +396,10 @@ private:
         } 
         // to be saved in memory
 
-        G d = {*p, flag, rule.fore, back, rule.zord};
+        G d = {rep, flag, rule.fore, back, rule.zord};
 
         // special char: restore from memory
-        if(*p == '$') d = memory[col * r + c];
+        if(rep == '$') d = memory[col * r + c];
 
         // memory empty
         if(d.c == -1) d = {' ', flag, rule.fore, back, 'a'};
@@ -404,10 +421,10 @@ private:
           }
           if(cidx > 0)
             attroff(COLOR_PAIR(cidx));
-          memory[col * r + c] = saved;
+            memory[col * r + c] = saved;
         } 
         if (isNonTerminal) {
-          x.push_back({*p, r, c});
+          x.push_back({rep, r, c});
         }
       }
     }
