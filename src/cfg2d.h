@@ -45,6 +45,8 @@ public:
     std::string rhs;
     int ro;
     int co;
+    int rm;
+    int cm;
     int rq;
     int cq;
     char fore;
@@ -123,7 +125,7 @@ public:
     addRule(lhs, rhs);
   }
 */
-  std::pair<int, int> origin(char s, const std::string& rhs, char spec) {
+  std::pair<int, int> origin(char s, const std::string& rhs, char spec, int ord = 0) {
     int r = 0;
     int c = 0;
 
@@ -133,7 +135,10 @@ public:
         c = -1;
       }
       else if(*p == spec) {
-        return std::pair<int, int>(r, c);
+        if(ord == 0) {
+          return std::pair<int, int>(r, c);
+        }
+        --ord;
       }
     }
     return std::pair<int, int>(-1,-1);
@@ -146,11 +151,17 @@ public:
       V.insert(s);
     }
     Rule rule;
-    auto o = origin(s, rhs, '@');
+    auto o = origin(s, rhs, '@', 0);
+    auto m = origin(s, rhs, '@', 1);
+    auto q = origin(s, rhs, '@', 2);
     rule.lhsa = lhs;
     rule.lhs = s;
     rule.ro = o.first;
     rule.co = o.second;
+    rule.rm = m.first;
+    rule.cm = m.second;
+    rule.rq = q.first;
+    rule.cq = q.second;
     rule.rhs = rhs;
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
@@ -288,7 +299,7 @@ public:
     std::unordered_set<char> a;
     std::for_each(g.R.begin(), g.R.end(), [key,&a](auto rr){
       std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto rrr){
-         if(rrr.key == key) a.insert(rrr.lhs);
+         if(rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
       });
     });
 
@@ -308,7 +319,7 @@ public:
         //random rule
         auto rs = res->second;
         for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
-          if(rit->key == key) {
+          if(rit->key == key || rit->key == '?') {
             if(dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit)) {
               for(int k = 0; k < rit->weight; ++k) {
                 nr.push_back(std::pair<size_t, ContextFreeGrammar2D::Rule>(*nit, *rit));
@@ -322,7 +333,7 @@ public:
       int j = random() % nr.size();
       auto rule = nr[j].second;
       auto n = x[nr[j].first];
-      bool applied = apply(n.s, n.r - rule.ro, n.c - rule.co, rule);
+      bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
         mvprintw(0,0,rule.lhsa.c_str());
         x.erase(x.begin() + nr[j].first);
@@ -353,15 +364,25 @@ private:
         c = co - 1;
         continue;
       }
-      if(*p == '&' || *p == '~' ) {
-        char ctx = '#';
-        if(r >= 0 && r < row && c >= 0 && c < col) {
-          ctx = mvinch(r, c);
-        }
-        if(*p == '&' && rule.ctx  != ctx)
-          return false;
-        if(*p == '~' && rule.ctx  == ctx)
-          return false;
+      if(rule.cq > rule.co && c - co >= rule.cm) // @ LHS @ >>RHS<<
+        continue;
+
+      if(rule.cq <= rule.co && r - ro >= rule.rm)
+        break;
+
+      char ctx = '#';
+      if(r >= 0 && r < row && c >= 0 && c < col) {
+        ctx = mvinch(r, c);
+        if(ctx == ' ') ctx = '~';
+      }
+      if(*p != ' ') {
+        char req = *p;
+        if(req == '@')
+          req = rule.lhs;
+        if(req == ' ')
+          req = '~';
+        if(req != ctx)
+            return false;
       }
     }
     return true;
@@ -377,14 +398,18 @@ private:
         c = co - 1;
         continue;
       }
+      if(rule.cq > rule.co && c - co <= rule.cm ) // @ LHS @ >>RHS<<
+        continue;
+      if(rule.cq <= rule.co && r - ro <= rule.rm)
+        continue;
       G saved = {' ', 0, 7, 8, 'a'};
       char rep = *p;
-      if(rep == '&' || rep == '~')
-        rep = rule.ctxrep;
       if(rep == '@')
         rep = rule.rep;
       bool isNonTerminal = g.V.find(rep) != g.V.end();
-      if((rep != ' '||*p=='@') && r >= 0 && r < row && c >= 0 && c < col) {
+      if(rep != ' ' && r >= 0 && r < row && c >= 0 && c < col) {
+        if(rep == '~')
+          rep = ' ';
   
         int flag = 0;
  
