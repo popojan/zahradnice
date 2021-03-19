@@ -281,12 +281,17 @@ public:
       } else if(s.lr == 'r') {
         c = col - 1;
       }
+      else {
+        c = rand() % col;
+      }
       if(s.ul == 'u') {
         r = 0;
       } else if(s.ul == 'l') {
         r = row - 1;
       }
-
+      else  {
+        r = rand() % row;
+      }
       x.push_back({s.s, r, c});
       mvaddch(r, c, s.s);
     });
@@ -381,7 +386,7 @@ private:
           req = rule.lhs;
         if(req == ' ')
           req = '~';
-        if(req != ctx)
+        if((req != '!' && req != ctx) || (req == '!' && ctx == rule.ctx))
             return false;
       }
     }

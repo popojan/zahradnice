@@ -4,6 +4,8 @@
 #include "kvetina.h"
 #include <iostream>
 #include "cfg2d.h"
+#include <thread>
+#include <chrono>
 
 int main(int argc, char* argv[])
 {
@@ -13,15 +15,17 @@ int main(int argc, char* argv[])
   srand(time(NULL));
   int row, col;
   initscr();
+  start_color();
   raw();
   noecho();
+  //nodelay(stdscr, true);
+  timeout(10);
   curs_set(0);
   getmaxyx(stdscr, row, col);
 
   int x = row - 1;
   int y = col/2;
 
-  start_color();
   
   ContextFreeGrammar2D cfg('s', "xmlr");
   
@@ -39,6 +43,12 @@ int main(int argc, char* argv[])
   while(ch != 'q') {
     ch = getch();
 
+    if(ch == ERR) {
+      ch = 'T';
+      //using namespace std::chrono_literals;
+      //std::this_thread::sleep_for(200ms);
+    }
+
     if (ch == 'x') {
       //numKeyPress = 0;
       //score = 0;
@@ -53,13 +63,15 @@ int main(int argc, char* argv[])
     } else {
       if(w.step(ch, score))
         ++numKeyPress;
+      //else if (ch != 'T') //to dangerous
+      //  ungetch(ch);
       last = ch;
     }
-    std::ostringstream ss;
-    ss << "Score: " << score << " Steps: " << numKeyPress;
-    ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
+    //std::ostringstream ss;
+    //ss << "Score: " << score << " Steps: " << numKeyPress;
+    //ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
     //mvprintw(0,0,ss.str().c_str());
-    refresh();
+    //refresh();
   }
   endwin();
   return 0;
