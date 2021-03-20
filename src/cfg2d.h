@@ -281,6 +281,9 @@ public:
       } else if(s.lr == 'r') {
         c = col - 1;
       }
+      else if(s.lr == 'c') {
+        c = col/2;
+      }
       else {
         c = rand() % col;
       }
@@ -288,6 +291,9 @@ public:
         r = 0;
       } else if(s.ul == 'l') {
         r = row - 1;
+      }
+      else if(s.ul == 'c') {
+        r = row/2;
       }
       else  {
         r = rand() % row;
@@ -386,6 +392,8 @@ private:
           req = rule.lhs;
         if(req == ' ')
           req = '~';
+        if(*p == '&')
+          req = rule.ctx;
         if((req != '!' && req != ctx) || (req == '!' && ctx == rule.ctx))
             return false;
       }
@@ -411,6 +419,8 @@ private:
       char rep = *p;
       if(rep == '@')
         rep = rule.rep;
+      if(rep == '!' || rep == '&') 
+        rep = rule.ctxrep; 
       bool isNonTerminal = g.V.find(rep) != g.V.end();
       if(rep != ' ' && r >= 0 && r < row && c >= 0 && c < col) {
         if(rep == '~')
@@ -430,7 +440,6 @@ private:
 
         // special char: restore from memory
         if(rep == '$') d = memory[col * r + c];
-
         // memory empty
         if(d.c == -1) d = {' ', flag, rule.fore, back, 'a'};
 

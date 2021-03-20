@@ -18,8 +18,8 @@ int main(int argc, char* argv[])
   start_color();
   raw();
   noecho();
-  nodelay(stdscr, true);
-  timeout(40);
+  //nodelay(stdscr, true);
+  timeout(10);
   curs_set(0);
   getmaxyx(stdscr, row, col);
 
