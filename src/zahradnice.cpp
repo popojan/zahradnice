@@ -1,9 +1,7 @@
 #include <ncurses.h>
 #include <string.h>
-#include "hexgrid.h"
-#include "kvetina.h"
 #include <iostream>
-#include "cfg2d.h"
+#include "grammar.h"
 #include <thread>
 #include <chrono>
 
@@ -27,7 +25,7 @@ int main(int argc, char* argv[])
   int y = col/2;
 
   
-  ContextFreeGrammar2D cfg('s', "xmlr");
+  Grammar2D cfg('s', "xmlr");
   
   std::string config("basic.cfg");
   if(argc > 1) {
@@ -67,11 +65,11 @@ int main(int argc, char* argv[])
       //  ungetch(ch);
       last = ch;
     }
-    //std::ostringstream ss;
-    //ss << "Score: " << score << " Steps: " << numKeyPress;
-    //ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    //mvprintw(0,0,ss.str().c_str());
-    //refresh();
+    std::ostringstream ss;
+    ss << "Score: " << score << " Steps: " << numKeyPress;
+    ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
+    mvprintw(0,0,ss.str().c_str());
+    refresh();
   }
   endwin();
   return 0;

@@ -9,7 +9,9 @@
 #include <sstream>
 
 #include <functional>
+#include <vector>
 #include <utility>
+#include <algorithm>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -21,7 +23,7 @@ struct hash_pair final {
     }
 };
 
-class ContextFreeGrammar2D {
+class Grammar2D {
 
 public:  
 
@@ -64,7 +66,7 @@ public:
 
   std::unordered_map<char, Rules> R;
   
-  ContextFreeGrammar2D(char s, const std::string& nt)
+  Grammar2D(char s, const std::string& nt)
   {
   }
 
@@ -173,7 +175,7 @@ public:
     }
     rule.fore = fore;
     rule.back = back;
-    int reward = -1; //default reward
+    int reward = 0; //default reward
     int weight = 1;
     rule.key = lhs.at(2);
     if(lhs.size() > 10) {
@@ -237,7 +239,7 @@ public:
 
   G * memory;
 
-  Derivation(const ContextFreeGrammar2D& g, int row, int col)
+  Derivation(const Grammar2D& g, int row, int col)
    : g(g), col(col), row(row) {
     memory = new G[row*col];
     initColors();
@@ -288,7 +290,7 @@ public:
         c = rand() % col;
       }
       if(s.ul == 'u') {
-        r = 0;
+        r = 1;
       } else if(s.ul == 'l') {
         r = row - 1;
       }
@@ -296,7 +298,7 @@ public:
         r = row/2;
       }
       else  {
-        r = rand() % row;
+        r = rand() % (row - 1) + 1;
       }
       x.push_back({s.s, r, c});
       mvaddch(r, c, s.s);
@@ -322,7 +324,7 @@ public:
 
     if(xx.size() <= 0)
       return 0;
-    std::vector<std::pair<size_t, ContextFreeGrammar2D::Rule> > nr;
+    std::vector<std::pair<size_t, Grammar2D::Rule> > nr;
     for(auto nit = xx.begin(); nit != xx.end(); ++nit) {
       auto& n = x[*nit];
       auto res = g.R.find(n.s);
@@ -333,7 +335,7 @@ public:
           if(rit->key == key || rit->key == '?') {
             if(dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit)) {
               for(int k = 0; k < rit->weight; ++k) {
-                nr.push_back(std::pair<size_t, ContextFreeGrammar2D::Rule>(*nit, *rit));
+                nr.push_back(std::pair<size_t, Grammar2D::Rule>(*nit, *rit));
               }
             }
           }
@@ -365,7 +367,7 @@ public:
   }
 
 private:
-  bool dryapply(char lhs, int ro, int co, const ContextFreeGrammar2D::Rule& rule) {
+  bool dryapply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
     int r = ro;
     int c = co;
 
@@ -382,7 +384,7 @@ private:
         break;
 
       char ctx = '#';
-      if(r >= 0 && r < row && c >= 0 && c < col) {
+      if(r > 0 && r < row && c >= 0 && c < col) {
         ctx = mvinch(r, c);
         if(ctx == ' ') ctx = '~';
       }
@@ -401,7 +403,7 @@ private:
     return true;
   }
 
-  bool apply(char lhs, int ro, int co, const ContextFreeGrammar2D::Rule& rule) {
+  bool apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
     int r = ro;
     int c = co;
 
@@ -422,7 +424,7 @@ private:
       if(rep == '!' || rep == '&') 
         rep = rule.ctxrep; 
       bool isNonTerminal = g.V.find(rep) != g.V.end();
-      if(rep != ' ' && r >= 0 && r < row && c >= 0 && c < col) {
+      if(rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {
         if(rep == '~')
           rep = ' ';
   
@@ -476,7 +478,7 @@ private:
       return cit->second;
     return -1;
   }
-  const ContextFreeGrammar2D& g;
+  const Grammar2D& g;
   int col, row;
   std::unordered_map< std::pair<char, char>, int, hash_pair> colors;
 };
