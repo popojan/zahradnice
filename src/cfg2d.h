@@ -340,7 +340,7 @@ public:
       auto n = x[nr[j].first];
       bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
-        mvprintw(0,0,rule.lhsa.c_str());
+        //mvprintw(0,0,rule.lhsa.c_str());
         x.erase(x.begin() + nr[j].first);
         score += rule.reward;
         return true;
