@@ -10,23 +10,29 @@ int main(int argc, char* argv[])
   int numKeyPress = 0;
   int score = 0;
 
-  srand(time(NULL));
+  std::istringstream iss(argv[2]);
+  int seed = 131;
+  iss >> seed;
+  iss.clear();
+  iss.str(argv[3]);
+  int tout = -1;
+  iss >> tout;
+  srand(seed);//time(NULL));
   int row, col;
   initscr();
   start_color();
   raw();
   noecho();
   //nodelay(stdscr, true);
-  timeout(10);
+  timeout(tout);
   curs_set(0);
   getmaxyx(stdscr, row, col);
-
+  typeahead(-1);
   int x = row - 1;
   int y = col/2;
 
-  
   Grammar2D cfg('s', "xmlr");
-  
+
   std::string config("basic.cfg");
   if(argc > 1) {
     config  = std::string(argv[1]);
@@ -68,7 +74,7 @@ int main(int argc, char* argv[])
     std::ostringstream ss;
     ss << "Score: " << score << " Steps: " << numKeyPress;
     ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    mvprintw(0,0,ss.str().c_str());
+    //mvprintw(0,0,ss.str().c_str());
     refresh();
   }
   endwin();
