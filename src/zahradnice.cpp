@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
   int numKeyPress = 0;
   int score = 0;
   bool success = true;
+  bool paused = false;
   std::istringstream iss(argv[2]);
   int seed = 131;
   iss >> seed;
@@ -63,7 +64,16 @@ int main(int argc, char* argv[])
         if(w.step(last, score))
           ++numKeyPress;
       }
-    } else {
+    }
+    else if (ch == ' ') {
+      paused = !paused;
+      if(!paused) {
+        timeout(tout);
+      } else {
+        timeout(-1);
+      }
+    }
+    else {
       success = w.step(ch, score);
       if(success)
         ++numKeyPress;

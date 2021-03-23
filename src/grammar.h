@@ -227,7 +227,7 @@ public:
     int c;
   };
 
-  std::vector<X> x;
+  std::unordered_map< std::pair<int, int>, X, hash_pair> x;
 
   struct G {
     char c;
@@ -300,7 +300,7 @@ public:
       else  {
         r = rand() % (row - 1) + 1;
       }
-      x.push_back({s.s, r, c});
+      x[std::pair<int, int>(r, c)] = {s.s, r, c};
       mvaddch(r, c, s.s);
     });
   }
@@ -316,15 +316,15 @@ public:
       });
     });
 
-    std::vector<size_t> xx;
+    std::vector<std::pair<int, int> > xx;
     for(auto nit = x.begin(); nit != x.end(); ++nit) {
-      if(a.find(nit->s) != a.end())
-          xx.push_back(nit - x.begin());
+      if(a.find(nit->second.s) != a.end())
+          xx.push_back(nit->first);
     }
 
     if(xx.size() <= 0)
       return 0;
-    std::vector<std::pair<size_t, Grammar2D::Rule> > nr;
+    std::vector<std::pair<std::pair<int, int>, Grammar2D::Rule> > nr;
     for(auto nit = xx.begin(); nit != xx.end(); ++nit) {
       auto& n = x[*nit];
       auto res = g.R.find(n.s);
@@ -335,7 +335,7 @@ public:
           if(rit->key == key || rit->key == '?') {
             if(dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit)) {
               for(int k = 0; k < rit->weight; ++k) {
-                nr.push_back(std::pair<size_t, Grammar2D::Rule>(*nit, *rit));
+                nr.push_back(std::pair<std::pair<int, int>, Grammar2D::Rule>(*nit, *rit));
               }
             }
           }
@@ -349,7 +349,7 @@ public:
       bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
         mvprintw(0,0,rule.lhsa.c_str());
-        x.erase(x.begin() + nr[j].first);
+        //x.erase(nr[j].first);
         score += rule.reward;
         return true;
       }
@@ -452,8 +452,7 @@ private:
           if(cidx > 0) {
             attron(COLOR_PAIR(cidx));
           }
-        
-            mvaddch(r, c, d.c | d.flag);
+          mvaddch(r, c, d.c | d.flag);
           if(!isNonTerminal) {
             //terminal symbol: save all
             saved = d;
@@ -464,9 +463,9 @@ private:
           if(cidx > 0)
             attroff(COLOR_PAIR(cidx));
             memory[col * r + c] = saved;
-        } 
+        }
         if (isNonTerminal) {
-          x.push_back({rep, r, c});
+          x[std::pair<int, int>(r, c)] = {rep, r, c};
         }
       }
     }
