@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
 {
   int numKeyPress = 0;
   int score = 0;
-
+  bool success = true;
   std::istringstream iss(argv[2]);
   int seed = 131;
   iss >> seed;
@@ -49,13 +49,12 @@ int main(int argc, char* argv[])
 
     if(ch == ERR) {
       ch = 'T';
-      //using namespace std::chrono_literals;
-      //std::this_thread::sleep_for(200ms);
     }
-
+    if(!success && last == ch) {
+      using namespace std::chrono_literals;
+      std::this_thread::sleep_for(200ms);
+    }
     if (ch == 'x') {
-      //numKeyPress = 0;
-      //score = 0;
       w.restart();
       w.start();
     }
@@ -65,16 +64,15 @@ int main(int argc, char* argv[])
           ++numKeyPress;
       }
     } else {
-      if(w.step(ch, score))
+      success = w.step(ch, score);
+      if(success)
         ++numKeyPress;
-      //else if (ch != 'T') //to dangerous
-      //  ungetch(ch);
       last = ch;
     }
     std::ostringstream ss;
     ss << "Score: " << score << " Steps: " << numKeyPress;
     ss << " Skill: " << (static_cast<float>(score)/(numKeyPress > 0 ? numKeyPress : 1)) << std::endl;
-    //mvprintw(0,0,ss.str().c_str());
+    mvprintw(0,0,ss.str().c_str());
     refresh();
   }
   endwin();

@@ -348,7 +348,7 @@ public:
       auto n = x[nr[j].first];
       bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
-        //mvprintw(0,0,rule.lhsa.c_str());
+        mvprintw(0,0,rule.lhsa.c_str());
         x.erase(x.begin() + nr[j].first);
         score += rule.reward;
         return true;
@@ -396,7 +396,8 @@ private:
           req = '~';
         if(*p == '&')
           req = rule.ctx;
-        if((req != '!' && req != ctx) || (req == '!' && ctx == rule.ctx))
+        if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
+            || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
             return false;
       }
     }
@@ -421,7 +422,7 @@ private:
       char rep = *p;
       if(rep == '@')
         rep = rule.rep;
-      if(rep == '!' || rep == '&') 
+      if(rep == '!' || rep == '&' || rep == '%') 
         rep = rule.ctxrep; 
       bool isNonTerminal = g.V.find(rep) != g.V.end();
       if(rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {
