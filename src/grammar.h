@@ -66,7 +66,7 @@ public:
 
   std::unordered_map<char, Rules> R;
   
-  Grammar2D(char s, const std::string& nt)
+  Grammar2D()
   {
   }
 
@@ -305,7 +305,7 @@ public:
     });
   }
 
-  bool step(char key, int &score) {
+  bool step(char key, int &score, std::string& dbgrule) {
     //random nonterminal instance
 
     //nonterminal alterable by rules from group key
@@ -348,8 +348,7 @@ public:
       auto n = x[nr[j].first];
       bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
-        mvprintw(0,0,rule.lhsa.c_str());
-        //x.erase(nr[j].first);
+        dbgrule = rule.lhsa;
         score += rule.reward;
         return true;
       }
@@ -459,6 +458,7 @@ private:
           } else {
             //nonterminal symbol: replace bg color if any 
             saved = memory[col * r + c];
+            saved.back = d.back; //TODO reconsider
           }
           if(cidx > 0)
             attroff(COLOR_PAIR(cidx));
