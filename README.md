@@ -2,6 +2,8 @@
 
 fun with type-0 grammars (or something like that)
 
+![life](res/life.png)
+
 ## Requirements
 
 * ascii
