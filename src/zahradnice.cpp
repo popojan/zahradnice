@@ -60,12 +60,12 @@ int main(int argc, char* argv[])
   char ch = ' ';
   char last = ' ';
 
+  std::string rule;
+
   while(ch != 'q') {
     ch = getch();
 
     //time lapse
-
-    std::string rule;
 
     if(ch == ERR) {
       ch = 'T';
