@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
   int steps = 0;
   bool success = true;
   bool paused = true;
+  int elapsed = 0;
 
   srand(seed);
   int row, col;
@@ -44,7 +45,7 @@ int main(int argc, char* argv[])
   timeout(-1);
   curs_set(0);
   getmaxyx(stdscr, row, col);
-  typeahead(-1);
+  //typeahead(-1);
 
   //top row reserved as status line 
 
@@ -69,6 +70,10 @@ int main(int argc, char* argv[])
 
     if(ch == ERR) {
       ch = 'T';
+      elapsed += 1;
+      if(elapsed % 100 == 0) {
+        ch = 'B';
+      }
     }
 
     //save CPU if no rule applicable
