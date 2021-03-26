@@ -12,14 +12,24 @@ soko:
 	for sokofile in ${SOKOFILES}; do \
     wget -N "${SOKOWEB}/$$sokofile"; \
 	  grep "^Level\|#" "$$sokofile" > sokoban.txt; \
-    cat sokoban.txt \
-      | sed 's/^/   /'\
+	  cat sokoban.txt \
+      | sed 's/Level \([0-9]\+\)/\1/g' \
+      | sed 's/^[^0-9].*//g' \
+      | awk '{if($$1 != "") { a=$$1}; print a; }' > numbers.txt; \
+	  paste numbers.txt sokoban.txt \
+      | sed 's/^\([0-9]*\)\t\([^+@]*\)$$/~\1 \2/'\
+      | sed 's/~[0-9] /~~~~/'\
+      | sed 's/~[0-9][0-9] /~~~~~/'\
       | tr '#' 'X'  | sed 's/X/##/g' \
       | tr ' ' 'S'  | sed 's/S/  /g' \
       | tr '$$' 'b' | sed 's/b/st/g' \
       | tr '*' 'B'  | sed 's/B/ST/g' \
       | tr '.' 'C'  | sed 's/C/../g' \
-      | sed 's/^   \([^@]*\)@/@@ \1@P/' \
-      | sed 's/^   \([^+]*\)+/@@ \1@:/' \
-      | sed 's/^\s*\(Level.*\)$$/=2TP/g' >> programs/soko.cfg; \
-  done;
+      | tr '~' ' ' \
+      | sed 's/^\([0-9]\+\)\t\([^@]*\)@/~\1@@\2@P/' \
+      | sed 's/^\([0-9]\+\)\t\([^+]*\)+/~\1@@\2@:/' \
+      | sed 's/  @P/~~@P/g' | sed 's/ @P/~@P/g' \
+      | sed 's/^\s*\(Level.*\)$$/=\/TP/g' >> programs/soko.cfg; \
+  done;\
+  rm -f numbers.txt sokoban.txt 
+  
