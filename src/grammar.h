@@ -35,6 +35,8 @@ public:
     char s; //symbol
   };
 
+  std::string help;
+
   std::vector<Start> S;
 
   // terminals
@@ -92,7 +94,12 @@ public:
     {
       
       if(line.size() > 0 && line.at(0) == '#') //comment
+      {
+        if(line.size() > 1 && line.at(1) == '!') {
+          help = line.substr(2);
+        }
         continue;
+      }
       if(line.size() > 0 && line.at(0) == '^') //starting symbol
       {
         char s = line.size() > 1 ? line.at(1) : 's';

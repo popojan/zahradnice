@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
   bool success = true;
   bool paused = true;
   int elapsed = 0;
+  bool started = false;
 
   srand(seed);
   int row, col;
@@ -64,6 +65,22 @@ int main(int argc, char* argv[])
   std::string rule;
 
   while(ch != 'q') {
+
+    // print status
+
+    std::ostringstream ss;
+    ss << "Score: " << score << " Steps: " << steps;
+
+    // average reward per step
+    double reward = static_cast<float>(score)/(steps > 0 ? steps : 1);
+    ss << " Skill: " << reward << std::endl;
+
+    if(paused)
+      mvprintw(0, 0, cfg.help.c_str());
+    else
+      mvprintw(0, 0, ss.str().c_str());
+    mvprintw(0, col - rule.length() - 1, rule.c_str());
+
     ch = getch();
 
     //time lapse
@@ -123,17 +140,6 @@ int main(int argc, char* argv[])
       last = ch;
     }
 
-    // print status
-
-    std::ostringstream ss;
-    ss << "Score: " << score << " Steps: " << steps;
-
-    // average reward per step
-    double reward = static_cast<float>(score)/(steps > 0 ? steps : 1);
-    ss << " Skill: " << reward << std::endl;
-
-    mvprintw(0, 0, ss.str().c_str());
-    mvprintw(0, col - rule.length() - 1, rule.c_str());
     refresh();
   }
 
