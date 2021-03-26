@@ -1,6 +1,7 @@
 #include "grammar.h"
 #include <ncurses.h>
 #include <utility>
+#include "zstr.hpp"
 
 bool Grammar2D::_process(const std::vector<std::string>& lhs, const std::string& rule) {
     std::for_each
@@ -16,7 +17,7 @@ bool Grammar2D::_process(const std::vector<std::string>& lhs, const std::string&
 
 void Grammar2D::loadFromFile(const std::string& fname)
 {
-  std::ifstream t(fname);
+  zstr::ifstream t(fname);
   std::string line;
   std::vector<std::string> lhs;
   std::ostringstream rule;
@@ -206,7 +207,7 @@ void Derivation::start() {
     else  {
       r = rand() % (row - 1) + 1;
     }
-    x[std::pair<int, int>(r, c)] = {s.s, r, c};
+    x[std::pair<int, int>(r, c)] = s.s;
     mvaddch(r, c, s.s);
   });
 }
@@ -224,7 +225,7 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
 
   std::vector<std::pair<int, int> > xx;
   for(auto nit = x.begin(); nit != x.end(); ++nit) {
-    if(a.find(nit->second.s) != a.end())
+    if(a.find(nit->second) != a.end())
         xx.push_back(nit->first);
   }
 
@@ -241,16 +242,16 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
   auto prob = -1.0;
   for(auto nit = xx.begin(); nit != xx.end(); ++nit) {
     auto& n = x[*nit];
-    auto res = g.R.find(n.s);
+    auto res = g.R.find(n);
     if(res != g.R.end()) {
       //random rule
       auto& rs = res->second;
       for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
         if(rit->key == key || rit->key == '?') {
-          bool app = dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit);
+          bool app = dryapply(n, nit->first - rit->ro, nit->second - rit->co, *rit);
           if(app) {
             sumw += rit->weight;
-            nr.push_back({n.s, nit - xx.begin(), rit - rs.begin()});
+            nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
           }
         }
       }
@@ -262,8 +263,9 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
     auto& rule = g.R.find(nit->a)->second[nit->c];
     sumw += rule.weight;
     if(sumw >= prob) {
-      auto& n = x.find(xx[nit->b])->second;
-      bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
+      auto& rc = xx[nit->b];
+      auto& n = x.find(rc)->second;
+      bool applied = apply(n, rc.first - rule.rq, rc.second - rule.cq, rule);
       if(applied) {
         dbgrule = rule.lhsa;
         score += rule.reward;
@@ -280,7 +282,7 @@ void Derivation::restart() {
   clear();
   for(int r = 0; r < row; ++r) {
     for(int c = 0; c < col; ++c) {
-      memory[r*col + c] = {' ', 0, 7, 0, 'a'};
+      memory[r*col + c] = {' ', 7, 0, 'a'};
     }
   } 
 }
@@ -301,17 +303,15 @@ bool Derivation::dryapply(char lhs, int ro, int co, const Grammar2D::Rule& rule)
     if(rule.cq <= rule.co && r - ro >= rule.rm)
       break;
 
-    char ctx = '#';
-    if(r > 0 && r < row && c >= 0 && c < col) {
-      ctx = mvinch(r, c);
-      if(ctx == ' ') ctx = '~';
-    }
-    if(*p != ' ') {
-      char req = *p;
+    char req = *p;
+    if(req != ' ') {
+      char ctx = '#';
+      if(r > 0 && r < row && c >= 0 && c < col) {
+        ctx = mvinch(r, c);
+        if(ctx == ' ') ctx = '~';
+      }
       if(req == '@')
         req = rule.lhs;
-      if(req == ' ')
-        req = '~';
       if(*p == '&')
         req = rule.ctx;
       if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
@@ -336,7 +336,7 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
       continue;
     if(rule.cq <= rule.co && r - ro <= rule.rm)
       continue;
-    G saved = {' ', 0, 7, 8, 'a'};
+    G saved = {' ', 7, 8, 'a'};
     char rep = *p;
     if(rep == '@')
       rep = rule.rep;
@@ -347,8 +347,6 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
       if(rep == '~')
         rep = ' ';
 
-      int flag = 0;
-
       char back = rule.back;
 
       // transparent background; take background from memory
@@ -357,12 +355,12 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
       } 
       // to be saved in memory
 
-      G d = {rep, flag, rule.fore, back, rule.zord};
+      G d = {rep, rule.fore, back, rule.zord};
 
       // special char: restore from memory
       if(rep == '$') d = memory[col * r + c];
       // memory empty
-      if(d.c == -1) d = {' ', flag, rule.fore, back, 'a'};
+      if(d.c == -1) d = {' ', rule.fore, back, 'a'};
 
       int cidx = getColor(d.fore, d.back);
 
@@ -370,7 +368,7 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
         if(cidx > 0) {
           attron(COLOR_PAIR(cidx));
         }
-        mvaddch(r, c, d.c | d.flag);
+        mvaddch(r, c, d.c);
         if(!isNonTerminal) {
           //terminal symbol: save all
           saved = d;
@@ -384,7 +382,7 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
           memory[col * r + c] = saved;
       }
       if (isNonTerminal) {
-        x[std::pair<int, int>(r, c)] = {rep, r, c};
+        x[std::pair<int, int>(r, c)] = rep;
       }
     }
   }

@@ -4,7 +4,6 @@
 #include <unordered_set>
 #include <string>
 #include <fstream>
-#include <streambuf>
 #include <sstream>
 
 #include <functional>
@@ -85,18 +84,10 @@ public:
 class Derivation {
 public:
 
-  // active non terminal instance
-  struct X {
-    char s;
-    int r;
-    int c;
-  };
-
-  std::unordered_map< std::pair<int, int>, X, hash_pair> x;
+  std::unordered_map< std::pair<int, int>, char, hash_pair> x;
 
   struct G {
     char c;
-    int flag;
     char fore;
     char back;
     char zord;
