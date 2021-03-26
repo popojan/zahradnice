@@ -14,7 +14,7 @@ install: soko
 	tar -czf zahradnice.tar zahradnice/
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
-SOKOFILES=picokosmosText.htm sasquatch5Text.htm
+SOKOFILES=picokosmosText.htm #sasquatch5Text.htm
 
 soko:
 	cp programs/partial/sokoban.cfg programs/sokoban.cfg
