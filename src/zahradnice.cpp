@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 
   std::string config;
   int seed = 123;
-  int T = 0;
+  int T = 50;
 
   {
     std::stringstream ss;

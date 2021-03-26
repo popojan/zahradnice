@@ -22,7 +22,7 @@ struct hash_pair final {
 
 class Grammar2D {
 
-public:  
+public:
 
   // non terminals
   std::unordered_set<char> V;
