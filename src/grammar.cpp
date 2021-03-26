@@ -24,7 +24,7 @@ void Grammar2D::loadFromFile(const std::string& fname)
 
   while(std::getline(t, line))
   {
-    
+
     if(line.size() > 0 && line.at(0) == '#') //comment
     {
       if(line.size() > 1 && line.at(1) == '!') {
@@ -150,7 +150,7 @@ Derivation::Derivation(const Grammar2D& g, int row, int col)
   memory = new G[row*col];
   initColors();
   restart();
-} 
+}
 
 void Derivation::initColors() {
   char cols[8] = {
@@ -233,8 +233,8 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
     return 0;
   struct abc {
     char a;
-    int b; 
-    int c;
+    std::vector<std::pair<int, int> >::difference_type b;
+    std::vector<Grammar2D::Rule>::difference_type c;
   };  
   std::vector<abc> nr;
   double sumw = 0.0;
