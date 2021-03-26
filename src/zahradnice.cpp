@@ -77,9 +77,10 @@ int main(int argc, char* argv[])
 
     if(paused)
       mvprintw(0, 0, cfg.help.c_str());
-    else
+    else {
       mvprintw(0, 0, ss.str().c_str());
-    mvprintw(0, col - rule.length() - 1, rule.c_str());
+      mvprintw(0, col - rule.length() - 1, rule.c_str());
+    }
 
     ch = getch();
 
@@ -96,8 +97,10 @@ int main(int argc, char* argv[])
     //save CPU if no rule applicable
 
     if(!success && last == ch) {
-      using namespace std::chrono_literals;
-      std::this_thread::sleep_for(200ms);
+      std::this_thread
+        ::sleep_for(
+          std::chrono::milliseconds{200}
+      );
     }
 
     const int MANY = 100;
@@ -109,15 +112,6 @@ int main(int argc, char* argv[])
       timeout(-1);
       w.restart();
       w.start();
-    }
-
-    //many steps without refresh
-
-    else if (ch == 'F') {
-      for(int i = 0; i < MANY; +i) {
-        if(w.step(last, score, rule))
-          ++steps;
-      }
     }
 
     // toggle pause

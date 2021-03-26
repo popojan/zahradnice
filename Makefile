@@ -1,14 +1,23 @@
 all: zahr
 
 zahr:
-	g++ -std=c++14 -lncurses src/zahradnice.cpp src/grammar.cpp -o zahradnice -O3
+	g++ -std=c++14 -I zstr/src/ -lz -lncurses src/zahradnice.cpp src/grammar.cpp -o zahradnice -Os -s
 
+RELEASE_DIR=release
+install: soko
+	rm -rf ${RELEASE_DIR}
+	mkdir -p ${RELEASE_DIR}/zahradnice/programs
+	gzip -k programs/*.cfg
+	mv programs/*.cfg.gz ${RELEASE_DIR}/zahradnice/programs
+	cp zahradnice ${RELEASE_DIR}/zahradnice
+	cd ${RELEASE_DIR}; \
+	tar -czf zahradnice.tar zahradnice/
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
 SOKOFILES=picokosmosText.htm sasquatch5Text.htm
 
 soko:
-	cp programs/sokoban.cfg programs/soko.cfg
+	cp programs/partial/sokoban.cfg programs/sokoban.cfg
 	for sokofile in ${SOKOFILES}; do \
     wget -N "${SOKOWEB}/$$sokofile"; \
 	  grep "^Level\|#" "$$sokofile" > sokoban.txt; \
@@ -29,7 +38,7 @@ soko:
       | sed 's/^\([0-9]\+\)\t\([^@]*\)@/~\1@@\2@P/' \
       | sed 's/^\([0-9]\+\)\t\([^+]*\)+/~\1@@\2@:/' \
       | sed 's/  @P/~~@P/g' | sed 's/ @P/~@P/g' \
-      | sed 's/^\s*\(Level.*\)$$/=\/TP/g' >> programs/soko.cfg; \
+      | sed 's/^\s*\(Level.*\)$$/=\/TP/g' >> programs/sokoban.cfg; \
   done;\
   rm -f numbers.txt sokoban.txt 
   
