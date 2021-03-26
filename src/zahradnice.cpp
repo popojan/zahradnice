@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 
   std::string config;
   int seed = 123;
-  int T = 50;
+  int T = 0;
 
   {
     std::stringstream ss;
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
       last = ch;
     }
 
-    refresh();
+    //refresh();
   }
 
   endwin();
