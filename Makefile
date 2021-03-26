@@ -1,7 +1,7 @@
 all: zahr
 
 zahr:
-	g++ -std=c++14 -lncurses src/zahradnice.cpp -o zahradnice -O3
+	g++ -std=c++14 -lncurses src/zahradnice.cpp src/grammar.cpp -o zahradnice -O3
 
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
