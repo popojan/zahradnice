@@ -109,9 +109,9 @@ public:
 
 private:
 
-  bool dryapply(char lhs, int ro, int co, const Grammar2D::Rule& rule);
+  bool dryapply(int ro, int co, const Grammar2D::Rule& rule);
 
-  bool apply(char lhs, int ro, int co, const Grammar2D::Rule& rule);
+  bool apply(int ro, int co, const Grammar2D::Rule& rule);
 
   int getColor(char fore, char back);
 

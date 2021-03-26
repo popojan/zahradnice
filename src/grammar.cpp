@@ -248,7 +248,7 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
       auto& rs = res->second;
       for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
         if(rit->key == key || rit->key == '?') {
-          bool app = dryapply(n, nit->first - rit->ro, nit->second - rit->co, *rit);
+          bool app = dryapply(nit->first - rit->ro, nit->second - rit->co, *rit);
           if(app) {
             sumw += rit->weight;
             nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
@@ -265,7 +265,7 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
     if(sumw >= prob) {
       auto& rc = xx[nit->b];
       auto& n = x.find(rc)->second;
-      bool applied = apply(n, rc.first - rule.rq, rc.second - rule.cq, rule);
+      bool applied = apply(rc.first - rule.rq, rc.second - rule.cq, rule);
       if(applied) {
         dbgrule = rule.lhsa;
         score += rule.reward;
@@ -287,9 +287,11 @@ void Derivation::restart() {
   } 
 }
 
-bool Derivation::dryapply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
+bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule& rule) {
   int r = ro;
   int c = co;
+
+  bool horiz = rule.cq > rule.co;
 
   for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
     if(*p == '\n') {
@@ -297,32 +299,35 @@ bool Derivation::dryapply(char lhs, int ro, int co, const Grammar2D::Rule& rule)
       c = co - 1;
       continue;
     }
-    if(rule.cq > rule.co && c - co >= rule.cm) // @ LHS @ >>RHS<<
+    if(*p == ' ')
       continue;
 
-    if(rule.cq <= rule.co && r - ro >= rule.rm)
-      break;
+    if(horiz) {
+      if(c - co >= rule.cm) // @ LHS @ >>RHS<<
+        continue;
+    } else {
+      if(r - ro >= rule.rm)
+        break;
+    }
 
     char req = *p;
-    if(req != ' ') {
-      char ctx = '#';
-      if(r > 0 && r < row && c >= 0 && c < col) {
-        ctx = mvinch(r, c);
-        if(ctx == ' ') ctx = '~';
-      }
-      if(req == '@')
-        req = rule.lhs;
-      if(*p == '&')
-        req = rule.ctx;
-      if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
-          || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
-          return false;
+    char ctx = '#';
+    if(r > 0 && r < row && c >= 0 && c < col) {
+      ctx = mvinch(r, c);
+      if(ctx == ' ') ctx = '~';
     }
+    if(req == '@')
+      req = rule.lhs;
+    if(*p == '&')
+      req = rule.ctx;
+    if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
+        || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
+        return false;
   }
   return true;
 }
 
-bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
+bool Derivation::apply(int ro, int co, const Grammar2D::Rule& rule) {
   int r = ro;
   int c = co;
 
@@ -381,8 +386,11 @@ bool Derivation::apply(char lhs, int ro, int co, const Grammar2D::Rule& rule) {
           attroff(COLOR_PAIR(cidx));
           memory[col * r + c] = saved;
       }
+      auto loc = std::pair<int, int>(r, c);
       if (isNonTerminal) {
-        x[std::pair<int, int>(r, c)] = rep;
+        x[loc] = rep;
+      } else {
+        x.erase(loc);
       }
     }
   }
