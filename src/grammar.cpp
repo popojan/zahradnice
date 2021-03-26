@@ -181,7 +181,7 @@ Derivation::~Derivation() {
 }
 
 void Derivation::start() {
-  std::for_each(g.S.begin(), g.S.end(), [this](auto s){
+  std::for_each(g.S.begin(), g.S.end(), [this](auto& s){
     int c = col/2;
     int r = row/2;
     if(s.lr == 'l') {
@@ -216,8 +216,8 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
 
   //nonterminal alterable by rules from group key
   std::unordered_set<char> a;
-  std::for_each(g.R.begin(), g.R.end(), [key,&a](auto rr){
-    std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto rrr){
+  std::for_each(g.R.begin(), g.R.end(), [key,&a](auto& rr){
+    std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto& rrr){
        if(rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
     });
   });
@@ -230,7 +230,12 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
 
   if(xx.size() <= 0)
     return 0;
-  std::vector<std::pair<size_t, size_t> > nr;
+  struct abc {
+    char a;
+    int b; 
+    int c;
+  };  
+  std::vector<abc> nr;
   double sumw = 0.0;
   std::vector<bool> applicable;
   auto prob = -1.0;
@@ -239,13 +244,13 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
     auto res = g.R.find(n.s);
     if(res != g.R.end()) {
       //random rule
-      auto rs = res->second;
+      auto& rs = res->second;
       for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
         if(rit->key == key || rit->key == '?') {
           bool app = dryapply(n.s, n.r - rit->ro, n.c - rit->co, *rit);
           if(app) {
             sumw += rit->weight;
-            nr.push_back({nit - xx.begin(), rit - rs.begin()});
+            nr.push_back({n.s, nit - xx.begin(), rit - rs.begin()});
           }
         }
       }
@@ -254,10 +259,10 @@ bool Derivation::step(char key, int &score, std::string& dbgrule) {
   prob = static_cast<double>(random())/RAND_MAX * sumw;
   sumw = 0.0;
   for(auto nit = nr.begin(); nit != nr.end(); ++nit) {
-    auto n = x.find(xx[nit->first])->second;
-    auto rule = g.R.find(n.s)->second[nit->second];
+    auto& rule = g.R.find(nit->a)->second[nit->c];
     sumw += rule.weight;
     if(sumw >= prob) {
+      auto& n = x.find(xx[nit->b])->second;
       bool applied = apply(n.s, n.r - rule.rq, n.c - rule.cq, rule);
       if(applied) {
         dbgrule = rule.lhsa;
