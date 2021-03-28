@@ -22,12 +22,13 @@ void Grammar2D::loadFromFile(const std::string& fname)
   std::vector<std::string> lhs;
   std::ostringstream rule;
 
+  bool first = true;
   while(std::getline(t, line))
   {
 
     if(line.size() > 0 && line.at(0) == '#') //comment
     {
-      if(line.size() > 1 && line.at(1) == '!') {
+      if(first && line.size() > 1 && line.at(1) == '!') {
         help = line.substr(2);
       }
       continue;
@@ -51,6 +52,9 @@ void Grammar2D::loadFromFile(const std::string& fname)
     else {
       rule << line << std::endl;
     }
+
+    first = false;
+
   }
   if(!rule.str().empty())
     _process(lhs, rule.str());
@@ -320,6 +324,8 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule& rule) {
       req = rule.lhs;
     if(*p == '&')
       req = rule.ctx;
+    if(req == ' ')
+      req = '~';
     if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
         || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
         return false;
@@ -345,7 +351,7 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule& rule) {
     char rep = *p;
     if(rep == '@')
       rep = rule.rep;
-    if(rep == '!' || rep == '&' || rep == '%') 
+    if(rep == '&') 
       rep = rule.ctxrep; 
     bool isNonTerminal = g.V.find(rep) != g.V.end();
     if(rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {

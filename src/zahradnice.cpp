@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
   }
 
   std::string config;
-  int seed = 123;
+  int seed = 0;
   int T = 50;
 
   {
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
   int elapsed = 0;
   bool started = false;
 
-  srand(seed);
+  srand(seed || time(0));
   int row, col;
 
   initscr();
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
     double reward = static_cast<float>(score)/(steps > 0 ? steps : 1);
     ss << " Skill: " << reward << std::endl;
 
-    if(paused)
+    if(elapsed == 0)
       mvprintw(0, 0, cfg.help.c_str());
     else {
       mvprintw(0, 0, ss.str().c_str());
@@ -85,6 +85,16 @@ int main(int argc, char* argv[])
     ch = getch();
 
     //time lapse
+    //save CPU if no rule applicable
+
+    if(!success && last == ch) {
+      std::this_thread
+        ::sleep_for(
+          std::chrono::milliseconds{16}
+      );
+      ch = ERR;
+    }
+
 
     if(ch == ERR) {
       ch = 'T';
@@ -92,15 +102,6 @@ int main(int argc, char* argv[])
       if(elapsed % 100 == 0) {
         ch = 'B';
       }
-    }
-
-    //save CPU if no rule applicable
-
-    if(!success && last == ch) {
-      std::this_thread
-        ::sleep_for(
-          std::chrono::milliseconds{200}
-      );
     }
 
     const int MANY = 100;
