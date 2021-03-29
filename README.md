@@ -23,3 +23,5 @@ fun with type-0 grammars (or something like that)
   * unfinished classic [Sokoban](https://en.wikipedia.org/wiki/Sokoban)
 * **high noon**
   * fake ZX Spectrum shoot 'em up [High Noon](https://spectrumcomputing.co.uk/entry/2315/ZX-Spectrum/High_Noon)
+* **tetris**
+  * just to compare readability and sizes with [tinytetris](https://github.com/taylorconor/tinytetris)
