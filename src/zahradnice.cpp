@@ -63,6 +63,8 @@ int main(int argc, char* argv[])
   char last = ' ';
 
   std::string rule;
+  
+  auto start = std::chrono::steady_clock::now();
 
   while(ch != 'q') {
 
@@ -98,9 +100,12 @@ int main(int argc, char* argv[])
 
     if(ch == ERR) {
       ch = 'T';
-      elapsed += 1;
-      if(elapsed % 100 == 0) {
+      auto stop = std::chrono::steady_clock::now();
+      std::chrono::duration<double, std::milli> duration = stop - start;
+      int el = static_cast<int>(duration.count() / T / 100);
+      if(el > elapsed) {
         ch = 'B';
+        elapsed = el;
       }
     }
 
