@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
   std::string config;
   int seed = 0;
   int T = 500;
-  int M = 50;
+  int M;
 
   {
     std::stringstream ss;
@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
 
     ss >> config;
     ss >> T;
+    M = T/10;
     ss >> seed;
   }
 
@@ -172,7 +173,7 @@ int main(int argc, char* argv[])
     // apply a single rule (counts as a step)
 
     else {
-      success = w.step(ch, score, rule, errs);
+      success = w.step(ch, score, &rule, errs);
       if(success)
         ++steps;
       last = ch;

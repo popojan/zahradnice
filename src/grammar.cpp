@@ -26,10 +26,10 @@ void Grammar2D::loadFromFile(const std::string& fname)
   while(std::getline(t, line))
   {
 
-    if(line.size() > 0 && line.at(0) == '#') //comment
+    if(!line.empty() && line.at(0) == '#') //comment
     {
-      if(first && line.size() > 1) {
-        if(line.at(1) == '!')
+      if(line.size() > 1) {
+        if(first && line.at(1) == '!')
         {
           help = line.substr(2);
         } else if (line.at(1) == '=')
@@ -37,6 +37,7 @@ void Grammar2D::loadFromFile(const std::string& fname)
           dict.insert(std::make_pair(line.at(2), line.substr(3)));
         }
       }
+      first = false;
       continue;
     }
     if(!line.empty() && line.at(0) == '^') //starting symbol
@@ -55,7 +56,7 @@ void Grammar2D::loadFromFile(const std::string& fname)
       }
       lhs.push_back(line);
     }
-    else {
+    else if (!lhs.empty()) {
       rule << line << std::endl;
     }
 
@@ -63,7 +64,9 @@ void Grammar2D::loadFromFile(const std::string& fname)
 
   }
   if(!rule.str().empty())
+  {
     _process(lhs, rule.str());
+  }
   if(S.empty()) {
     S.push_back({'c', 'c', 's'});
   }
@@ -89,13 +92,17 @@ std::pair<int, int> Grammar2D::origin(char s, const std::string& rhs, char spec,
 }
 
 void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
+  if(lhs.at(1) == '>')
+  {
+    return;
+  }
   char s = lhs.at(2);
   if(R.find(s) == R.end()) {
     R[s] = Rules();
     V.insert(s);
   }
   Rule rule;
-  if(lhs.at(1) != '=' && lhs.at(1) != '>')
+  if(lhs.at(1) != '=')
   {
     sounds.insert(lhs.at(1));
     rule.sound = lhs.at(1);
@@ -144,7 +151,9 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
     rule.ctx = -1;
 
   if(lhs.size() > 8)
+  {
     rule.ctxrep = lhs.at(8);
+  }
   else
     rule.ctxrep = ' ';
 
@@ -248,7 +257,7 @@ void Derivation::start() {
   });
 }
 
-bool Derivation::step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs) {
+bool Derivation::step(char key, int &score, Grammar2D::Rule* dbgrule, int &errs) {
   //random nonterminal instance
 
   //nonterminal alterable by rules from group key
@@ -258,7 +267,6 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs)
        if(rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
     });
   });
-
   std::vector<std::pair<int, int> > xx;
   for(auto nit = x.begin(); nit != x.end(); ++nit) {
     if(a.find(nit->second) != a.end())
@@ -266,7 +274,7 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs)
   }
 
   if(xx.size() <= 0)
-    return 0;
+    return false;
   struct abc {
     char a;
     std::vector<std::pair<int, int> >::difference_type b;
@@ -301,16 +309,12 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs)
     sumw += rule.weight;
     if(sumw >= prob) {
       auto& rc = xx[nit->b];
-      auto& n = x.find(rc)->second;
       bool applied = apply(rc.first - rule.rq, rc.second - rule.cq, rule);
       if(applied) {
-        dbgrule = rule;
+        *dbgrule = rule;
         score += rule.reward;
         return true;
-      } else {
-        ++errs;
       }
-      break;
     }
   }
   return false;
@@ -332,7 +336,8 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule& rule) {
 
   bool horiz = rule.cq > rule.co;
 
-  for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
+  for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c)
+  {
     if(*p == '\n') {
       ++r;
       c = co - 1;
@@ -361,9 +366,12 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule& rule) {
       req = rule.ctx;
     if(req == ' ')
       req = '~';
-    if((req != '!' && req != '%' && req != ctx) || (req == '!' && ctx == rule.ctx)
+    if(    (req != '!' && req != '%' && req != ctx)
+        || (req == '!' && ctx == rule.ctx)
         || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
-        return false;
+    {
+      return false;
+    }
   }
   return true;
 }
