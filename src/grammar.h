@@ -108,7 +108,7 @@ public:
 
   void start();
 
-  bool step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs);
+  bool step(char key, int &score, Grammar2D::Rule* dbgrule, int &errs);
 
   void restart();
 
