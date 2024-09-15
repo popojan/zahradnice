@@ -1,7 +1,7 @@
 all: zahr
 
 zahr:
-	g++ -std=c++14 -I zstr/src/ -lz -lncurses src/zahradnice.cpp src/grammar.cpp -o zahradnice -Os -s
+	g++ -std=c++14 -I zstr/src/ -lz -lncurses -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s
 
 RELEASE_DIR=release
 install: soko
@@ -40,5 +40,5 @@ soko:
       | sed 's/  @P/~~@P/g' | sed 's/ @P/~@P/g' \
       | sed 's/^\s*\(Level.*\)$$/=\/TP/g' >> programs/sokoban.cfg; \
   done;\
-  rm -f numbers.txt sokoban.txt 
-  
+  rm -f numbers.txt sokoban.txt
+

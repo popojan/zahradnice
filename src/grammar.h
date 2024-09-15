@@ -1,5 +1,6 @@
 #pragma once
 
+#include <climits>
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -9,6 +10,7 @@
 #include <functional>
 #include <vector>
 #include <algorithm>
+#include <cstdint>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -59,12 +61,15 @@ public:
     char ctxrep;
     int weight;
     char zord;
+    char sound;
   };
 
   typedef std::vector<Rule> Rules;
+  std::unordered_set<char> sounds;
 
   std::unordered_map<char, Rules> R;
-  
+  std::unordered_map<char, std::string> dict;
+
   Grammar2D()
   {
   }
@@ -103,7 +108,7 @@ public:
 
   void start();
 
-  bool step(char key, int &score, std::string& dbgrule);
+  bool step(char key, int &score, Grammar2D::Rule& dbgrule, int &errs);
 
   void restart();
 
