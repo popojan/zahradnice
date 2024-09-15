@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
   bool started = false;
 
-  srand(seed || time(0));
+  srand(seed | time(0));
   int row, col;
 
   initscr();
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
   while(ch != 'q') {
 
     // play sound if any
-    if(rule.sound != 0) {
+    if(success && rule.sound != 0) {
       auto it = sounds.find(rule.sound);
       if(it != sounds.end())
       {
@@ -173,6 +173,7 @@ int main(int argc, char* argv[])
     // apply a single rule (counts as a step)
 
     else {
+      rule.sound = 0;
       success = w.step(ch, score, &rule, errs);
       if(success)
         ++steps;
