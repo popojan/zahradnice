@@ -91,6 +91,20 @@ std::pair<int, int> Grammar2D::origin(char s, const std::string& rhs, char spec,
   return std::pair<int, int>(-1,-1);
 }
 
+char Grammar2D::getColor(char c, const char def)
+{
+  char val = static_cast<char>(c - '0');
+  if (val > 9 || val < 0)
+  {
+    auto it = dict.find(c);
+    if (it != dict.end())
+    {
+      val = it->second.at(0) - '0';
+    }
+  }
+  return val >= 0 && val <= 9 ? val : def;
+}
+
 void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
   if(lhs.at(1) == '>')
   {
@@ -125,10 +139,10 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
   char fore = 7; //default: white foreground
   char back = 8; //default: transparent background
   if(lhs.size() > 5) {
-    fore = lhs.at(5) - '0';
+      fore = getColor(lhs.at(5), fore);
   }
   if(lhs.size() > 6) {
-    back = lhs.at(6) - '0';
+    back = getColor(lhs.at(6), back);
   }
   rule.fore = fore;
   rule.back = back;

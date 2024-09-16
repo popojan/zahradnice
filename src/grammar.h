@@ -82,7 +82,8 @@ public:
   void addRule(const std::string& lhs, const std::string& rhs);
 
   friend class Derivation;
-
+private:
+  char getColor(char val, char def);
 };
 
 
