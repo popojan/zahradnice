@@ -21,8 +21,9 @@ int main(int argc, char* argv[])
 
   std::string config;
   int seed = 0;
-  int T = 500;
-  int M;
+  int B = 500;
+  int M = 50;
+  int T = 0;
 
   {
     std::stringstream ss;
@@ -46,7 +47,8 @@ int main(int argc, char* argv[])
   int errs = 0;
   bool success = true;
   bool paused = true;
-  int elapsed = 0;
+  int elapsed_t = 0;
+  int elapsed_b = 0;
   int elapsed_m = 0;
 
   bool started = false;
@@ -111,7 +113,7 @@ int main(int argc, char* argv[])
     ss << " Skill: " << reward;//<< std::endl;
     ss << " Errors: " << errs << std::endl;
 
-    if(elapsed == 0)
+    if(elapsed_b == 0)
       mvprintw(0, 0, cfg.help.c_str());
     else {
       mvprintw(0, 0, ss.str().c_str());
@@ -122,33 +124,38 @@ int main(int argc, char* argv[])
 
     //time lapse
     //save CPU if no rule applicable
-
     if(!success && last == ch) {
-      //std::this_thread
-      //  ::sleep_for(
-      //    std::chrono::milliseconds{1}
-      //);
       ch = ERR;
     }
 
 
     if(ch == ERR) {
-      ch = 'T';
+      ch = 0;
       auto stop = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> duration = stop - start;
-      int el = static_cast<int>(duration.count() / T);
+      int el_t = T > 0 ? static_cast<int>(duration.count() / T) : elapsed_t + 1;
+      int el_b = static_cast<int>(duration.count() / B);
       int el_m = static_cast<int>(duration.count() / M);
+      if(el_t > elapsed_t) {
+        ch = 'T';
+        elapsed_t = el_t;
+      }
       if(el_m > elapsed_m) {
         ch = 'M';
         elapsed_m = el_m;
       }
-      if(el > elapsed) {
+      if(el_b > elapsed_b) {
         ch = 'B';
-        elapsed = el;
+        elapsed_b = el_b;
       }
     }
-
-    const int MANY = 100;
+    if (ch == 0) {
+      std::this_thread
+        ::sleep_for(
+          std::chrono::milliseconds{1}
+      );
+      continue;
+    }
 
     //restart scene
 
