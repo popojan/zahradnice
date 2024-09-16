@@ -74,6 +74,18 @@ int main(int argc, char* argv[])
   cfg.loadFromFile(config);
 
   std::unordered_map<char, sample> sounds;
+  // load timing if defined
+  auto it = cfg.dict.find('T');
+  {
+    if(it != cfg.dict.end()) {
+      std::stringstream ss(it->second);
+      ss >> B;
+      ss >> M;
+      ss >> T;
+    }
+  }
+
+  // load sounds if defined
   for(char c: cfg.sounds)
   {
     auto it = cfg.dict.find(c);
@@ -113,7 +125,7 @@ int main(int argc, char* argv[])
     ss << " Skill: " << reward;//<< std::endl;
     ss << " Errors: " << errs << std::endl;
 
-    if(elapsed_b == 0)
+    if(elapsed_b == 0 || paused)
       mvprintw(0, 0, cfg.help.c_str());
     else {
       mvprintw(0, 0, ss.str().c_str());
