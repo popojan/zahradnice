@@ -114,7 +114,7 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
   Rule rule;
   if(lhs.at(1) != '=')
   {
-    if(lhs.at(1) != '>')
+    if(lhs.at(1) != '>' && lhs.at(1) != '|')
     {
       sounds.insert(lhs.at(1));
     }
@@ -185,13 +185,22 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
 }
 
 
-Derivation::Derivation(const Grammar2D& g, int row, int col)
- : g(g), col(col), row(row) {
+Derivation::Derivation(): memory(nullptr) {}
+
+void Derivation::reset(const Grammar2D& g, int row, int col)
+{
+  this->g = g;
+  this->row = row;
+  this->col = col;
+}
+
+void Derivation::init()
+{
+  delete [] memory;
   memory = new G[row*col];
   initColors();
   restart();
 }
-
 void Derivation::initColors() {
   char cols[8] = {
     COLOR_BLACK,
