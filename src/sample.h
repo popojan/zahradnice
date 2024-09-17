@@ -10,8 +10,11 @@
 class sample {
 public:
     sample(const std::string &path, int volume);
+
     void play();
+
     void play(int times);
+
     void set_volume(int volume);
 
 private:

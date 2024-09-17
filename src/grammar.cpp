@@ -3,479 +3,449 @@
 #include <utility>
 #include "zstr.hpp"
 
-bool Grammar2D::_process(const std::vector<std::string>& lhs, const std::string& rule) {
+bool Grammar2D::_process(const std::vector<std::string> &lhs, const std::string &rule) {
     std::for_each
     (
-      lhs.begin(), lhs.end(),
-      [this,&rule](auto& x)
-      {
-        addRule(x, rule);
-      }
+        lhs.begin(), lhs.end(),
+        [this,&rule](auto &x) {
+            addRule(x, rule);
+        }
     );
     return true;
 }
 
-void Grammar2D::loadFromFile(const std::string& fname)
-{
-  zstr::ifstream t(fname);
-  std::string line;
-  std::vector<std::string> lhs;
-  std::ostringstream rule;
+void Grammar2D::loadFromFile(const std::string &fname) {
+    zstr::ifstream t(fname);
+    std::string line;
+    std::vector<std::string> lhs;
+    std::ostringstream rule;
 
-  bool first = true;
-  while(std::getline(t, line))
-  {
-
-    if(!line.empty() && line.at(0) == '#') //comment
-    {
-      if(line.size() > 1) {
-        if(first && line.at(1) == '!')
+    bool first = true;
+    while (std::getline(t, line)) {
+        if (!line.empty() && line.at(0) == '#') //comment
         {
-          help = line.substr(2);
-        } else if (line.at(1) == '=')
-        {
-          dict.insert(std::make_pair(line.at(2), line.substr(3)));
+            if (line.size() > 1) {
+                if (first && line.at(1) == '!') {
+                    help = line.substr(2);
+                } else if (line.at(1) == '=') {
+                    dict.insert(std::make_pair(line.at(2), line.substr(3)));
+                }
+            }
+            first = false;
+            continue;
         }
-      }
-      first = false;
-      continue;
-    }
-    if(!line.empty() && line.at(0) == '^') //starting symbol
-    {
-      char s = line.size() > 1 ? line.at(1) : 's';
-      char ul = line.size() > 2 ? line.at(2) : 'c';
-      char lr = line.size() > 3 ? line.at(3) : 'c';
-      S.push_back({ul, lr, s});
-    }
-    if(!line.empty() && line.at(0) == '=') //new rule LHSs
-    {
-      if(!rule.str().empty() && _process(lhs, rule.str())) {
-        rule.str("");
-        rule.clear();
-        lhs.clear();
-      }
-      lhs.push_back(line);
-    }
-    else if (!lhs.empty()) {
-      rule << line << std::endl;
-    }
+        if (!line.empty() && line.at(0) == '^') //starting symbol
+        {
+            char s = line.size() > 1 ? line.at(1) : 's';
+            char ul = line.size() > 2 ? line.at(2) : 'c';
+            char lr = line.size() > 3 ? line.at(3) : 'c';
+            S.push_back({ul, lr, s});
+        }
+        if (!line.empty() && line.at(0) == '=') //new rule LHSs
+        {
+            if (!rule.str().empty() && _process(lhs, rule.str())) {
+                rule.str("");
+                rule.clear();
+                lhs.clear();
+            }
+            lhs.push_back(line);
+        } else if (!lhs.empty()) {
+            rule << line << std::endl;
+        }
 
-    first = false;
-
-  }
-  if(!rule.str().empty())
-  {
-    _process(lhs, rule.str());
-  }
-  if(S.empty()) {
-    S.push_back({'c', 'c', 's'});
-  }
+        first = false;
+    }
+    if (!rule.str().empty()) {
+        _process(lhs, rule.str());
+    }
+    if (S.empty()) {
+        S.push_back({'c', 'c', 's'});
+    }
 }
 
-std::pair<int, int> Grammar2D::origin(char s, const std::string& rhs, char spec, int ord) {
-  int r = 0;
-  int c = 0;
+std::pair<int, int> Grammar2D::origin(char s, const std::string &rhs, char spec, int ord) {
+    int r = 0;
+    int c = 0;
 
-  for(const char * p = rhs.c_str(); *p != '\0'; ++p, ++c) {
-    if(*p == '\n') {
-      ++r;
-      c = -1;
+    for (const char *p = rhs.c_str(); *p != '\0'; ++p, ++c) {
+        if (*p == '\n') {
+            ++r;
+            c = -1;
+        } else if (*p == spec) {
+            if (ord == 0) {
+                return std::pair<int, int>(r, c);
+            }
+            --ord;
+        }
     }
-    else if(*p == spec) {
-      if(ord == 0) {
-        return std::pair<int, int>(r, c);
-      }
-      --ord;
+    return std::pair<int, int>(-1, -1);
+}
+
+char Grammar2D::getColor(char c, const char def) {
+    char val = static_cast<char>(c - '0');
+    if (val > 9 || val < 0) {
+        auto it = dict.find(c);
+        if (it != dict.end()) {
+            val = it->second.at(0) - '0';
+        }
     }
-  }
-  return std::pair<int, int>(-1,-1);
+    return val >= 0 && val <= 9 ? val : def;
 }
 
-char Grammar2D::getColor(char c, const char def)
-{
-  char val = static_cast<char>(c - '0');
-  if (val > 9 || val < 0)
-  {
-    auto it = dict.find(c);
-    if (it != dict.end())
-    {
-      val = it->second.at(0) - '0';
+void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
+    char s = lhs.at(2);
+    if (R.find(s) == R.end()) {
+        R[s] = Rules();
+        V.insert(s);
     }
-  }
-  return val >= 0 && val <= 9 ? val : def;
-}
-
-void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
-  char s = lhs.at(2);
-  if(R.find(s) == R.end()) {
-    R[s] = Rules();
-    V.insert(s);
-  }
-  Rule rule;
-  rule.load = false;
-  rule.sound = 0;
-  if(lhs.at(1) != '=')
-  {
-    char c = lhs.at(1);
-    if (std::string(">])|").find(c) == std::string::npos)
-    {
-      sounds.insert(c);
-      rule.sound = c;
-    } else {
-      rule.sound = 0;
-      rule.load = true;
-      rule.clear = c == ')' || c == '|';
-      rule.pause = c == ']' || c == '|';
+    Rule rule;
+    rule.load = false;
+    rule.sound = 0;
+    if (lhs.at(1) != '=') {
+        char c = lhs.at(1);
+        if (std::string(">])|").find(c) == std::string::npos) {
+            sounds.insert(c);
+            rule.sound = c;
+        } else {
+            rule.sound = 0;
+            rule.load = true;
+            rule.clear = c == ')' || c == '|';
+            rule.pause = c == ']' || c == '|';
+        }
     }
-  }
-  auto o = origin(s, rhs, '@', 0);
-  auto m = origin(s, rhs, '@', 1);
-  auto q = origin(s, rhs, '@', 2);
-  rule.lhsa = lhs;
-  rule.lhs = s;
-  rule.ro = o.first;
-  rule.co = o.second;
-  rule.rm = m.first;
-  rule.cm = m.second;
-  rule.rq = q.first;
-  rule.cq = q.second;
-  rule.rhs = rhs;
-  char fore = 7; //default: white foreground
-  char back = 8; //default: transparent background
-  if(lhs.size() > 5) {
-      fore = getColor(lhs.at(5), fore);
-  }
-  if(lhs.size() > 6) {
-    back = getColor(lhs.at(6), back);
-  }
-  rule.fore = fore;
-  rule.back = back;
-  int reward = 0; //default reward
-  int weight = 1;
-  rule.key = lhs.at(3);
-  if(lhs.size() > 11) {
-    std::istringstream iss(lhs.substr(11));
-    iss >> reward;
-    iss >> weight;
-    if(weight < 1) weight = 1;
-  }
-  rule.reward = reward;
-  rule.weight = weight;
-  if(lhs.size() > 7)
-    rule.ctx = lhs.at(7);
-  else
-    rule.ctx = -1;
-  if(rule.ctx == '?')
-    rule.ctx = -1;
+    auto o = origin(s, rhs, '@', 0);
+    auto m = origin(s, rhs, '@', 1);
+    auto q = origin(s, rhs, '@', 2);
+    rule.lhsa = lhs;
+    rule.lhs = s;
+    rule.ro = o.first;
+    rule.co = o.second;
+    rule.rm = m.first;
+    rule.cm = m.second;
+    rule.rq = q.first;
+    rule.cq = q.second;
+    rule.rhs = rhs;
+    char fore = 7; //default: white foreground
+    char back = 8; //default: transparent background
+    if (lhs.size() > 5) {
+        fore = getColor(lhs.at(5), fore);
+    }
+    if (lhs.size() > 6) {
+        back = getColor(lhs.at(6), back);
+    }
+    rule.fore = fore;
+    rule.back = back;
+    int reward = 0; //default reward
+    int weight = 1;
+    rule.key = lhs.at(3);
+    if (lhs.size() > 11) {
+        std::istringstream iss(lhs.substr(11));
+        iss >> reward;
+        iss >> weight;
+        if (weight < 1) weight = 1;
+    }
+    rule.reward = reward;
+    rule.weight = weight;
+    if (lhs.size() > 7)
+        rule.ctx = lhs.at(7);
+    else
+        rule.ctx = -1;
+    if (rule.ctx == '?')
+        rule.ctx = -1;
 
-  if(lhs.size() > 8)
-  {
-    rule.ctxrep = lhs.at(8);
-  }
-  else
-    rule.ctxrep = ' ';
+    if (lhs.size() > 8) {
+        rule.ctxrep = lhs.at(8);
+    } else
+        rule.ctxrep = ' ';
 
-  if(lhs.size() > 9)
-    rule.zord = lhs.at(9);
-  else
-    rule.zord = 'a';
+    if (lhs.size() > 9)
+        rule.zord = lhs.at(9);
+    else
+        rule.zord = 'a';
 
-  if(rule.ctxrep == '*') {
-    rule.ctxrep = rule.lhs;
-  }
-  rule.rep = lhs.at(4);
-  //std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(4));
-  std::replace(rule.rhs.begin(), rule.rhs.end(), '*', rule.lhs);
-  R[s].push_back(rule);
+    if (rule.ctxrep == '*') {
+        rule.ctxrep = rule.lhs;
+    }
+    rule.rep = lhs.at(4);
+    //std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(4));
+    std::replace(rule.rhs.begin(), rule.rhs.end(), '*', rule.lhs);
+    R[s].push_back(rule);
 }
 
-
-Derivation::Derivation(): memory(nullptr) {}
-
-void Derivation::reset(const Grammar2D& g, int row, int col)
-{
-  this->g = g;
-  this->row = row;
-  this->col = col;
+Derivation::Derivation(): memory(nullptr) {
 }
 
-void Derivation::init()
-{
-  delete [] memory;
-  memory = new G[row*col];
-  initColors();
-  restart();
+void Derivation::reset(const Grammar2D &g, int row, int col) {
+    this->g = g;
+    this->row = row;
+    this->col = col;
 }
+
+void Derivation::init() {
+    delete [] memory;
+    memory = new G[row * col];
+    initColors();
+    restart();
+}
+
 void Derivation::initColors() {
-  char cols[8] = {
-    COLOR_BLACK,
-    COLOR_RED,
-    COLOR_GREEN,
-    COLOR_YELLOW,
-    COLOR_BLUE,
-    COLOR_MAGENTA,
-    COLOR_CYAN,
-    COLOR_WHITE
-  };
+    char cols[8] = {
+        COLOR_BLACK,
+        COLOR_RED,
+        COLOR_GREEN,
+        COLOR_YELLOW,
+        COLOR_BLUE,
+        COLOR_MAGENTA,
+        COLOR_CYAN,
+        COLOR_WHITE
+    };
 
-  int N = sizeof(cols)/sizeof(char);
+    int N = sizeof(cols) / sizeof(char);
 
-  int colidx = 1;
+    int colidx = 1;
 
-  for(int i = 0; i < N; ++i) {
-    for(int j = 0; j < N; ++j) {
-      colors[std::pair<char, char>(cols[i], cols[j])] = colidx;
-      init_pair(colidx, cols[i], cols[j]);
-      ++colidx;
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            colors[std::pair<char, char>(cols[i], cols[j])] = colidx;
+            init_pair(colidx, cols[i], cols[j]);
+            ++colidx;
+        }
     }
-  }
 }
 
 Derivation::~Derivation() {
-  delete [] memory;
+    delete [] memory;
 }
 
 void Derivation::start() {
-  std::for_each(g.S.begin(), g.S.end(), [this](auto& s){
-    int c = col/2;
-    int r = row/2;
-    if(s.lr == 'l') {
-      c = 0;
-    } else if(s.lr == 'r') {
-      c = col - 1;
-    }
-    else if(s.lr == 'c') {
-      c = col/2;
-    }
-    else if(s.lr == 'R') {
-      c = 2*((col - 1)/2);
-    }
-    else if(s.lr == 'C') {
-      c = 2*((col/2)/2);
-    }
-    else if(s.lr == 'X') {
-      c = 2*((rand() % col)/2);
-    }
-    else {
-      c = rand() % col;
-    }
-    if(s.ul == 'u') {
-      r = 1;
-    } else if(s.ul == 'l') {
-      r = row - 1;
-    }
-    else if(s.ul == 'c') {
-      r = row/2;
-    }
-    else if(s.ul == 'L') {
-      r = 2*((row-2)/2);
-    }
-    else if(s.ul == 'C') {
-      r = 2*((row/2 - 1)/2);
-    }
-    else if(s.ul == 'X') {
-      r = 2*((rand() % (row - 1) + 1)/2);
-    }
-    else  {
-      r = rand() % (row - 1) + 1;
-    }
-    x[std::pair<int, int>(r, c)] = s.s;
-    mvaddch(r, c, s.s);
-  });
+    std::for_each(g.S.begin(), g.S.end(), [this](auto &s) {
+        int c = col / 2;
+        int r = row / 2;
+        if (s.lr == 'l') {
+            c = 0;
+        } else if (s.lr == 'r') {
+            c = col - 1;
+        } else if (s.lr == 'c') {
+            c = col / 2;
+        } else if (s.lr == 'R') {
+            c = 2 * ((col - 1) / 2);
+        } else if (s.lr == 'C') {
+            c = 2 * ((col / 2) / 2);
+        } else if (s.lr == 'X') {
+            c = 2 * ((rand() % col) / 2);
+        } else {
+            c = rand() % col;
+        }
+        if (s.ul == 'u') {
+            r = 1;
+        } else if (s.ul == 'l') {
+            r = row - 1;
+        } else if (s.ul == 'c') {
+            r = row / 2;
+        } else if (s.ul == 'L') {
+            r = 2 * ((row - 2) / 2);
+        } else if (s.ul == 'C') {
+            r = 2 * ((row / 2 - 1) / 2);
+        } else if (s.ul == 'X') {
+            r = 2 * ((rand() % (row - 1) + 1) / 2);
+        } else {
+            r = rand() % (row - 1) + 1;
+        }
+        x[std::pair<int, int>(r, c)] = s.s;
+        mvaddch(r, c, s.s);
+    });
 }
 
-bool Derivation::step(char key, int &score, Grammar2D::Rule* dbgrule, int &errs) {
-  //random nonterminal instance
+bool Derivation::step(char key, int &score, Grammar2D::Rule *dbgrule, int &errs) {
+    //random nonterminal instance
 
-  //nonterminal alterable by rules from group key
-  std::unordered_set<char> a;
-  std::for_each(g.R.begin(), g.R.end(), [key,&a](auto& rr){
-    std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto& rrr){
-       if(rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
+    //nonterminal alterable by rules from group key
+    std::unordered_set<char> a;
+    std::for_each(g.R.begin(), g.R.end(), [key,&a](auto &rr) {
+        std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto &rrr) {
+            if (rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
+        });
     });
-  });
-  std::vector<std::pair<int, int> > xx;
-  for(auto nit = x.begin(); nit != x.end(); ++nit) {
-    if(a.find(nit->second) != a.end())
-        xx.push_back(nit->first);
-  }
+    std::vector<std::pair<int, int> > xx;
+    for (auto nit = x.begin(); nit != x.end(); ++nit) {
+        if (a.find(nit->second) != a.end())
+            xx.push_back(nit->first);
+    }
 
-  if(xx.size() <= 0)
-    return false;
-  struct abc {
-    char a;
-    std::vector<std::pair<int, int> >::difference_type b;
-    std::vector<Grammar2D::Rule>::difference_type c;
-  };
-  std::vector<abc> nr;
-  double sumw = 0.0;
-  auto prob = -1.0;
-  //find all applicable rules and their weights
-  for(auto nit = xx.begin(); nit != xx.end(); ++nit) {
-    auto& n = x[*nit];
-    auto res = g.R.find(n);
-    if(res != g.R.end()) {
-      //random rule
-      auto& rs = res->second;
-      for(auto rit = rs.begin(); rit != rs.end(); ++rit) {
-        if(rit->key == key || rit->key == '?') {
-          bool app = dryapply(nit->first - rit->ro, nit->second - rit->co, *rit);
-          if(app) {
-            sumw += rit->weight;
-            nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
-          }
+    if (xx.size() <= 0)
+        return false;
+    struct abc {
+        char a;
+        std::vector<std::pair<int, int> >::difference_type b;
+        std::vector<Grammar2D::Rule>::difference_type c;
+    };
+    std::vector<abc> nr;
+    double sumw = 0.0;
+    auto prob = -1.0;
+    //find all applicable rules and their weights
+    for (auto nit = xx.begin(); nit != xx.end(); ++nit) {
+        auto &n = x[*nit];
+        auto res = g.R.find(n);
+        if (res != g.R.end()) {
+            //random rule
+            auto &rs = res->second;
+            for (auto rit = rs.begin(); rit != rs.end(); ++rit) {
+                if (rit->key == key || rit->key == '?') {
+                    bool app = dryapply(nit->first - rit->ro, nit->second - rit->co, *rit);
+                    if (app) {
+                        sumw += rit->weight;
+                        nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
+                    }
+                }
+            }
         }
-      }
     }
-  }
-  //select a random applicable rule
-  prob = static_cast<double>(random())/RAND_MAX * sumw;
-  sumw = 0.0;
-  for(auto nit = nr.begin(); nit != nr.end(); ++nit) {
-    auto& rule = g.R.find(nit->a)->second[nit->c];
-    sumw += rule.weight;
-    if(sumw >= prob) {
-      auto& rc = xx[nit->b];
-      bool applied = apply(rc.first - rule.rq, rc.second - rule.cq, rule);
-      if(applied) {
-        *dbgrule = rule;
-        score += rule.reward;
-        return true;
-      }
+    //select a random applicable rule
+    prob = static_cast<double>(random()) / RAND_MAX * sumw;
+    sumw = 0.0;
+    for (auto nit = nr.begin(); nit != nr.end(); ++nit) {
+        auto &rule = g.R.find(nit->a)->second[nit->c];
+        sumw += rule.weight;
+        if (sumw >= prob) {
+            auto &rc = xx[nit->b];
+            bool applied = apply(rc.first - rule.rq, rc.second - rule.cq, rule);
+            if (applied) {
+                *dbgrule = rule;
+                score += rule.reward;
+                return true;
+            }
+        }
     }
-  }
-  return false;
+    return false;
 }
 
 void Derivation::restart() {
-  x.clear();
-  clear();
-  for(int r = 0; r < row; ++r) {
-    for(int c = 0; c < col; ++c) {
-      memory[r*col + c] = {' ', 7, 0, 'a'};
-    }
-  } 
-}
-
-bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule& rule) {
-  int r = ro;
-  int c = co;
-
-  bool horiz = rule.cq > rule.co;
-
-  for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c)
-  {
-    if(*p == '\n') {
-      ++r;
-      c = co - 1;
-      continue;
-    }
-    if(*p == ' ')
-      continue;
-
-    if(horiz) {
-      if(c - co >= rule.cm) // @ LHS @ >>RHS<<
-        continue;
-    } else {
-      if(r - ro >= rule.rm)
-        break;
-    }
-
-    char req = *p;
-    char ctx = '#';
-    if(r > 0 && r < row && c >= 0 && c < col) {
-      ctx = mvinch(r, c);
-      if(ctx == ' ') ctx = '~';
-    }
-    if(req == '@')
-      req = rule.lhs;
-    if(*p == '&')
-      req = rule.ctx;
-    if(req == ' ')
-      req = '~';
-    if(    (req != '!' && req != '%' && req != ctx)
-        || (req == '!' && ctx == rule.ctx)
-        || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx))
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Derivation::apply(int ro, int co, const Grammar2D::Rule& rule) {
-  int r = ro;
-  int c = co;
-
-  for(const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
-    if(*p == '\n') {
-      ++r;
-      c = co - 1;
-      continue;
-    }
-    if(rule.cq > rule.co && c - co <= rule.cm ) // @ LHS @ >>RHS<<
-      continue;
-    if(rule.cq <= rule.co && r - ro <= rule.rm)
-      continue;
-    G saved = {' ', 7, 8, 'a'};
-    char rep = *p;
-    if(rep == '@')
-      rep = rule.rep;
-    if(rep == '&')
-      rep = rule.ctxrep;
-    bool isNonTerminal = g.V.find(rep) != g.V.end();
-    if(rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {
-      if(rep == '~')
-        rep = ' ';
-
-      char back = rule.back;
-
-      // transparent background; take background from memory
-      if(rule.back > 7) {
-        back = memory[col * r + c].back;
-      }
-      // to be saved in memory
-
-      G d = {rep, rule.fore, back, rule.zord};
-
-      // special char: restore from memory
-      if(rep == '$') d = memory[col * r + c];
-      // memory empty
-      if(d.c == -1) d = {' ', rule.fore, back, 'a'};
-
-      int cidx = getColor(d.fore, d.back);
-
-      if(rule.zord >= memory[col*r + c].zord) {
-        if(cidx > 0) {
-          attron(COLOR_PAIR(cidx));
+    x.clear();
+    clear();
+    for (int r = 0; r < row; ++r) {
+        for (int c = 0; c < col; ++c) {
+            memory[r * col + c] = {' ', 7, 0, 'a'};
         }
-        mvaddch(r, c, d.c);
-        if(!isNonTerminal) {
-          //terminal symbol: save all
-          saved = d;
+    }
+}
+
+bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
+    int r = ro;
+    int c = co;
+
+    bool horiz = rule.cq > rule.co;
+
+    for (const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
+        if (*p == '\n') {
+            ++r;
+            c = co - 1;
+            continue;
+        }
+        if (*p == ' ')
+            continue;
+
+        if (horiz) {
+            if (c - co >= rule.cm) // @ LHS @ >>RHS<<
+                continue;
         } else {
-          //nonterminal symbol: replace bg color if any
-          saved = memory[col * r + c];
-          saved.back = d.back; //TODO reconsider
+            if (r - ro >= rule.rm)
+                break;
         }
-        if(cidx > 0)
-          attroff(COLOR_PAIR(cidx));
-          memory[col * r + c] = saved;
-      }
-      auto loc = std::pair<int, int>(r, c);
-      if (isNonTerminal) {
-        x[loc] = rep;
-      } else {
-        x.erase(loc);
-      }
+
+        char req = *p;
+        char ctx = '#';
+        if (r > 0 && r < row && c >= 0 && c < col) {
+            ctx = mvinch(r, c);
+            if (ctx == ' ') ctx = '~';
+        }
+        if (req == '@')
+            req = rule.lhs;
+        if (*p == '&')
+            req = rule.ctx;
+        if (req == ' ')
+            req = '~';
+        if ((req != '!' && req != '%' && req != ctx)
+            || (req == '!' && ctx == rule.ctx)
+            || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
+}
+
+bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
+    int r = ro;
+    int c = co;
+
+    for (const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
+        if (*p == '\n') {
+            ++r;
+            c = co - 1;
+            continue;
+        }
+        if (rule.cq > rule.co && c - co <= rule.cm) // @ LHS @ >>RHS<<
+            continue;
+        if (rule.cq <= rule.co && r - ro <= rule.rm)
+            continue;
+        G saved = {' ', 7, 8, 'a'};
+        char rep = *p;
+        if (rep == '@')
+            rep = rule.rep;
+        if (rep == '&')
+            rep = rule.ctxrep;
+        bool isNonTerminal = g.V.find(rep) != g.V.end();
+        if (rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {
+            if (rep == '~')
+                rep = ' ';
+
+            char back = rule.back;
+
+            // transparent background; take background from memory
+            if (rule.back > 7) {
+                back = memory[col * r + c].back;
+            }
+            // to be saved in memory
+
+            G d = {rep, rule.fore, back, rule.zord};
+
+            // special char: restore from memory
+            if (rep == '$') d = memory[col * r + c];
+            // memory empty
+            if (d.c == -1) d = {' ', rule.fore, back, 'a'};
+
+            int cidx = getColor(d.fore, d.back);
+
+            if (rule.zord >= memory[col * r + c].zord) {
+                if (cidx > 0) {
+                    attron(COLOR_PAIR(cidx));
+                }
+                mvaddch(r, c, d.c);
+                if (!isNonTerminal) {
+                    //terminal symbol: save all
+                    saved = d;
+                } else {
+                    //nonterminal symbol: replace bg color if any
+                    saved = memory[col * r + c];
+                    saved.back = d.back; //TODO reconsider
+                }
+                if (cidx > 0)
+                    attroff(COLOR_PAIR(cidx));
+                memory[col * r + c] = saved;
+            }
+            auto loc = std::pair<int, int>(r, c);
+            if (isNonTerminal) {
+                x[loc] = rep;
+            } else {
+                x.erase(loc);
+            }
+        }
+    }
+    return true;
 }
 
 int Derivation::getColor(char fore, char back) {
-  auto cit = colors.find(std::pair<char, char>(fore, back));
-  if(cit != colors.end())
-    return cit->second;
-  return -1;
+    auto cit = colors.find(std::pair<char, char>(fore, back));
+    if (cit != colors.end())
+        return cit->second;
+    return -1;
 }
