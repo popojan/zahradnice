@@ -112,16 +112,21 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
     V.insert(s);
   }
   Rule rule;
+  rule.load = false;
+  rule.sound = 0;
   if(lhs.at(1) != '=')
   {
-    if(lhs.at(1) != '>' && lhs.at(1) != '|')
+    char c = lhs.at(1);
+    if (std::string(">])|").find(c) == std::string::npos)
     {
-      sounds.insert(lhs.at(1));
+      sounds.insert(c);
+      rule.sound = c;
+    } else {
+      rule.sound = 0;
+      rule.load = true;
+      rule.clear = c == ')' || c == '|';
+      rule.pause = c == ']' || c == '|';
     }
-    rule.sound = lhs.at(1);
-  } else
-  {
-    rule.sound = 0;
   }
   auto o = origin(s, rhs, '@', 0);
   auto m = origin(s, rhs, '@', 1);

@@ -62,6 +62,9 @@ public:
     int weight;
     char zord;
     char sound;
+    bool load;
+    bool clear;
+    bool pause;
   };
 
   typedef std::vector<Rule> Rules;
