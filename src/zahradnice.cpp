@@ -25,9 +25,6 @@ int main(int argc, char* argv[])
 
   std::string config("programs/menu.cfg");
   int seed = 0;
-  int B = 500;
-  int M = 50;
-  int T = 0;
 
   std::stringstream ss;
   std::for_each(argv + 1, argv + argc, [&ss](char * arg) { ss << arg << " "; });
@@ -53,13 +50,9 @@ int main(int argc, char* argv[])
   raw();
   noecho();
   timeout(-1);
+  {
+  }
   curs_set(0);
-  getmaxyx(stdscr, row, col);
-  //typeahead(-1);
-
-  //top row reserved as status line
-
-  int x = row - 1;  int y = col/2;
 
   Derivation w;
 
@@ -78,6 +71,9 @@ int main(int argc, char* argv[])
 
     std::unordered_map<char, sample> sounds;
     // load timing if defined
+    int B = 500;
+    int M = 50;
+    int T = 0;
     auto it = cfg.dict.find('T');
     {
       if(it != cfg.dict.end()) {
@@ -98,6 +94,10 @@ int main(int argc, char* argv[])
         sounds.insert(std::make_pair(c, sample(it->second, 100)));
       }
     }
+
+    getmaxyx(stdscr, row, col);
+
+    //top row reserved as status line
 
     w.reset(cfg, row, col);
     if (clear) w.init();
@@ -197,8 +197,10 @@ int main(int argc, char* argv[])
 
       if (ch == 'x') {
         paused = true;
-        timeout(0);
-        w.restart();
+        timeout(-1);
+        getmaxyx(stdscr, row, col);
+        w.reset(cfg, row, col);
+        w.init();
         w.start();
       }
 
