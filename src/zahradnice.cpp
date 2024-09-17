@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
         auto param = std::string(argv[1]);
         if (param == "-h" || param == "--help") {
             std::cout
-                    << "Usage: ./zahradnice [<program.cfg>]"
+                    << "Usage: ./zahradnice [<program.cfg>] [seed]"
                     << std::endl;
             return 0;
         }
@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
     std::stringstream ss;
     std::for_each(argv + 1, argv + argc, [&ss](char *arg) { ss << arg << " "; });
     ss >> config;
+    ss >> seed;
 
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
@@ -39,7 +40,13 @@ int main(int argc, char *argv[]) {
     int errs = 0;
     bool started = false;
 
-    srand(seed | time(0));
+    if (seed == 0) {
+        srand(time(0));
+    }
+    else {
+        srand(seed);
+    }
+
     int row, col;
 
     initscr();
