@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
             nss << config.substr(0, config.rfind('/')) << "/" << new_program;
             config = nss.str();
             clear = rule.lhsa.at(1) == '>';
-            timeout(-1);
+            if(clear) timeout(-1);
           }
 
           break;
