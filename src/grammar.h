@@ -101,7 +101,10 @@ public:
 
   G * memory;
 
-  Derivation(const Grammar2D& g, int row, int col);
+  Derivation();
+
+  void reset(const Grammar2D& g, int row, int col);
+  void init();
 
   void initColors();
 
@@ -121,7 +124,7 @@ private:
 
   int getColor(char fore, char back);
 
-  const Grammar2D& g;
+  Grammar2D g;
   int col, row;
   std::unordered_map< std::pair<char, char>, int, hash_pair> colors;
 };

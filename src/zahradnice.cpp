@@ -12,11 +12,15 @@
 
 int main(int argc, char* argv[])
 {
-  if(argc < 2) {
-    std::cout
-       << "Usage: ./zahradnice <program.cfg>"
-       << std::endl;
-    return 0;
+  if(argc > 1) {
+    auto param = std::string(argv[1]);
+    if (param == "-h" || param == "--help")
+    {
+      std::cout
+         << "Usage: ./zahradnice [<program.cfg>]"
+         << std::endl;
+      return 0;
+    }
   }
 
   std::string config("programs/menu.cfg");
@@ -57,6 +61,10 @@ int main(int argc, char* argv[])
 
   int x = row - 1;  int y = col/2;
 
+  Derivation w;
+
+  bool clear = true;
+
   outer: while (config != "quit")
   {
     bool success = true;
@@ -80,6 +88,7 @@ int main(int argc, char* argv[])
       }
     }
 
+
     // load sounds if defined
     for(char c: cfg.sounds)
     {
@@ -90,7 +99,8 @@ int main(int argc, char* argv[])
       }
     }
 
-    Derivation w(cfg, row, col);
+    w.reset(cfg, row, col);
+    if (clear) w.init();
     w.start();
 
     char ch = ' ';
@@ -105,7 +115,7 @@ int main(int argc, char* argv[])
 
       // play sound if any
       if(success && rule.sound != 0) {
-        if (rule.sound != '>')
+        if (rule.sound != '>' && rule.sound != '|')
         {
           auto it = sounds.find(rule.sound);
           if(it != sounds.end())
@@ -125,6 +135,8 @@ int main(int argc, char* argv[])
             std::stringstream nss;
             nss << config.substr(0, config.rfind('/')) << "/" << new_program;
             config = nss.str();
+            clear = rule.lhsa.at(1) == '>';
+            timeout(-1);
           }
 
           break;
