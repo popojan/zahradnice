@@ -8,6 +8,7 @@
 #include <sndfile.h>
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
+#include <sstream>
 
 int main(int argc, char *argv[]) {
     if (argc > 1) {
