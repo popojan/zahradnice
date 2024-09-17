@@ -107,7 +107,6 @@ int main(int argc, char* argv[])
     char last = ' ';
 
     Grammar2D::Rule rule;
-    rule.sound = 0;
 
     auto start = std::chrono::steady_clock::now();
 
@@ -115,15 +114,14 @@ int main(int argc, char* argv[])
 
       // play sound if any
       if(success && rule.sound != 0) {
-        if (rule.sound != '>' && rule.sound != '|')
-        {
           auto it = sounds.find(rule.sound);
           if(it != sounds.end())
           {
             it->second.play();
           }
-        } else
-        {
+      }
+      else if (success && rule.load && !rule.lhsa.empty())
+      {
           std::stringstream ss(rule.lhsa.substr(5));
           std::string new_program;
           ss >> new_program;
@@ -135,12 +133,11 @@ int main(int argc, char* argv[])
             std::stringstream nss;
             nss << config.substr(0, config.rfind('/')) << "/" << new_program;
             config = nss.str();
-            clear = rule.lhsa.at(1) == '>';
-            if(clear) timeout(-1);
+            clear = rule.clear;
+            if(rule.pause) timeout(-1);
           }
 
           break;
-        }
       }
       // print status
 
