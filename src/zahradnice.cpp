@@ -3,9 +3,7 @@
 #include "grammar.h"
 #include <thread>
 #include <chrono>
-#include <ao/ao.h>
 #include <cmath>
-#include <sndfile.h>
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
 #include <sstream>
