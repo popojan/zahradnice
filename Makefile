@@ -38,7 +38,8 @@ soko:
       | sed 's/^\([0-9]\+\)\t\([^@]*\)@/~\1@@\2@P/' \
       | sed 's/^\([0-9]\+\)\t\([^+]*\)+/~\1@@\2@:/' \
       | sed 's/  @P/~~@P/g' | sed 's/ @P/~@P/g' \
-      | sed 's/^\s*\(Level.*\)$$/=\/TP/g' >> programs/sokoban.cfg; \
+      | sed 's/  @:/~~@:/g' | sed 's/ @:/~@:/g' \
+      | sed 's/^\s*\(Level.*\)$$/==\/TP/g' >> programs/sokoban.cfg; \
   done;\
   rm -f numbers.txt sokoban.txt
 
