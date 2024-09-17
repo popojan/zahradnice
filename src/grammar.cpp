@@ -106,10 +106,6 @@ char Grammar2D::getColor(char c, const char def)
 }
 
 void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
-  if(lhs.at(1) == '>')
-  {
-    return;
-  }
   char s = lhs.at(2);
   if(R.find(s) == R.end()) {
     R[s] = Rules();
@@ -118,7 +114,10 @@ void Grammar2D::addRule(const std::string& lhs, const std::string& rhs) {
   Rule rule;
   if(lhs.at(1) != '=')
   {
-    sounds.insert(lhs.at(1));
+    if(lhs.at(1) != '>')
+    {
+      sounds.insert(lhs.at(1));
+    }
     rule.sound = lhs.at(1);
   } else
   {
