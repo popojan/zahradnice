@@ -9,6 +9,7 @@ fun with type-0 grammars (or something like that)
 * ascii
 * 8 color terminal
 * ncurses
+* SDL2_mixer
 
 ## Programs
 
@@ -25,3 +26,7 @@ fun with type-0 grammars (or something like that)
   * fake ZX Spectrum shoot 'em up [High Noon](https://spectrumcomputing.co.uk/entry/2315/ZX-Spectrum/High_Noon)
 * **tetris**
   * just to compare readability and sizes with [tinytetris](https://github.com/taylorconor/tinytetris)
+
+## Grammar
+
+See [GRAMMAR.md](GRAMMAR.md) for grammar programming intro.
