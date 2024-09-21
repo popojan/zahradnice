@@ -174,13 +174,6 @@ int main(int argc, char *argv[]) {
                     elapsed_b = el_b;
                 }
             }
-            if (ch == 0) {
-                std::this_thread
-                        ::sleep_for(
-                            std::chrono::milliseconds{1}
-                        );
-                continue;
-            }
 
             //restart scene
 
@@ -209,8 +202,15 @@ int main(int argc, char *argv[]) {
             else {
                 rule.sound = 0;
                 success = w.step(ch, score, &rule, errs);
-                if (success)
+                if (success) {
                     ++steps;
+                }
+                else if (ch == 'T') {
+                    std::this_thread
+                            ::sleep_for(
+                                std::chrono::milliseconds{50}
+                            );
+                }
                 last = ch;
             }
 
