@@ -209,8 +209,83 @@ For programs requiring bounded screens:
 - **New possibilities:** Enables new classes of programs
 - **Consistent behavior:** No special cases for edges
 
+## Final Implementation: Configurable Grid System
+
+**Status: COMPLETED** ✅
+
+### Solution: Configurable Grid Alignment
+
+Instead of hardcoded wrapping constraints, implemented a **configurable grid system** that allows programs to specify their required symbol alignment:
+
+#### Grid Configuration Syntax
+```
+#=G width height
+```
+
+**Examples:**
+- `#=G 1 1` - Default (no grid constraints) 
+- `#=G 2 1` - Double-width columns (for block-style games)
+- `#=G 3 1` - Triple-width columns (for Conway's Game of Life)
+- `#=G 2 2` - Double-width columns and double-height rows
+
+#### Implementation Details
+
+**Grammar2D Class Extensions** (`grammar.h:72-74`):
+```cpp
+// Grid configuration for symbol alignment (default 1,1 = no constraints)
+int grid_width = 1;
+int grid_height = 1;
+```
+
+**Configuration Parsing** (`grammar.cpp:45-61`):
+- Detects `#=G` dictionary entries during file loading
+- Parses width and height parameters with validation
+- Defaults to `1,1` for backward compatibility
+
+**Coordinate Wrapping Functions** (`grammar.cpp:7-20`):
+```cpp
+static int wrap_row(int r, int max_row, int grid_height) {
+    // Grid-aligned effective height, preserving status line
+    int effective_max_row = ((max_row - 1) / grid_height) * grid_height + 1;
+    // ... wrapping logic
+}
+
+static int wrap_col(int c, int max_col, int grid_width) {
+    // Grid-aligned effective column width  
+    int effective_max_col = (max_col / grid_width) * grid_width;
+    // ... wrapping logic
+}
+```
+
+**Uppercase Placement Updates** (`grammar.cpp:254-288`):
+- `'R'`, `'C'`, `'X'` placement variants now use grid multipliers
+- `'L'`, `'C'`, `'X'` vertical variants support grid alignment
+- Consistent with wrapping functions for seamless toroidal behavior
+
+#### Benefits Achieved
+
+1. **Flexible Symbol Alignment**: Programs can specify exact grid requirements
+2. **Backward Compatibility**: Default `1,1` preserves existing behavior  
+3. **Game-Specific Support**: GOL (3-width), Snake (2-width), others (custom)
+4. **Toroidal Topology**: Full wraparound without visual artifacts
+5. **Author Control**: Program authors choose their visual constraints
+
+#### Usage Examples
+
+**Snake with double-width symbols:**
+```
+#=G 2 1
+^zxX  # Start at random even column
+```
+
+**Conway's Game of Life with triple-width:**
+```
+#=G 3 1
+^Rcc  # Start at right edge, triple-aligned
+```
+
 ## Conclusion
 
-Converting to cyclic screen is a **moderate complexity change** with **high impact benefits**. The main implementation work involves systematic replacement of boundary checks with coordinate wrapping, ensuring data structure consistency, and handling the status line positioning.
+Converting to cyclic screen with **configurable grid alignment** successfully balances flexibility with visual consistency. The implementation preserves existing program compatibility while enabling new toroidal behaviors and allowing authors to specify their exact symbol alignment requirements.
 
-The change enables new classes of programs while maintaining compatibility with most existing ones, representing a significant enhancement to the engine's capabilities.
+This approach elegantly solves the double-width/triple-width symbol challenge while providing a foundation for future grid-based enhancements. The change enables new classes of programs while maintaining full backward compatibility.

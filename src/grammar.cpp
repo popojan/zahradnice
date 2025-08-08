@@ -4,15 +4,19 @@
 #include "zstr.hpp"
 
 // Helper functions for toroidal coordinate wrapping
-static int wrap_row(int r, int max_row) {
+static int wrap_row(int r, int max_row, int grid_height) {
     // Keep row 0 for status line, wrap rows 1 to max_row-1
-    if (r <= 0) return max_row - 1;
-    if (r >= max_row) return 1;
+    // Use grid-aligned effective height
+    int effective_max_row = ((max_row - 1) / grid_height) * grid_height + 1;
+    if (r <= 0) return effective_max_row - grid_height;
+    if (r >= effective_max_row) return 1;
     return r;
 }
 
-static int wrap_col(int c, int max_col) {
-    return ((c % max_col) + max_col) % max_col;
+static int wrap_col(int c, int max_col, int grid_width) {
+    // Use grid-aligned effective column width
+    int effective_max_col = (max_col / grid_width) * grid_width;
+    return ((c % effective_max_col) + effective_max_col) % effective_max_col;
 }
 
 bool Grammar2D::_process(const std::vector<std::string> &lhs, const std::string &rule) {
@@ -40,7 +44,35 @@ void Grammar2D::loadFromFile(const std::string &fname) {
                 if (first && line.at(1) == '!') {
                     help = line.substr(2);
                 } else if (line.at(1) == '=') {
-                    dict.insert(std::make_pair(line.at(2), line.substr(3)));
+                    if (line.at(2) == 'G' && line.size() > 3) {
+                        // Parse grid configuration: #=G width height
+                        std::string config = line.substr(3);
+                        // Skip leading whitespace
+                        size_t start = config.find_first_not_of(" \t");
+                        if (start != std::string::npos) {
+                            config = config.substr(start);
+                            size_t space_pos = config.find(' ');
+                            if (space_pos != std::string::npos) {
+                                grid_width = std::stoi(config.substr(0, space_pos));
+                                std::string height_str = config.substr(space_pos + 1);
+                                // Skip whitespace in height string too
+                                size_t height_start = height_str.find_first_not_of(" \t");
+                                if (height_start != std::string::npos) {
+                                    grid_height = std::stoi(height_str.substr(height_start));
+                                } else {
+                                    grid_height = 1;
+                                }
+                            } else {
+                                grid_width = std::stoi(config);
+                                grid_height = 1;
+                            }
+                        }
+                        // Ensure valid values
+                        if (grid_width <= 0) grid_width = 1;
+                        if (grid_height <= 0) grid_height = 1;
+                    } else {
+                        dict.insert(std::make_pair(line.at(2), line.substr(3)));
+                    }
                 }
             }
             first = false;
@@ -231,6 +263,9 @@ Derivation::~Derivation() {
 
 void Derivation::start() {
     std::for_each(g.S.begin(), g.S.end(), [this](auto &s) {
+        // Use grid-aligned effective dimensions consistent with wrap functions
+        int effective_col = (col / g.grid_width) * g.grid_width;
+        int effective_row = ((row - 1) / g.grid_height) * g.grid_height + 1;
         int c = col / 2;
         int r = row / 2;
         if (s.lr == 'l') {
@@ -240,11 +275,11 @@ void Derivation::start() {
         } else if (s.lr == 'c') {
             c = col / 2;
         } else if (s.lr == 'R') {
-            c = 2 * ((col - 1) / 2);
+            c = effective_col - g.grid_width; // Right edge, grid-aligned
         } else if (s.lr == 'C') {
-            c = 2 * ((col / 2) / 2);
+            c = g.grid_width * ((effective_col / g.grid_width) / 2); // Center, grid-aligned
         } else if (s.lr == 'X') {
-            c = 2 * ((rand() % col) / 2);
+            c = g.grid_width * ((rand() % (effective_col / g.grid_width))); // Random, grid-aligned
         } else {
             c = rand() % col;
         }
@@ -255,11 +290,11 @@ void Derivation::start() {
         } else if (s.ul == 'c') {
             r = row / 2;
         } else if (s.ul == 'L') {
-            r = 2 * ((row - 2) / 2);
+            r = g.grid_height * (((row - 2) / g.grid_height)) + 1; // Lower row, grid-aligned
         } else if (s.ul == 'C') {
-            r = 2 * ((row / 2 - 1) / 2);
+            r = g.grid_height * ((effective_row / g.grid_height) / 2); // Center row, grid-aligned
         } else if (s.ul == 'X') {
-            r = 2 * ((rand() % (row - 1) + 1) / 2);
+            r = g.grid_height * ((rand() % ((row - 1) / g.grid_height))) + 1; // Random row, grid-aligned
         } else {
             r = rand() % (row - 1) + 1;
         }
@@ -366,8 +401,8 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
 
         char req = *p;
         // Wrap coordinates cyclically for toroidal screen
-        int wrapped_r = wrap_row(r, row);
-        int wrapped_c = wrap_col(c, col);
+        int wrapped_r = wrap_row(r, row, g.grid_height);
+        int wrapped_c = wrap_col(c, col, g.grid_width);
         
         // Always get context from wrapped position (no '#' boundaries)
         char ctx = mvinch(wrapped_r, wrapped_c);
@@ -410,8 +445,8 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
         bool isNonTerminal = g.V.find(rep) != g.V.end();
         if (rep != ' ') {
             // Wrap coordinates cyclically for toroidal screen
-            int wrapped_r = wrap_row(r, row);
-            int wrapped_c = wrap_col(c, col);
+            int wrapped_r = wrap_row(r, row, g.grid_height);
+            int wrapped_c = wrap_col(c, col, g.grid_width);
             if (rep == '~')
                 rep = ' ';
 

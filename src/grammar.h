@@ -68,6 +68,10 @@ public:
 
     std::unordered_map<char, Rules> R;
     std::unordered_map<char, std::string> dict;
+    
+    // Grid configuration for symbol alignment (default 1,1 = no constraints)
+    int grid_width = 1;
+    int grid_height = 1;
 
     Grammar2D() {
     }
