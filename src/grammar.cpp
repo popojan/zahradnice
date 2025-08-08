@@ -3,6 +3,18 @@
 #include <utility>
 #include "zstr.hpp"
 
+// Helper functions for toroidal coordinate wrapping
+static int wrap_row(int r, int max_row) {
+    // Keep row 0 for status line, wrap rows 1 to max_row-1
+    if (r <= 0) return max_row - 1;
+    if (r >= max_row) return 1;
+    return r;
+}
+
+static int wrap_col(int c, int max_col) {
+    return ((c % max_col) + max_col) % max_col;
+}
+
 bool Grammar2D::_process(const std::vector<std::string> &lhs, const std::string &rule) {
     std::for_each
     (
@@ -353,11 +365,13 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
         }
 
         char req = *p;
-        char ctx = '#';
-        if (r > 0 && r < row && c >= 0 && c < col) {
-            ctx = mvinch(r, c);
-            if (ctx == ' ') ctx = '~';
-        }
+        // Wrap coordinates cyclically for toroidal screen
+        int wrapped_r = wrap_row(r, row);
+        int wrapped_c = wrap_col(c, col);
+        
+        // Always get context from wrapped position (no '#' boundaries)
+        char ctx = mvinch(wrapped_r, wrapped_c);
+        if (ctx == ' ') ctx = '~';
         if (req == '@')
             req = rule.lhs;
         if (*p == '&')
@@ -394,7 +408,10 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
         if (rep == '&')
             rep = rule.ctxrep;
         bool isNonTerminal = g.V.find(rep) != g.V.end();
-        if (rep != ' ' && r > 0 && r < row && c >= 0 && c < col) {
+        if (rep != ' ') {
+            // Wrap coordinates cyclically for toroidal screen
+            int wrapped_r = wrap_row(r, row);
+            int wrapped_c = wrap_col(c, col);
             if (rep == '~')
                 rep = ' ';
 
@@ -402,37 +419,37 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
 
             // transparent background; take background from memory
             if (rule.back > 7) {
-                back = memory[col * r + c].back;
+                back = memory[col * wrapped_r + wrapped_c].back;
             }
             // to be saved in memory
 
             G d = {rep, rule.fore, back, rule.zord};
 
             // special char: restore from memory
-            if (rep == '$') d = memory[col * r + c];
+            if (rep == '$') d = memory[col * wrapped_r + wrapped_c];
             // memory empty
             if (d.c == -1) d = {' ', rule.fore, back, 'a'};
 
             int cidx = getColor(d.fore, d.back);
 
-            if (rule.zord >= memory[col * r + c].zord) {
+            if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
                 if (cidx > 0) {
                     attron(COLOR_PAIR(cidx));
                 }
-                mvaddch(r, c, d.c);
+                mvaddch(wrapped_r, wrapped_c, d.c);
                 if (!isNonTerminal) {
                     //terminal symbol: save all
                     saved = d;
                 } else {
                     //nonterminal symbol: replace bg color if any
-                    saved = memory[col * r + c];
+                    saved = memory[col * wrapped_r + wrapped_c];
                     saved.back = d.back; //TODO reconsider
                 }
                 if (cidx > 0)
                     attroff(COLOR_PAIR(cidx));
-                memory[col * r + c] = saved;
+                memory[col * wrapped_r + wrapped_c] = saved;
             }
-            auto loc = std::pair<int, int>(r, c);
+            auto loc = std::pair<int, int>(wrapped_r, wrapped_c);
             if (isNonTerminal) {
                 x[loc] = rep;
             } else {
