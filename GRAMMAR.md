@@ -129,6 +129,12 @@ look of the 'pixels'.
     * define sounds (by a relative path to a wav file)
     * define colors (to allow changing colors for multiple rules at once)
 * `#=T <B-step-ms> <M-step-ms> <T-step-ms>` ... define timing steps (long/medium/instant) in milliseconds; if not given defaults to 500/50/0
+* `#=G <grid-width> <grid-height>` ... define grid alignment constraints for toroidal screen wrapping; ensures symbols wrap at boundaries that are multiples of the specified dimensions
+    * `#=G 1 1` - default (no grid constraints)
+    * `#=G 2 1` - double-width columns (prevents splitting of paired symbols like `@@` or `~~`)  
+    * `#=G 3 1` - triple-width columns (for Conway's Game of Life patterns)
+    * `#=G 2 2` - double-width columns and double-height rows
+    * Affects both coordinate wrapping and uppercase initial placement variants (`R`, `C`, `X`, `L`)
 
 ### Special rules
 **Quit rule**
