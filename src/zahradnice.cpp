@@ -7,6 +7,7 @@
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
 #include <sstream>
+#include <algorithm>
 
 int main(int argc, char *argv[]) {
     if (argc > 1) {
@@ -139,11 +140,15 @@ int main(int argc, char *argv[]) {
             ss << " Skill: " << reward; //<< std::endl;
             ss << " Errors: " << errs << std::endl;
 
-            if (elapsed_b == 0 || paused)
-                mvprintw(0, 0, cfg.help.c_str());
+            if (elapsed_b == 0 || paused) {
+                auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
+                mvprintw(0, 0, cfg.help.erase(limit, std::string::npos).c_str());
+            }
             else {
-                mvprintw(0, 0, ss.str().c_str());
-                mvprintw(0, col - rule.lhsa.length() - 1, rule.lhsa.c_str());
+                auto limit = std::min(static_cast<size_t>(col-1), ss.str().size());
+                mvprintw(0, 0, ss.str().erase(limit, std::string::npos).c_str());
+                limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
+                mvprintw(0, col - rule.lhsa.erase(limit, std::string::npos).length() - 1, rule.lhsa.c_str());
             }
 
             ch = getch();
