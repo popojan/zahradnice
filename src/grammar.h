@@ -32,7 +32,7 @@ public:
         wchar_t s; //symbol
     };
 
-    std::string help;
+    std::wstring help;
 
     std::vector<Start> S;
 
@@ -42,7 +42,7 @@ public:
     // starting symbol
     struct Rule {
         wchar_t lhs;
-        std::string lhsa;
+        std::wstring lhsa;
         std::wstring rhs;
         int ro;
         int co;
@@ -59,17 +59,17 @@ public:
         wchar_t ctxrep;
         int weight;
         char zord;
-        char sound;
+        wchar_t sound;
         bool load;
         bool clear;
         bool pause;
     };
 
     typedef std::vector<Rule> Rules;
-    std::unordered_set<char> sounds;
+    std::unordered_set<wchar_t> sounds;
 
     std::unordered_map<wchar_t, Rules> R;
-    std::unordered_map<char, std::string> dict;
+    std::unordered_map<wchar_t, std::wstring> dict;
 
     // Grid configuration for symbol alignment (default 1,1 = no constraints)
     int grid_width = 1;
@@ -78,13 +78,13 @@ public:
     Grammar2D() {
     }
 
-    bool _process(const std::vector<std::string> &lhs, const std::string &rule);
+    bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
 
     void loadFromFile(const std::string &fname);
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 
-    void addRule(const std::string &lhs, const std::string &rhs);
+    void addRule(const std::wstring &lhs, const std::wstring &rhs);
 
     // UTF-8 to wide character conversion helper
     static wchar_t utf8_to_wchar(const std::string& utf8_char);
@@ -95,7 +95,7 @@ public:
     friend class Derivation;
 
 private:
-    char getColor(char val, char def);
+    char getColor(wchar_t val, char def);
 };
 
 
