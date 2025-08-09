@@ -103,8 +103,8 @@ int main(int argc, char *argv[]) {
         if (clear) w.init();
         w.start();
 
-        char ch = ' ';
-        char last = ' ';
+        wint_t wch = L' ';
+        wint_t last = L' ';
 
         Grammar2D::Rule rule;
 
@@ -169,38 +169,41 @@ int main(int argc, char *argv[]) {
                 mvaddwstr(0, start_col, lhsa_truncated.c_str());
             }
 
-            ch = getch();
+            int result = wget_wch(stdscr, &wch);
+            if (result == ERR) {
+                wch = ERR;
+            }
 
             //time lapse
             //save CPU if no rule applicable
-            if (!success && last == ch) {
-                ch = ERR;
+            if (!success && last == wch) {
+                wch = ERR;
             }
 
-            if (ch == ERR) {
-                ch = 0;
+            if (wch == ERR) {
+                wch = 0;
                 auto stop = std::chrono::steady_clock::now();
                 std::chrono::duration<double, std::milli> duration = stop - start;
                 int el_t = T > 0 ? static_cast<int>(duration.count() / T) : elapsed_t + 1;
                 int el_b = static_cast<int>(duration.count() / B);
                 int el_m = static_cast<int>(duration.count() / M);
                 if (el_t > elapsed_t) {
-                    ch = 'T';
+                    wch = L'T';
                     elapsed_t = el_t;
                 }
                 if (el_m > elapsed_m) {
-                    ch = 'M';
+                    wch = L'M';
                     elapsed_m = el_m;
                 }
                 if (el_b > elapsed_b) {
-                    ch = 'B';
+                    wch = L'B';
                     elapsed_b = el_b;
                 }
             }
 
             //restart scene
 
-            if (ch == 'x') {
+            if (wch == L'x') {
                 paused = true;
                 timeout(-1);
                 getmaxyx(stdscr, row, col);
@@ -211,7 +214,7 @@ int main(int argc, char *argv[]) {
 
             // toggle pause
 
-            else if (ch == ' ') {
+            else if (wch == L' ') {
                 paused = !paused;
                 if (!paused) {
                     timeout(0);
@@ -224,17 +227,17 @@ int main(int argc, char *argv[]) {
 
             else {
                 rule.sound = 0;
-                success = w.step(ch, score, &rule, errs);
+                success = w.step(static_cast<wchar_t>(wch), score, &rule, errs);
                 if (success) {
                     ++steps;
                 }
-                else if (ch == 'T') {
+                else if (wch == L'T') {
                     std::this_thread
                             ::sleep_for(
                                 std::chrono::milliseconds{50}
                             );
                 }
-                last = ch;
+                last = wch;
             }
 
             //refresh();
