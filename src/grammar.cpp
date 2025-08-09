@@ -7,10 +7,8 @@
 static int wrap_row(int r, int max_row, int grid_height) {
     // Keep row 0 for status line, wrap rows 1 to max_row-1
     // Use grid-aligned effective height
-    int effective_max_row = ((max_row - 1) / grid_height) * grid_height + 1;
-    if (r <= 0) return effective_max_row - grid_height;
-    if (r >= effective_max_row) return 1;
-    return r;
+    int effective_max_row = ((max_row - 1) / grid_height) * grid_height;
+    return (((r-1) % effective_max_row) + effective_max_row) % effective_max_row + 1;
 }
 
 static int wrap_col(int c, int max_col, int grid_width) {
@@ -44,7 +42,7 @@ void Grammar2D::loadFromFile(const std::string &fname) {
                 if (first && line.at(1) == '!') {
                     help = line.substr(2);
                 } else if (line.at(1) == '=') {
-                    if (line.at(2) == 'G' && line.size() > 3) {
+                    if (line.at(2) == '=' && line.size() > 3) {
                         // Parse grid configuration: #=G width height
                         std::string config = line.substr(3);
                         // Skip leading whitespace
@@ -265,7 +263,7 @@ void Derivation::start() {
     std::for_each(g.S.begin(), g.S.end(), [this](auto &s) {
         // Use grid-aligned effective dimensions consistent with wrap functions
         int effective_col = (col / g.grid_width) * g.grid_width;
-        int effective_row = ((row - 1) / g.grid_height) * g.grid_height + 1;
+        int effective_row = ((row - 1) / g.grid_height) * g.grid_height;
         int c = col / 2;
         int r = row / 2;
         if (s.lr == 'l') {
