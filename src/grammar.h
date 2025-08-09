@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <cwchar>
+#include <clocale>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -22,12 +24,12 @@ struct hash_pair final {
 class Grammar2D {
 public:
     // non terminals
-    std::unordered_set<char> V;
+    std::unordered_set<wchar_t> V;
 
     struct Start {
         char ul; //vertical placement
         char lr; //horizontal placement
-        char s; //symbol
+        wchar_t s; //symbol
     };
 
     std::string help;
@@ -39,9 +41,9 @@ public:
 
     // starting symbol
     struct Rule {
-        char lhs;
+        wchar_t lhs;
         std::string lhsa;
-        std::string rhs;
+        std::wstring rhs;
         int ro;
         int co;
         int rm;
@@ -51,10 +53,10 @@ public:
         char fore;
         char back;
         int reward;
-        char key;
-        char ctx;
-        char rep;
-        char ctxrep;
+        wchar_t key;
+        wchar_t ctx;
+        wchar_t rep;
+        wchar_t ctxrep;
         int weight;
         char zord;
         char sound;
@@ -66,9 +68,9 @@ public:
     typedef std::vector<Rule> Rules;
     std::unordered_set<char> sounds;
 
-    std::unordered_map<char, Rules> R;
+    std::unordered_map<wchar_t, Rules> R;
     std::unordered_map<char, std::string> dict;
-    
+
     // Grid configuration for symbol alignment (default 1,1 = no constraints)
     int grid_width = 1;
     int grid_height = 1;
@@ -80,9 +82,15 @@ public:
 
     void loadFromFile(const std::string &fname);
 
-    std::pair<int, int> origin(char s, const std::string &rhs, char spec, int ord = 0);
+    std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 
     void addRule(const std::string &lhs, const std::string &rhs);
+
+    // UTF-8 to wide character conversion helper
+    static wchar_t utf8_to_wchar(const std::string& utf8_char);
+
+    // String to wstring conversion helper
+    static std::wstring string_to_wstring(const std::string& str);
 
     friend class Derivation;
 
@@ -93,10 +101,10 @@ private:
 
 class Derivation {
 public:
-    std::unordered_map<std::pair<int, int>, char, hash_pair> x;
+    std::unordered_map<std::pair<int, int>, wchar_t, hash_pair> x;
 
     struct G {
-        char c;
+        wchar_t c;
         char fore;
         char back;
         char zord;

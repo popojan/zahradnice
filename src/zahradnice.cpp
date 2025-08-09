@@ -1,4 +1,5 @@
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
+#include <locale.h>
 #include <iostream>
 #include "grammar.h"
 #include <thread>
@@ -10,6 +11,8 @@
 #include <algorithm>
 
 int main(int argc, char *argv[]) {
+    setlocale(LC_ALL, "");
+
     if (argc > 1) {
         auto param = std::string(argv[1]);
         if (param == "-h" || param == "--help") {

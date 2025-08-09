@@ -1,7 +1,9 @@
 #include "grammar.h"
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
 #include <utility>
 #include "zstr.hpp"
+#include <cwchar>
+#include <cstring>
 
 // Helper functions for toroidal coordinate wrapping
 static int wrap_row(int r, int max_row, int grid_height) {
@@ -78,9 +80,12 @@ void Grammar2D::loadFromFile(const std::string &fname) {
         }
         if (!line.empty() && line.at(0) == '^') //starting symbol
         {
-            char s = line.size() > 1 ? line.at(1) : 's';
-            char ul = line.size() > 2 ? line.at(2) : 'c';
-            char lr = line.size() > 3 ? line.at(3) : 'c';
+            std::wstring wline = string_to_wstring(line);
+            wchar_t s = wline.length() > 1 ? wline.at(1) : L's';
+
+            // Position indicators are still ASCII, so we can convert back
+            char ul = wline.length() > 2 ? static_cast<char>(wline.at(2)) : 'c';
+            char lr = wline.length() > 3 ? static_cast<char>(wline.at(3)) : 'c';
             S.push_back({ul, lr, s});
         }
         if (!line.empty() && line.at(0) == '=') //new rule LHSs
@@ -101,16 +106,16 @@ void Grammar2D::loadFromFile(const std::string &fname) {
         _process(lhs, rule.str());
     }
     if (S.empty()) {
-        S.push_back({'c', 'c', 's'});
+        S.push_back({'c', 'c', L's'});
     }
 }
 
-std::pair<int, int> Grammar2D::origin(char s, const std::string &rhs, char spec, int ord) {
+std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord) {
     int r = 0;
     int c = 0;
 
-    for (const char *p = rhs.c_str(); *p != '\0'; ++p, ++c) {
-        if (*p == '\n') {
+    for (const wchar_t *p = rhs.c_str(); *p != L'\0'; ++p, ++c) {
+        if (*p == L'\n') {
             ++r;
             c = -1;
         } else if (*p == spec) {
@@ -134,8 +139,46 @@ char Grammar2D::getColor(char c, const char def) {
     return val >= 0 && val <= 9 ? val : def;
 }
 
+wchar_t Grammar2D::utf8_to_wchar(const std::string& utf8_char) {
+    if (utf8_char.empty()) return L' ';
+
+    wchar_t wc;
+    std::mbstate_t state = {};
+    size_t len = std::mbrtowc(&wc, utf8_char.c_str(), utf8_char.length(), &state);
+
+    // Return the wide character if conversion succeeds, otherwise return ASCII equivalent or '?'
+    if (len > 0 && len != static_cast<size_t>(-1) && len != static_cast<size_t>(-2)) {
+        return wc;
+    } else if (utf8_char.length() == 1) {
+        // ASCII character - direct conversion
+        return static_cast<wchar_t>(utf8_char[0]);
+    }
+    return L'?';
+}
+
+std::wstring Grammar2D::string_to_wstring(const std::string& str) {
+    if (str.empty()) return L"";
+
+    // Get required buffer size
+    size_t len = std::mbstowcs(nullptr, str.c_str(), 0);
+    if (len == static_cast<size_t>(-1)) {
+        // Conversion failed, fallback to simple ASCII conversion
+        std::wstring result;
+        for (char c : str) {
+            result += static_cast<wchar_t>(c);
+        }
+        return result;
+    }
+
+    // Convert UTF-8 to wide string
+    std::wstring result(len, L'\0');
+    std::mbstowcs(&result[0], str.c_str(), len);
+    return result;
+}
+
 void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
-    char s = lhs.at(2);
+    std::wstring wlhs = string_to_wstring(lhs);
+    wchar_t s = wlhs.length() > 2 ? wlhs.at(2) : L's';
     if (R.find(s) == R.end()) {
         R[s] = Rules();
         V.insert(s);
@@ -143,21 +186,22 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     Rule rule;
     rule.load = false;
     rule.sound = 0;
-    if (lhs.at(1) != '=') {
-        char c = lhs.at(1);
-        if (std::string(">])|").find(c) == std::string::npos) {
-            sounds.insert(c);
-            rule.sound = c;
+    if (wlhs.length() > 1 && wlhs.at(1) != L'=') {
+        wchar_t c = wlhs.at(1);
+        if (std::wstring(L">])|").find(c) == std::wstring::npos) {
+            sounds.insert(static_cast<char>(c)); // sounds still stored as char
+            rule.sound = static_cast<char>(c);   // sound still stored as char
         } else {
             rule.sound = 0;
             rule.load = true;
-            rule.clear = c == ')' || c == '|';
-            rule.pause = c == ']' || c == '|';
+            rule.clear = c == L')' || c == L'|';
+            rule.pause = c == L']' || c == L'|';
         }
     }
-    auto o = origin(s, rhs, '@', 0);
-    auto m = origin(s, rhs, '@', 1);
-    auto q = origin(s, rhs, '@', 2);
+    std::wstring wrhs = string_to_wstring(rhs);
+    auto o = origin(s, wrhs, L'@', 0);
+    auto m = origin(s, wrhs, L'@', 1);
+    auto q = origin(s, wrhs, L'@', 2);
     rule.lhsa = lhs;
     rule.lhs = s;
     rule.ro = o.first;
@@ -166,7 +210,7 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     rule.cm = m.second;
     rule.rq = q.first;
     rule.cq = q.second;
-    rule.rhs = rhs;
+    rule.rhs = wrhs;
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
     if (lhs.size() > 5) {
@@ -179,7 +223,7 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     rule.back = back;
     int reward = 0; //default reward
     int weight = 1;
-    rule.key = lhs.at(3);
+    rule.key = wlhs.length() > 3 ? wlhs.at(3) : L'?';
     if (lhs.size() > 11) {
         std::istringstream iss(lhs.substr(11));
         iss >> reward;
@@ -188,29 +232,29 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     }
     rule.reward = reward;
     rule.weight = weight;
-    if (lhs.size() > 7)
-        rule.ctx = lhs.at(7);
+    if (wlhs.length() > 7)
+        rule.ctx = wlhs.at(7);
     else
-        rule.ctx = -1;
-    if (rule.ctx == '?')
-        rule.ctx = -1;
+        rule.ctx = static_cast<wchar_t>(-1);
+    if (rule.ctx == L'?')
+        rule.ctx = static_cast<wchar_t>(-1);
 
-    if (lhs.size() > 8) {
-        rule.ctxrep = lhs.at(8);
+    if (wlhs.length() > 8) {
+        rule.ctxrep = wlhs.at(8);
     } else
-        rule.ctxrep = ' ';
+        rule.ctxrep = L' ';
 
     if (lhs.size() > 9)
         rule.zord = lhs.at(9);
     else
         rule.zord = 'a';
 
-    if (rule.ctxrep == '*') {
+    if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
     }
-    rule.rep = lhs.at(4);
-    //std::replace(rule.rhs.begin(), rule.rhs.end(), '@', lhs.at(4));
-    std::replace(rule.rhs.begin(), rule.rhs.end(), '*', rule.lhs);
+    rule.rep = wlhs.length() > 4 ? wlhs.at(4) : L' ';
+    //std::replace(rule.rhs.begin(), rule.rhs.end(), L'@', rule.rep);
+    std::replace(rule.rhs.begin(), rule.rhs.end(), L'*', rule.lhs);
     R[s].push_back(rule);
 }
 
@@ -297,7 +341,10 @@ void Derivation::start() {
             r = rand() % (row - 1) + 1;
         }
         x[std::pair<int, int>(r, c)] = s.s;
-        mvaddch(r, c, s.s);
+        cchar_t cchar;
+        wchar_t wch[2] = {s.s, 0};
+        setcchar(&cchar, wch, 0, 0, NULL);
+        mvadd_wch(r, c, &cchar);
     });
 }
 
@@ -305,7 +352,7 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule *dbgrule, int &errs)
     //random nonterminal instance
 
     //nonterminal alterable by rules from group key
-    std::unordered_set<char> a;
+    std::unordered_set<wchar_t> a;
     std::for_each(g.R.begin(), g.R.end(), [key,&a](auto &rr) {
         std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto &rrr) {
             if (rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
@@ -320,7 +367,7 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule *dbgrule, int &errs)
     if (xx.size() <= 0)
         return false;
     struct abc {
-        char a;
+        wchar_t a;
         std::vector<std::pair<int, int> >::difference_type b;
         std::vector<Grammar2D::Rule>::difference_type c;
     };
@@ -369,7 +416,7 @@ void Derivation::restart() {
     clear();
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
-            memory[r * col + c] = {' ', 7, 0, 'a'};
+            memory[r * col + c] = {L' ', 7, 0, 'a'};
         }
     }
 }
@@ -380,13 +427,13 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
 
     bool horiz = rule.cq > rule.co;
 
-    for (const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
-        if (*p == '\n') {
+    for (const wchar_t *p = rule.rhs.c_str(); *p != L'\0'; ++p, ++c) {
+        if (*p == L'\n') {
             ++r;
             c = co - 1;
             continue;
         }
-        if (*p == ' ')
+        if (*p == L' ')
             continue;
 
         if (horiz) {
@@ -397,23 +444,32 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
                 break;
         }
 
-        char req = *p;
+        wchar_t req = *p;
         // Wrap coordinates cyclically for toroidal screen
         int wrapped_r = wrap_row(r, row, g.grid_height);
         int wrapped_c = wrap_col(c, col, g.grid_width);
-        
+
         // Always get context from wrapped position (no '#' boundaries)
-        char ctx = mvinch(wrapped_r, wrapped_c);
-        if (ctx == ' ') ctx = '~';
-        if (req == '@')
+        cchar_t cchar;
+        wchar_t ctx = L' ';
+        if (mvwin_wch(stdscr, wrapped_r, wrapped_c, &cchar) == OK) {
+            wchar_t wch[CCHARW_MAX];
+            attr_t attrs;
+            short color_pair;
+            if (getcchar(&cchar, wch, &attrs, &color_pair, NULL) == OK) {
+                ctx = wch[0];
+            }
+        }
+        if (ctx == L' ') ctx = L'~';
+        if (req == L'@')
             req = rule.lhs;
-        if (*p == '&')
+        if (*p == L'&')
             req = rule.ctx;
-        if (req == ' ')
-            req = '~';
-        if ((req != '!' && req != '%' && req != ctx)
-            || (req == '!' && ctx == rule.ctx)
-            || (*p == '%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
+        if (req == L' ')
+            req = L'~';
+        if ((req != L'!' && req != L'%' && req != ctx)
+            || (req == L'!' && ctx == rule.ctx)
+            || (*p == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
             return false;
         }
     }
@@ -424,8 +480,8 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
     int r = ro;
     int c = co;
 
-    for (const char *p = rule.rhs.c_str(); *p != '\0'; ++p, ++c) {
-        if (*p == '\n') {
+    for (const wchar_t *p = rule.rhs.c_str(); *p != L'\0'; ++p, ++c) {
+        if (*p == L'\n') {
             ++r;
             c = co - 1;
             continue;
@@ -434,19 +490,19 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
             continue;
         if (rule.cq <= rule.co && r - ro <= rule.rm)
             continue;
-        G saved = {' ', 7, 8, 'a'};
-        char rep = *p;
-        if (rep == '@')
+        G saved = {L' ', 7, 8, 'a'};
+        wchar_t rep = *p;
+        if (rep == L'@')
             rep = rule.rep;
-        if (rep == '&')
+        if (rep == L'&')
             rep = rule.ctxrep;
         bool isNonTerminal = g.V.find(rep) != g.V.end();
-        if (rep != ' ') {
+        if (rep != L' ') {
             // Wrap coordinates cyclically for toroidal screen
             int wrapped_r = wrap_row(r, row, g.grid_height);
             int wrapped_c = wrap_col(c, col, g.grid_width);
-            if (rep == '~')
-                rep = ' ';
+            if (rep == L'~')
+                rep = L' ';
 
             char back = rule.back;
 
@@ -459,9 +515,9 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
             G d = {rep, rule.fore, back, rule.zord};
 
             // special char: restore from memory
-            if (rep == '$') d = memory[col * wrapped_r + wrapped_c];
+            if (rep == L'$') d = memory[col * wrapped_r + wrapped_c];
             // memory empty
-            if (d.c == -1) d = {' ', rule.fore, back, 'a'};
+            if (d.c == -1) d = {L' ', rule.fore, back, 'a'};
 
             int cidx = getColor(d.fore, d.back);
 
@@ -469,7 +525,10 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
                 if (cidx > 0) {
                     attron(COLOR_PAIR(cidx));
                 }
-                mvaddch(wrapped_r, wrapped_c, d.c);
+                cchar_t cchar;
+                wchar_t wch[2] = {d.c, 0};
+                setcchar(&cchar, wch, 0, cidx, NULL);
+                mvadd_wch(wrapped_r, wrapped_c, &cchar);
                 if (!isNonTerminal) {
                     //terminal symbol: save all
                     saved = d;
