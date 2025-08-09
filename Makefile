@@ -1,10 +1,10 @@
 all: zahradnice-speed
 
 zahradnice-speed:
-	g++ -std=c++14 -I zstr/src/ -lz -lncurses -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s
+	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s
 
 zahradnice-size:
-	g++ -std=c++14 -I zstr/src/ -lz -lncurses -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
+	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
    -ffunction-sections -fdata-sections -Wl,--gc-sections
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
 
