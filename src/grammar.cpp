@@ -19,7 +19,7 @@ static int wrap_col(int c, int max_col, int grid_width) {
     return ((c % effective_max_col) + effective_max_col) % effective_max_col;
 }
 
-bool Grammar2D::_process(const std::vector<std::string> &lhs, const std::string &rule) {
+bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstring &rule) {
     std::for_each
     (
         lhs.begin(), lhs.end(),
@@ -32,38 +32,44 @@ bool Grammar2D::_process(const std::vector<std::string> &lhs, const std::string 
 
 void Grammar2D::loadFromFile(const std::string &fname) {
     zstr::ifstream t(fname);
-    std::string line;
-    std::vector<std::string> lhs;
-    std::ostringstream rule;
+    std::string line_utf8;
+    std::vector<std::wstring> lhs;
+    std::wostringstream rule;
 
     bool first = true;
-    while (std::getline(t, line)) {
+    while (std::getline(t, line_utf8)) {
+        std::wstring line = string_to_wstring(line_utf8);
         if (!line.empty() && line.at(0) == '#') //comment
         {
             if (line.size() > 1) {
-                if (first && line.at(1) == '!') {
+                if (first && line.at(1) == L'!') {
                     help = line.substr(2);
-                } else if (line.at(1) == '=') {
-                    if (line.at(2) == '=' && line.size() > 3) {
+                } else if (line.at(1) == L'=') {
+                    if (line.at(2) == L'=' && line.size() > 3) {
                         // Parse grid configuration: #=G width height
-                        std::string config = line.substr(3);
+                        std::wstring config = line.substr(3);
                         // Skip leading whitespace
-                        size_t start = config.find_first_not_of(" \t");
-                        if (start != std::string::npos) {
+                        size_t start = config.find_first_not_of(L" \t");
+                        if (start != std::wstring::npos) {
                             config = config.substr(start);
-                            size_t space_pos = config.find(' ');
-                            if (space_pos != std::string::npos) {
-                                grid_width = std::stoi(config.substr(0, space_pos));
-                                std::string height_str = config.substr(space_pos + 1);
+                            size_t space_pos = config.find(L' ');
+                            if (space_pos != std::wstring::npos) {
+                                std::wstring width_str = config.substr(0, space_pos);
+                                std::string width_narrow(width_str.begin(), width_str.end());
+                                grid_width = std::stoi(width_narrow);
+                                std::wstring height_str = config.substr(space_pos + 1);
                                 // Skip whitespace in height string too
-                                size_t height_start = height_str.find_first_not_of(" \t");
-                                if (height_start != std::string::npos) {
-                                    grid_height = std::stoi(height_str.substr(height_start));
+                                size_t height_start = height_str.find_first_not_of(L" \t");
+                                if (height_start != std::wstring::npos) {
+                                    std::wstring height_clean = height_str.substr(height_start);
+                                    std::string height_narrow(height_clean.begin(), height_clean.end());
+                                    grid_height = std::stoi(height_narrow);
                                 } else {
                                     grid_height = 1;
                                 }
                             } else {
-                                grid_width = std::stoi(config);
+                                std::string config_narrow(config.begin(), config.end());
+                                grid_width = std::stoi(config_narrow);
                                 grid_height = 1;
                             }
                         }
@@ -71,27 +77,31 @@ void Grammar2D::loadFromFile(const std::string &fname) {
                         if (grid_width <= 0) grid_width = 1;
                         if (grid_height <= 0) grid_height = 1;
                     } else {
-                        dict.insert(std::make_pair(line.at(2), line.substr(3)));
+                        // Dictionary entry: #=<key><value>
+                        if (line.length() > 2) {
+                            wchar_t key = line.at(2);
+                            std::wstring value = line.substr(3);
+                            dict.insert(std::make_pair(key, value));
+                        }
                     }
                 }
             }
             first = false;
             continue;
         }
-        if (!line.empty() && line.at(0) == '^') //starting symbol
+        if (!line.empty() && line.at(0) == L'^') //starting symbol
         {
-            std::wstring wline = string_to_wstring(line);
-            wchar_t s = wline.length() > 1 ? wline.at(1) : L's';
+            wchar_t s = line.length() > 1 ? line.at(1) : L's';
 
             // Position indicators are still ASCII, so we can convert back
-            char ul = wline.length() > 2 ? static_cast<char>(wline.at(2)) : 'c';
-            char lr = wline.length() > 3 ? static_cast<char>(wline.at(3)) : 'c';
+            char ul = line.length() > 2 ? static_cast<char>(line.at(2)) : 'c';
+            char lr = line.length() > 3 ? static_cast<char>(line.at(3)) : 'c';
             S.push_back({ul, lr, s});
         }
-        if (!line.empty() && line.at(0) == '=') //new rule LHSs
+        if (!line.empty() && line.at(0) == L'=') //new rule LHSs
         {
             if (!rule.str().empty() && _process(lhs, rule.str())) {
-                rule.str("");
+                rule.str(L"");
                 rule.clear();
                 lhs.clear();
             }
@@ -128,12 +138,22 @@ std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_
     return std::pair<int, int>(-1, -1);
 }
 
-char Grammar2D::getColor(char c, const char def) {
-    char val = static_cast<char>(c - '0');
-    if (val > 9 || val < 0) {
+char Grammar2D::getColor(wchar_t c, const char def) {
+    char val = -1;
+    
+    // First try if it's a direct digit character
+    if (c >= L'0' && c <= L'9') {
+        val = static_cast<char>(c - L'0');
+    } else {
+        // Look up in dictionary for wide character keys
         auto it = dict.find(c);
         if (it != dict.end()) {
-            val = it->second.at(0) - '0';
+            if (!it->second.empty()) {
+                wchar_t first_char = it->second.at(0);
+                if (first_char >= L'0' && first_char <= L'9') {
+                    val = static_cast<char>(first_char - L'0');
+                }
+            }
         }
     }
     return val >= 0 && val <= 9 ? val : def;
@@ -176,9 +196,8 @@ std::wstring Grammar2D::string_to_wstring(const std::string& str) {
     return result;
 }
 
-void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
-    std::wstring wlhs = string_to_wstring(lhs);
-    wchar_t s = wlhs.length() > 2 ? wlhs.at(2) : L's';
+void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
+    wchar_t s = lhs.length() > 2 ? lhs.at(2) : L's';
     if (R.find(s) == R.end()) {
         R[s] = Rules();
         V.insert(s);
@@ -186,11 +205,11 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     Rule rule;
     rule.load = false;
     rule.sound = 0;
-    if (wlhs.length() > 1 && wlhs.at(1) != L'=') {
-        wchar_t c = wlhs.at(1);
+    if (lhs.length() > 1 && lhs.at(1) != L'=') {
+        wchar_t c = lhs.at(1);
         if (std::wstring(L">])|").find(c) == std::wstring::npos) {
-            sounds.insert(static_cast<char>(c)); // sounds still stored as char
-            rule.sound = static_cast<char>(c);   // sound still stored as char
+            sounds.insert(c);
+            rule.sound = c;
         } else {
             rule.sound = 0;
             rule.load = true;
@@ -198,10 +217,9 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
             rule.pause = c == L']' || c == L'|';
         }
     }
-    std::wstring wrhs = string_to_wstring(rhs);
-    auto o = origin(s, wrhs, L'@', 0);
-    auto m = origin(s, wrhs, L'@', 1);
-    auto q = origin(s, wrhs, L'@', 2);
+    auto o = origin(s, rhs, L'@', 0);
+    auto m = origin(s, rhs, L'@', 1);
+    auto q = origin(s, rhs, L'@', 2);
     rule.lhsa = lhs;
     rule.lhs = s;
     rule.ro = o.first;
@@ -210,7 +228,7 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     rule.cm = m.second;
     rule.rq = q.first;
     rule.cq = q.second;
-    rule.rhs = wrhs;
+    rule.rhs = rhs;
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
     if (lhs.size() > 5) {
@@ -223,24 +241,26 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     rule.back = back;
     int reward = 0; //default reward
     int weight = 1;
-    rule.key = wlhs.length() > 3 ? wlhs.at(3) : L'?';
+    rule.key = lhs.length() > 3 ? lhs.at(3) : L'?';
     if (lhs.size() > 11) {
-        std::istringstream iss(lhs.substr(11));
+        std::wstring score_str = lhs.substr(11);
+        std::string score_narrow(score_str.begin(), score_str.end());
+        std::istringstream iss(score_narrow);
         iss >> reward;
         iss >> weight;
         if (weight < 1) weight = 1;
     }
     rule.reward = reward;
     rule.weight = weight;
-    if (wlhs.length() > 7)
-        rule.ctx = wlhs.at(7);
+    if (lhs.length() > 7)
+        rule.ctx = lhs.at(7);
     else
         rule.ctx = static_cast<wchar_t>(-1);
     if (rule.ctx == L'?')
         rule.ctx = static_cast<wchar_t>(-1);
 
-    if (wlhs.length() > 8) {
-        rule.ctxrep = wlhs.at(8);
+    if (lhs.length() > 8) {
+        rule.ctxrep = lhs.at(8);
     } else
         rule.ctxrep = L' ';
 
@@ -252,7 +272,7 @@ void Grammar2D::addRule(const std::string &lhs, const std::string &rhs) {
     if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
     }
-    rule.rep = wlhs.length() > 4 ? wlhs.at(4) : L' ';
+    rule.rep = lhs.length() > 4 ? lhs.at(4) : L' ';
     //std::replace(rule.rhs.begin(), rule.rhs.end(), L'@', rule.rep);
     std::replace(rule.rhs.begin(), rule.rhs.end(), L'*', rule.lhs);
     R[s].push_back(rule);

@@ -72,14 +72,15 @@ int main(int argc, char *argv[]) {
         Grammar2D cfg;
         cfg.loadFromFile(config);
 
-        std::unordered_map<char, sample> sounds;
+        std::unordered_map<wchar_t, sample> sounds;
         // load timing if defined
         int B = 500;
         int M = 50;
         int T = 0;
-        auto it = cfg.dict.find('T'); {
+        auto it = cfg.dict.find(L'T'); {
             if (it != cfg.dict.end()) {
-                std::stringstream ss(it->second);
+                std::string timing_str(it->second.begin(), it->second.end()); // Convert wstring to string
+                std::stringstream ss(timing_str);
                 ss >> B;
                 ss >> M;
                 ss >> T;
@@ -87,10 +88,11 @@ int main(int argc, char *argv[]) {
         }
 
         // load sounds if defined
-        for (char c: cfg.sounds) {
+        for (wchar_t c: cfg.sounds) {
             auto it = cfg.dict.find(c);
             if (it != cfg.dict.end()) {
-                sounds.insert(std::make_pair(c, sample(it->second, 100)));
+                std::string sound_path(it->second.begin(), it->second.end()); // Convert wstring to string
+                sounds.insert(std::make_pair(c, sample(sound_path, 100)));
             }
         }
 
@@ -118,7 +120,9 @@ int main(int argc, char *argv[]) {
             }
             // switch programs if requested
             else if (success && rule.load && !rule.lhsa.empty()) {
-                std::stringstream ss(rule.lhsa.substr(5));
+                std::wstring lhsa_substr = rule.lhsa.substr(5);
+                std::string lhsa_narrow(lhsa_substr.begin(), lhsa_substr.end());
+                std::stringstream ss(lhsa_narrow);
                 std::string new_program;
                 ss >> new_program;
                 if (new_program == "quit") {
@@ -145,13 +149,24 @@ int main(int argc, char *argv[]) {
 
             if (elapsed_b == 0 || paused) {
                 auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
-                mvprintw(0, 0, cfg.help.erase(limit, std::string::npos).c_str());
+                std::wstring help_truncated = cfg.help;
+                help_truncated.erase(limit, std::wstring::npos);
+                mvaddwstr(0, 0, help_truncated.c_str());
             }
             else {
                 auto limit = std::min(static_cast<size_t>(col-1), ss.str().size());
                 mvprintw(0, 0, ss.str().erase(limit, std::string::npos).c_str());
                 limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
-                mvprintw(0, col - rule.lhsa.erase(limit, std::string::npos).length() - 1, rule.lhsa.c_str());
+                std::wstring lhsa_truncated = rule.lhsa;
+                lhsa_truncated.erase(limit, std::wstring::npos);
+                
+                // Calculate actual display width (wide chars take 2 columns)
+                int display_width = wcswidth(lhsa_truncated.c_str(), lhsa_truncated.length());
+                if (display_width < 0) display_width = lhsa_truncated.length(); // fallback
+                
+                int start_col = col - display_width - 1;
+                if (start_col < 0) start_col = 0; // prevent overflow
+                mvaddwstr(0, start_col, lhsa_truncated.c_str());
             }
 
             ch = getch();
