@@ -368,14 +368,14 @@ void Derivation::start() {
     });
 }
 
-bool Derivation::step(char key, int &score, Grammar2D::Rule *dbgrule, int &errs) {
+bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, int &errs) {
     //random nonterminal instance
 
     //nonterminal alterable by rules from group key
     std::unordered_set<wchar_t> a;
     std::for_each(g.R.begin(), g.R.end(), [key,&a](auto &rr) {
         std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto &rrr) {
-            if (rrr.key == key || rrr.key == '?') a.insert(rrr.lhs);
+            if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
         });
     });
     std::vector<std::pair<int, int> > xx;
@@ -402,7 +402,7 @@ bool Derivation::step(char key, int &score, Grammar2D::Rule *dbgrule, int &errs)
             //random rule
             auto &rs = res->second;
             for (auto rit = rs.begin(); rit != rs.end(); ++rit) {
-                if (rit->key == key || rit->key == '?') {
+                if (rit->key == key || rit->key == L'?') {
                     bool app = dryapply(nit->first - rit->ro, nit->second - rit->co, *rit);
                     if (app) {
                         sumw += rit->weight;
