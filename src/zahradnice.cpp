@@ -222,7 +222,10 @@ int main(int argc, char *argv[]) {
                     timeout(-1);
                 }
             }
-
+            else if(wch == L'q' && paused) {
+                config = "quit";
+                break;
+            }
             // apply a single rule (counts as a step)
 
             else {
