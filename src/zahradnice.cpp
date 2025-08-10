@@ -159,11 +159,11 @@ int main(int argc, char *argv[]) {
                 limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
                 std::wstring lhsa_truncated = rule.lhsa;
                 lhsa_truncated.erase(limit, std::wstring::npos);
-                
+
                 // Calculate actual display width (wide chars take 2 columns)
                 int display_width = wcswidth(lhsa_truncated.c_str(), lhsa_truncated.length());
                 if (display_width < 0) display_width = lhsa_truncated.length(); // fallback
-                
+
                 int start_col = col - display_width - 1;
                 if (start_col < 0) start_col = 0; // prevent overflow
                 mvaddwstr(0, start_col, lhsa_truncated.c_str());

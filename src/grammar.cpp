@@ -140,7 +140,7 @@ std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_
 
 char Grammar2D::getColor(wchar_t c, const char def) {
     char val = -1;
-    
+
     // First try if it's a direct digit character
     if (c >= L'0' && c <= L'9') {
         val = static_cast<char>(c - L'0');
@@ -278,7 +278,7 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     R[s].push_back(rule);
 }
 
-Derivation::Derivation(): memory(nullptr) {
+Derivation::Derivation(): memory(nullptr), screen_chars(nullptr) {
 }
 
 void Derivation::reset(const Grammar2D &g, int row, int col) {
@@ -289,7 +289,9 @@ void Derivation::reset(const Grammar2D &g, int row, int col) {
 
 void Derivation::init() {
     delete [] memory;
+    delete [] screen_chars;
     memory = new G[row * col];
+    screen_chars = new wchar_t[row * col];
     initColors();
     restart();
 }
@@ -321,6 +323,7 @@ void Derivation::initColors() {
 
 Derivation::~Derivation() {
     delete [] memory;
+    delete [] screen_chars;
 }
 
 void Derivation::start() {
@@ -365,6 +368,8 @@ void Derivation::start() {
         wchar_t wch[2] = {s.s, 0};
         setcchar(&cchar, wch, 0, 0, NULL);
         mvadd_wch(r, c, &cchar);
+        // Update redundant character storage
+        screen_chars[r * col + c] = s.s;
     });
 }
 
@@ -437,6 +442,7 @@ void Derivation::restart() {
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
             memory[r * col + c] = {L' ', 7, 0, 'a'};
+            screen_chars[r * col + c] = L' ';
         }
     }
 }
@@ -469,17 +475,8 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
         int wrapped_r = wrap_row(r, row, g.grid_height);
         int wrapped_c = wrap_col(c, col, g.grid_width);
 
-        // Always get context from wrapped position (no '#' boundaries)
-        cchar_t cchar;
-        wchar_t ctx = L' ';
-        if (mvwin_wch(stdscr, wrapped_r, wrapped_c, &cchar) == OK) {
-            wchar_t wch[CCHARW_MAX];
-            attr_t attrs;
-            short color_pair;
-            if (getcchar(&cchar, wch, &attrs, &color_pair, NULL) == OK) {
-                ctx = wch[0];
-            }
-        }
+        // Always get context from wrapped position using fast character lookup
+        wchar_t ctx = screen_chars[wrapped_r * col + wrapped_c];
         if (ctx == L' ') ctx = L'~';
         if (req == L'@')
             req = rule.lhs;
@@ -549,6 +546,8 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
                 wchar_t wch[2] = {d.c, 0};
                 setcchar(&cchar, wch, 0, cidx, NULL);
                 mvadd_wch(wrapped_r, wrapped_c, &cchar);
+                // Update redundant character storage
+                screen_chars[wrapped_r * col + wrapped_c] = d.c;
                 if (!isNonTerminal) {
                     //terminal symbol: save all
                     saved = d;

@@ -111,6 +111,7 @@ public:
     };
 
     G *memory;
+    wchar_t *screen_chars;  // Redundant storage of displayed characters for fast context lookup
 
     Derivation();
 
