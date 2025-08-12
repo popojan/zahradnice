@@ -4,7 +4,7 @@ zahradnice-speed:
 	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s
 
 zahradnice-debug:
-	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -g
+	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O2 -g
 
 zahradnice-size:
 	g++ -std=c++14 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
