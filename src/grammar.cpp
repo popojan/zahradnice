@@ -5,19 +5,6 @@
 #include <cwchar>
 #include <cstring>
 
-// Helper functions for toroidal coordinate wrapping
-static int wrap_row(int r, int max_row, int grid_height) {
-    // Keep row 0 for status line, wrap rows 1 to max_row-1
-    // Use grid-aligned effective height
-    int effective_max_row = ((max_row - 1) / grid_height) * grid_height;
-    return (((r-1) % effective_max_row) + effective_max_row) % effective_max_row + 1;
-}
-
-static int wrap_col(int c, int max_col, int grid_width) {
-    // Use grid-aligned effective column width
-    int effective_max_col = (max_col / grid_width) * grid_width;
-    return ((c % effective_max_col) + effective_max_col) % effective_max_col;
-}
 
 bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstring &rule) {
     std::for_each
@@ -472,8 +459,8 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
 
         wchar_t req = *p;
         // Wrap coordinates cyclically for toroidal screen
-        int wrapped_r = wrap_row(r, row, g.grid_height);
-        int wrapped_c = wrap_col(c, col, g.grid_width);
+        int wrapped_r = wrap_row(r);
+        int wrapped_c = wrap_col(c);
 
         // Always get context from wrapped position using fast character lookup
         wchar_t ctx = screen_chars[wrapped_r * col + wrapped_c];
@@ -516,8 +503,8 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
         bool isNonTerminal = g.V.find(rep) != g.V.end();
         if (rep != L' ') {
             // Wrap coordinates cyclically for toroidal screen
-            int wrapped_r = wrap_row(r, row, g.grid_height);
-            int wrapped_c = wrap_col(c, col, g.grid_width);
+            int wrapped_r = wrap_row(r);
+            int wrapped_c = wrap_col(c);
             if (rep == L'~')
                 rep = L' ';
 
