@@ -272,6 +272,9 @@ void Derivation::reset(const Grammar2D &g, int row, int col) {
     this->g = g;
     this->row = row;
     this->col = col;
+    // Cache wrap calculation values
+    this->effective_max_row = ((row - 1) / g.grid_height) * g.grid_height;
+    this->effective_max_col = (col / g.grid_width) * g.grid_width;
 }
 
 void Derivation::init() {
@@ -439,14 +442,16 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
     int c = co;
 
     bool horiz = rule.cq > rule.co;
+    const size_t rhs_length = rule.rhs.length();
 
-    for (const wchar_t *p = rule.rhs.c_str(); *p != L'\0'; ++p, ++c) {
-        if (*p == L'\n') {
+    for (size_t i = 0; i < rhs_length; ++i, ++c) {
+        wchar_t ch = rule.rhs[i];
+        if (ch == L'\n') {
             ++r;
             c = co - 1;
             continue;
         }
-        if (*p == L' ')
+        if (ch == L' ')
             continue;
 
         if (horiz) {
@@ -457,7 +462,7 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
                 break;
         }
 
-        wchar_t req = *p;
+        wchar_t req = ch;
         // Wrap coordinates cyclically for toroidal screen
         int wrapped_r = wrap_row(r);
         int wrapped_c = wrap_col(c);
@@ -467,13 +472,13 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
         if (ctx == L' ') ctx = L'~';
         if (req == L'@')
             req = rule.lhs;
-        if (*p == L'&')
+        if (ch == L'&')
             req = rule.ctx;
         if (req == L' ')
             req = L'~';
         if ((req != L'!' && req != L'%' && req != ctx)
             || (req == L'!' && ctx == rule.ctx)
-            || (*p == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
+            || (ch == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
             return false;
         }
     }
@@ -483,9 +488,11 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
 bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
     int r = ro;
     int c = co;
+    const size_t rhs_length = rule.rhs.length();
 
-    for (const wchar_t *p = rule.rhs.c_str(); *p != L'\0'; ++p, ++c) {
-        if (*p == L'\n') {
+    for (size_t i = 0; i < rhs_length; ++i, ++c) {
+        wchar_t ch = rule.rhs[i];
+        if (ch == L'\n') {
             ++r;
             c = co - 1;
             continue;
@@ -495,7 +502,7 @@ bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
         if (rule.cq <= rule.co && r - ro <= rule.rm)
             continue;
         G saved = {L' ', 7, 8, 'a'};
-        wchar_t rep = *p;
+        wchar_t rep = ch;
         if (rep == L'@')
             rep = rule.rep;
         if (rep == L'&')

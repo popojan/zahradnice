@@ -131,14 +131,12 @@ public:
 
     inline int wrap_row(int r) const {
         // Keep row 0 for status line, wrap rows 1 to row-1
-        // Use grid-aligned effective height
-        int effective_max_row = ((row - 1) / g.grid_height) * g.grid_height;
+        // Use cached effective height
         return (((r-1) % effective_max_row) + effective_max_row) % effective_max_row + 1;
     }
 
     inline int wrap_col(int c) const {
-        // Use grid-aligned effective column width
-        int effective_max_col = (col / g.grid_width) * g.grid_width;
+        // Use cached effective column width
         return ((c % effective_max_col) + effective_max_col) % effective_max_col;
     }
 
@@ -151,5 +149,8 @@ private:
 
     Grammar2D g;
     int col, row;
+    // Cached wrap calculation values
+    int effective_max_row;
+    int effective_max_col;
     std::unordered_map<std::pair<char, char>, int, hash_pair> colors;
 };
