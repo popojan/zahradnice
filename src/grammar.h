@@ -132,12 +132,12 @@ public:
     inline int wrap_row(int r) const {
         // Keep row 0 for status line, wrap rows 1 to row-1
         // Use cached effective height
-        return (((r-1) % effective_max_row) + effective_max_row) % effective_max_row + 1;
+        return (r - 1 + effective_max_row) % effective_max_row + 1;
     }
 
     inline int wrap_col(int c) const {
         // Use cached effective column width
-        return ((c % effective_max_col) + effective_max_col) % effective_max_col;
+        return (c + effective_max_col) % effective_max_col;
     }
 
 private:
