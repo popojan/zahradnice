@@ -125,7 +125,7 @@ public:
 
     void start();
 
-    bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, int &errs);
+    bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
 
     void restart();
 
