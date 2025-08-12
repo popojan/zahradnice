@@ -10,6 +10,11 @@
 #include <sstream>
 #include <algorithm>
 
+void clear_status(size_t len) {
+    std::wstring empty(len, L' ');
+    mvaddwstr(0, 0, empty.c_str());
+}
+
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
 
@@ -39,7 +44,6 @@ int main(int argc, char *argv[]) {
 
     int score = 0;
     int steps = 0;
-    int errs = 0;
     bool started = false;
 
     if (seed == 0) {
@@ -142,19 +146,16 @@ int main(int argc, char *argv[]) {
             std::ostringstream ss;
             ss << "Score: " << score << " Steps: " << steps;
 
-            // average reward per step
-            double reward = static_cast<float>(score) / (steps > 0 ? steps : 1);
-            ss << " Skill: " << reward; //<< std::endl;
-            ss << " Errors: " << errs << std::endl;
-
             if (elapsed_b == 0 || paused) {
                 auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
                 std::wstring help_truncated = cfg.help;
                 help_truncated.erase(limit, std::wstring::npos);
+                clear_status(col);
                 mvaddwstr(0, 0, help_truncated.c_str());
             }
             else {
                 auto limit = std::min(static_cast<size_t>(col-1), ss.str().size());
+                clear_status(col);
                 mvprintw(0, 0, ss.str().erase(limit, std::string::npos).c_str());
                 limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
                 std::wstring lhsa_truncated = rule.lhsa;
@@ -230,7 +231,7 @@ int main(int argc, char *argv[]) {
 
             else {
                 rule.sound = 0;
-                success = w.step(static_cast<wchar_t>(wch), score, &rule, errs);
+                success = w.step(static_cast<wchar_t>(wch), score, &rule);
                 if (success) {
                     ++steps;
                 }

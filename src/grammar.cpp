@@ -363,7 +363,7 @@ void Derivation::start() {
     });
 }
 
-bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, int &errs) {
+bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
     //random nonterminal instance
 
     //nonterminal alterable by rules from group key
@@ -373,6 +373,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, int &er
             if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
         });
     });
+    //all nonterminal positions
     std::vector<std::pair<int, int> > xx;
     for (auto nit = x.begin(); nit != x.end(); ++nit) {
         if (a.find(nit->second) != a.end())
