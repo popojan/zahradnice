@@ -4,7 +4,7 @@
 #include "zstr.hpp"
 #include <cwchar>
 #include <cstring>
-
+#include <sys/stat.h>
 
 bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstring &rule) {
     std::for_each
@@ -18,7 +18,13 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstrin
 }
 
 void Grammar2D::loadFromFile(const std::string &fname) {
-    zstr::ifstream t(fname);
+
+    struct stat buffer;
+    auto filename = stat(fname.c_str(), &buffer) == 0
+        ? fname : fname + ".gz";
+
+    zstr::ifstream t(filename);
+
     std::string line_utf8;
     std::vector<std::wstring> lhs;
     std::wostringstream rule;
