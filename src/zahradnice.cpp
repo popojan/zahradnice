@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
                     timeout(-1);
                 }
             }
-            else if(wch == L'q' && paused) {
+            else if(wch == L'q' && !success && paused) {
                 config = "quit";
                 break;
             }
