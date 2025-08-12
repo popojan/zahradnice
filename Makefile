@@ -12,17 +12,18 @@ zahradnice-size:
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
 
 RELEASE_DIR=release
-install: soko
-	rm -rf ${RELEASE_DIR}
+release:
 	mkdir -p ${RELEASE_DIR}/zahradnice/programs
 	gzip -k programs/*.cfg
 	mv programs/*.cfg.gz ${RELEASE_DIR}/zahradnice/programs
+	#mkdir -p ${RELEASE_DIR}/zahradnice/sounds
+	#cp sounds/*.wav ${RELEASE_DIR}/zahradnice/sounds
 	cp zahradnice ${RELEASE_DIR}/zahradnice
 	cd ${RELEASE_DIR}; \
-	tar -czf zahradnice.tar zahradnice/
+	tar -czf zahradnice.tar.gz zahradnice/
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
-SOKOFILES=picokosmosText.htm #sasquatch5Text.htm
+SOKOFILES=picokosmosText.html #sasquatch5Text.html
 
 soko:
 	cp programs/partial/sokoban.cfg programs/sokoban.cfg
