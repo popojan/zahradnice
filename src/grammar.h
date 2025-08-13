@@ -141,13 +141,6 @@ private:
     template<bool DryRun>
     bool apply_impl(int ro, int co, const Grammar2D::Rule &rule);
 
-    bool dryapply(int ro, int co, const Grammar2D::Rule &rule) {
-        return apply_impl<true>(ro, co, rule);
-    }
-
-    bool apply(int ro, int co, const Grammar2D::Rule &rule) {
-        return apply_impl<false>(ro, co, rule);
-    }
 
     int getColor(char fore, char back);
 

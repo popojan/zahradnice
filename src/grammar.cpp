@@ -455,7 +455,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
             auto &rs = res->second;
             for (auto rit = rs.begin(); rit != rs.end(); ++rit) {
                 if (rit->key == key || rit->key == L'?') {
-                    bool app = dryapply(nit->first - rit->ro, nit->second - rit->co, *rit);
+                    bool app = apply_impl<true>(nit->first - rit->ro, nit->second - rit->co, *rit);
                     if (app) {
                         sumw += rit->weight;
                         nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
@@ -472,7 +472,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
         sumw += rule.weight;
         if (sumw >= prob) {
             auto &rc = xx[nit->b];
-            bool applied = rule.load || apply(rc.first - rule.rq, rc.second - rule.cq, rule);
+            bool applied = rule.load || apply_impl<false>(rc.first - rule.rq, rc.second - rule.cq, rule);
             if (applied) {
                 *dbgrule = rule;
                 score += rule.reward;
