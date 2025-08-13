@@ -132,9 +132,17 @@ int main(int argc, char *argv[]) {
                 std::string new_program("");
                 if (rule.lhsa.length() > 5) {
                     std::wstring lhsa_substr = rule.lhsa.substr(5);
-                    std::string lhsa_narrow(lhsa_substr.begin(), lhsa_substr.end());
-                    std::stringstream ss(lhsa_narrow);
-                    ss >> new_program;
+                    std::wstringstream wss(lhsa_substr);
+                    std::wstring new_program_wide;
+                    wss >> new_program_wide;
+                    // Convert back to UTF-8 string for filesystem operations
+                    if (!new_program_wide.empty()) {
+                        size_t len = std::wcstombs(nullptr, new_program_wide.c_str(), 0);
+                        if (len != static_cast<size_t>(-1)) {
+                            new_program.resize(len);
+                            std::wcstombs(&new_program[0], new_program_wide.c_str(), len);
+                        }
+                    }
                 }
                 if (new_program == "quit") {
                     config = new_program;
