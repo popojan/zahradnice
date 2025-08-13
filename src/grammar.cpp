@@ -34,8 +34,8 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
     struct stat buffer;
     std::string filename = fname;
 
-    // Try original filename first
-    if (stat(filename.c_str(), &buffer) == 0) {
+    // Try original filename first (only if it's a regular file)
+    if (stat(filename.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)) {
         // File exists as-is
     }
     // If not .cfg, try adding /index.cfg
@@ -91,20 +91,20 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                             if (space_pos != std::wstring::npos) {
                                 std::wstring width_str = config.substr(0, space_pos);
                                 std::string width_narrow(width_str.begin(), width_str.end());
-                                grid_width = std::stoi(width_narrow);
+                                grid_width = std::atoi(width_narrow.c_str());
                                 std::wstring height_str = config.substr(space_pos + 1);
                                 // Skip whitespace in height string too
                                 size_t height_start = height_str.find_first_not_of(L" \t");
                                 if (height_start != std::wstring::npos) {
                                     std::wstring height_clean = height_str.substr(height_start);
                                     std::string height_narrow(height_clean.begin(), height_clean.end());
-                                    grid_height = std::stoi(height_narrow);
+                                    grid_height = std::atoi(height_narrow.c_str());
                                 } else {
                                     grid_height = 1;
                                 }
                             } else {
                                 std::string config_narrow(config.begin(), config.end());
-                                grid_width = std::stoi(config_narrow);
+                                grid_width = std::atoi(config_narrow.c_str());
                                 grid_height = 1;
                             }
                         }
@@ -281,9 +281,13 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     if (lhs.size() > 11) {
         std::wstring score_str = lhs.substr(11);
         std::string score_narrow(score_str.begin(), score_str.end());
-        std::istringstream iss(score_narrow);
-        iss >> reward;
-        iss >> weight;
+        size_t space_pos = score_narrow.find(' ');
+        if (space_pos != std::string::npos) {
+            reward = std::atoi(score_narrow.substr(0, space_pos).c_str());
+            weight = std::atoi(score_narrow.substr(space_pos + 1).c_str());
+        } else {
+            reward = std::atoi(score_narrow.c_str());
+        }
         if (weight < 1) weight = 1;
     }
     rule.reward = reward;

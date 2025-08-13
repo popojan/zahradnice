@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
+#include <cstdlib>
 #include <sstream>
 #include <algorithm>
 
@@ -31,10 +32,8 @@ int main(int argc, char *argv[]) {
     std::string config(".");
     int seed = 0;
 
-    std::stringstream ss;
-    for (int i = 1; i < argc; i++) ss << argv[i] << " ";
-    ss >> config;
-    ss >> seed;
+    if (argc > 1) config = argv[1];
+    if (argc > 2) seed = std::atoi(argv[2]);
 
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
@@ -89,10 +88,17 @@ int main(int argc, char *argv[]) {
         auto it = cfg.dict.find(L'T'); {
             if (it != cfg.dict.end()) {
                 std::string timing_str(it->second.begin(), it->second.end()); // Convert wstring to string
-                std::stringstream ss(timing_str);
-                ss >> B;
-                ss >> M;
-                ss >> T;
+                size_t pos1 = timing_str.find(' ');
+                size_t pos2 = timing_str.find(' ', pos1 + 1);
+                if (pos1 != std::string::npos) {
+                    B = std::atoi(timing_str.substr(0, pos1).c_str());
+                    if (pos2 != std::string::npos) {
+                        M = std::atoi(timing_str.substr(pos1 + 1, pos2 - pos1 - 1).c_str());
+                        T = std::atoi(timing_str.substr(pos2 + 1).c_str());
+                    } else if (timing_str.length() > pos1 + 1) {
+                        M = std::atoi(timing_str.substr(pos1 + 1).c_str());
+                    }
+                }
             }
         }
 
@@ -147,14 +153,11 @@ int main(int argc, char *argv[]) {
                 if (new_program == "quit") {
                     config = new_program;
                 } else {
-                    std::stringstream nss;
                     if (config.ends_with(".cfg") || config.ends_with(".cfg.gz")) {
-                        nss << config.substr(0, config.rfind('/'));
+                        config = config.substr(0, config.rfind('/')) + "/" + new_program;
                     } else {
-                        nss << config;
+                        config = config + "/" + new_program;
                     }
-                    nss << "/" << new_program;
-                    config = nss.str();
                     clear = rule.clear;
                     if (rule.pause) {
                         paused = true;
@@ -167,8 +170,7 @@ int main(int argc, char *argv[]) {
             }
 
             // print status
-            std::ostringstream ss;
-            ss << "Score: " << score << " Steps: " << steps;
+            std::string status_text = "Score: " + std::to_string(score) + " Steps: " + std::to_string(steps);
 
             if (elapsed_b == 0 || paused) {
                 auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
@@ -178,9 +180,10 @@ int main(int argc, char *argv[]) {
                 mvaddwstr(0, 0, help_truncated.c_str());
             }
             else {
-                auto limit = std::min(static_cast<size_t>(col-1), ss.str().size());
+                auto limit = std::min(static_cast<size_t>(col-1), status_text.size());
                 clear_status(col);
-                mvprintw(0, 0, ss.str().erase(limit, std::string::npos).c_str());
+                if (limit < status_text.length()) status_text.erase(limit);
+                mvprintw(0, 0, status_text.c_str());
                 limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
                 std::wstring lhsa_truncated = rule.lhsa;
                 lhsa_truncated.erase(limit, std::wstring::npos);
