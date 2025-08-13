@@ -1,41 +1,78 @@
 #include "grammar.h"
 #include <ncursesw/ncurses.h>
-#include <utility>
-#include "zstr.hpp"
 #include <cwchar>
 #include <cstring>
 #include <sys/stat.h>
+#include <zlib.h>
+#include <fstream>
+#include <sstream>
+
+static std::string decompress_gzip_file(const std::string& filename) {
+    gzFile file = gzopen(filename.c_str(), "rb");
+    if (!file) return "";
+    
+    std::string result;
+    char buffer[4096];
+    int bytes_read;
+    
+    while ((bytes_read = gzread(file, buffer, sizeof(buffer))) > 0) {
+        result.append(buffer, bytes_read);
+    }
+    
+    gzclose(file);
+    return result;
+}
 
 bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstring &rule) {
-    std::for_each
-    (
-        lhs.begin(), lhs.end(),
-        [this,&rule](auto &x) {
-            addRule(x, rule);
-        }
-    );
+    for (const auto &x : lhs) {
+        addRule(x, rule);
+    }
     return true;
 }
 
 bool Grammar2D::loadFromFile(const std::string &fname) {
-    std::string filename = fname.ends_with(".cfg") ? fname : fname + "/index.cfg";
-
     struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) {
-        filename += ".gz";
+    std::string filename = fname;
+    
+    // Try original filename first
+    if (stat(filename.c_str(), &buffer) == 0) {
+        // File exists as-is
+    }
+    // If not .cfg, try adding /index.cfg
+    else if (!fname.ends_with(".cfg") && !fname.ends_with(".cfg.gz")) {
+        filename = fname + "/index.cfg";
+        if (stat(filename.c_str(), &buffer) != 0) {
+            filename += ".gz";
+            if (stat(filename.c_str(), &buffer) != 0) {
+                return false;
+            }
+        }
+    }
+    // Try adding .gz to original filename
+    else {
+        filename = fname + ".gz";
         if (stat(filename.c_str(), &buffer) != 0) {
             return false;
         }
     }
 
-    zstr::ifstream t(filename);
-
+    std::string content;
+    if (filename.ends_with(".gz")) {
+        content = decompress_gzip_file(filename);
+        if (content.empty()) return false;
+    } else {
+        std::ifstream file(filename);
+        if (!file.is_open()) return false;
+        content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    }
+    
+    std::istringstream stream(content);
     std::string line_utf8;
     std::vector<std::wstring> lhs;
     std::wostringstream rule;
 
     bool first = true;
-    while (std::getline(t, line_utf8)) {
+    while (std::getline(stream, line_utf8)) {
         std::wstring line = string_to_wstring(line_utf8);
         if (!line.empty() && line.at(0) == '#') //comment
         {
@@ -79,7 +116,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                         if (line.length() > 2) {
                             wchar_t key = line.at(2);
                             std::wstring value = line.substr(3);
-                            dict.insert(std::make_pair(key, value));
+                            dict.insert({key, value});
                         }
                     }
                 }
@@ -323,7 +360,7 @@ void Derivation::initColors() {
 
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
-            colors[std::pair<char, char>(cols[i], cols[j])] = colidx;
+            colors[{cols[i], cols[j]}] = colidx;
             init_pair(colidx, cols[i], cols[j]);
             ++colidx;
         }
@@ -336,7 +373,7 @@ Derivation::~Derivation() {
 }
 
 void Derivation::start() {
-    std::for_each(g.S.begin(), g.S.end(), [this](auto &s) {
+    for (const auto &s : g.S) {
         // Use grid-aligned effective dimensions consistent with wrap functions
         int effective_col = (col / g.grid_width) * g.grid_width;
         int effective_row = ((row - 1) / g.grid_height) * g.grid_height;
@@ -372,14 +409,14 @@ void Derivation::start() {
         } else {
             r = rand() % (row - 1) + 1;
         }
-        x[std::pair<int, int>(r, c)] = s.s;
+        x[{r, c}] = s.s;
         cchar_t cchar;
         wchar_t wch[2] = {s.s, 0};
         setcchar(&cchar, wch, 0, 0, NULL);
         mvadd_wch(r, c, &cchar);
         // Update redundant character storage
         screen_chars[r * col + c] = s.s;
-    });
+    }
 }
 
 bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
@@ -387,11 +424,11 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
 
     //nonterminal alterable by rules from group key
     std::unordered_set<wchar_t> a;
-    std::for_each(g.R.begin(), g.R.end(), [key,&a](auto &rr) {
-        std::for_each(rr.second.begin(), rr.second.end(), [key,&a](auto &rrr) {
+    for (const auto &rr : g.R) {
+        for (const auto &rrr : rr.second) {
             if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
-        });
-    });
+        }
+    }
     //all nonterminal positions
     std::vector<std::pair<int, int> > xx;
     for (auto nit = x.begin(); nit != x.end(); ++nit) {
@@ -538,7 +575,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                     if (cidx > 0) attroff(COLOR_PAIR(cidx));
                     memory[col * wrapped_r + wrapped_c] = saved;
                 }
-                auto loc = std::pair<int, int>(wrapped_r, wrapped_c);
+                auto loc = std::pair{wrapped_r, wrapped_c};
                 if (isNonTerminal) {
                     x[loc] = rep;
                 } else {
@@ -551,7 +588,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
 }
 
 int Derivation::getColor(char fore, char back) {
-    auto cit = colors.find(std::pair<char, char>(fore, back));
+    auto cit = colors.find({fore, back});
     if (cit != colors.end())
         return cit->second;
     return -1;

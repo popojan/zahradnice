@@ -4,7 +4,7 @@
 #include "grammar.h"
 #include <thread>
 #include <chrono>
-#include <cmath>
+#include <unistd.h>
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
 #include <sstream>
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     int seed = 0;
 
     std::stringstream ss;
-    std::for_each(argv + 1, argv + argc, [&ss](char *arg) { ss << arg << " "; });
+    for (int i = 1; i < argc; i++) ss << argv[i] << " ";
     ss >> config;
     ss >> seed;
 
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
             auto it = cfg.dict.find(c);
             if (it != cfg.dict.end()) {
                 std::string sound_path(it->second.begin(), it->second.end()); // Convert wstring to string
-                sounds.insert(std::make_pair(c, sample(sound_path, 100)));
+                sounds.insert({c, sample(sound_path, 100)});
             }
         }
 
@@ -260,10 +260,7 @@ int main(int argc, char *argv[]) {
                     ++steps;
                 }
                 else if (wch == L'T') {
-                    std::this_thread
-                            ::sleep_for(
-                                std::chrono::milliseconds{50}
-                            );
+                    std::this_thread::sleep_for(std::chrono::milliseconds{50});
                 }
                 last = wch;
             }
