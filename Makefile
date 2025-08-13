@@ -15,6 +15,8 @@ RELEASE_DIR=release
 release:
 	mkdir -p ${RELEASE_DIR}/zahradnice/programs
 	gzip -k programs/*.cfg
+	gzip -k index.cfg
+	mv index.cfg.gz ${RELEASE_DIR}/zahradnice
 	mv programs/*.cfg.gz ${RELEASE_DIR}/zahradnice/programs
 	#mkdir -p ${RELEASE_DIR}/zahradnice/sounds
 	#cp sounds/*.wav ${RELEASE_DIR}/zahradnice/sounds
