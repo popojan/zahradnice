@@ -8,7 +8,6 @@
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
 #include <cstdlib>
-#include <sstream>
 #include <algorithm>
 
 void clear_status(size_t len) {
@@ -87,16 +86,16 @@ int main(int argc, char *argv[]) {
         int T = 0;
         auto it = cfg.dict.find(L'T'); {
             if (it != cfg.dict.end()) {
-                std::string timing_str(it->second.begin(), it->second.end()); // Convert wstring to string
-                size_t pos1 = timing_str.find(' ');
-                size_t pos2 = timing_str.find(' ', pos1 + 1);
-                if (pos1 != std::string::npos) {
-                    B = std::atoi(timing_str.substr(0, pos1).c_str());
-                    if (pos2 != std::string::npos) {
-                        M = std::atoi(timing_str.substr(pos1 + 1, pos2 - pos1 - 1).c_str());
-                        T = std::atoi(timing_str.substr(pos2 + 1).c_str());
+                const std::wstring &timing_str = it->second.substr(1);
+                size_t pos1 = timing_str.find(L' ');
+                size_t pos2 = timing_str.find(L' ', pos1 + 1);
+                if (pos1 != std::wstring::npos) {
+                    B = std::wcstol(timing_str.c_str(), nullptr, 10);
+                    if (pos2 != std::wstring::npos) {
+                        M = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
+                        T = std::wcstol(timing_str.c_str() + pos2 + 1, nullptr, 10);
                     } else if (timing_str.length() > pos1 + 1) {
-                        M = std::atoi(timing_str.substr(pos1 + 1).c_str());
+                        M = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
                     }
                 }
             }
@@ -138,9 +137,15 @@ int main(int argc, char *argv[]) {
                 std::string new_program("");
                 if (rule.lhsa.length() > 5) {
                     std::wstring lhsa_substr = rule.lhsa.substr(5);
-                    std::wstringstream wss(lhsa_substr);
+                    // Skip leading whitespace, then extract first word
+                    size_t start_pos = lhsa_substr.find_first_not_of(L" \t\n\r");
                     std::wstring new_program_wide;
-                    wss >> new_program_wide;
+                    if (start_pos != std::wstring::npos) {
+                        size_t end_pos = lhsa_substr.find_first_of(L" \t\n\r", start_pos);
+                        new_program_wide = (end_pos != std::wstring::npos) ? 
+                            lhsa_substr.substr(start_pos, end_pos - start_pos) : 
+                            lhsa_substr.substr(start_pos);
+                    }
                     // Convert back to UTF-8 string for filesystem operations
                     if (!new_program_wide.empty()) {
                         size_t len = std::wcstombs(nullptr, new_program_wide.c_str(), 0);

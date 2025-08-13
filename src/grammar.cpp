@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <zlib.h>
 #include <fstream>
-#include <sstream>
 
 static std::string decompress_gzip_file(const std::string& filename) {
     gzFile file = gzopen(filename.c_str(), "rb");
@@ -66,13 +65,16 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
 
-    std::istringstream stream(content);
-    std::string line_utf8;
     std::vector<std::wstring> lhs;
-    std::wostringstream rule;
+    std::wstring rule;
 
     bool first = true;
-    while (std::getline(stream, line_utf8)) {
+    size_t start = 0;
+    while (start < content.length()) {
+        size_t end = content.find('\n', start);
+        if (end == std::string::npos) end = content.length();
+        std::string line_utf8 = content.substr(start, end - start);
+        start = end + 1;
         std::wstring line = string_to_wstring(line_utf8);
         if (!line.empty() && line.at(0) == '#') //comment
         {
@@ -135,20 +137,20 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         }
         if (!line.empty() && line.at(0) == L'=') //new rule LHSs
         {
-            if (!rule.str().empty() && _process(lhs, rule.str())) {
-                rule.str(L"");
+            if (!rule.empty() && _process(lhs, rule)) {
                 rule.clear();
                 lhs.clear();
             }
             lhs.push_back(line);
         } else if (!lhs.empty()) {
-            rule << line << std::endl;
+            if (!rule.empty()) rule += L'\n';
+            rule += line;
         }
 
         first = false;
     }
-    if (!rule.str().empty()) {
-        _process(lhs, rule.str());
+    if (!rule.empty()) {
+        _process(lhs, rule);
     }
     if (S.empty()) {
         S.push_back({'c', 'c', L's'});
