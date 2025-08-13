@@ -4,9 +4,7 @@
 #include <unordered_set>
 #include <string>
 #include <vector>
-#include <algorithm>
 #include <cstdint>
-#include <cwchar>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>

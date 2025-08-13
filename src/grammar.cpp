@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <zlib.h>
 #include <fstream>
+#include <algorithm>
 
 static std::string decompress_gzip_file(const std::string& filename) {
     gzFile file = gzopen(filename.c_str(), "rb");

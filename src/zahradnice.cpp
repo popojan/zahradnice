@@ -1,10 +1,9 @@
 #include <ncursesw/ncurses.h>
-#include <locale.h>
+#include <clocale>
 #include <iostream>
 #include "grammar.h"
 #include <thread>
 #include <chrono>
-#include <unistd.h>
 #include <SDL2/SDL_mixer.h>
 #include "sample.h"
 #include <cstdlib>
