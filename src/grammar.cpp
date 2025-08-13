@@ -17,11 +17,19 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstrin
     return true;
 }
 
-void Grammar2D::loadFromFile(const std::string &fname) {
+bool Grammar2D::loadFromFile(const std::string &fname) {
 
     struct stat buffer;
-    auto filename = stat(fname.c_str(), &buffer) == 0
-        ? fname : fname + ".gz";
+    std::string filename(fname);
+    if (!fname.ends_with(".cfg")) {
+        filename.append("/index.cfg");
+    }
+    filename = stat(fname.c_str(), &buffer) == 0
+        ? filename : filename + ".gz";
+
+    if (stat(fname.c_str(), &buffer) != 0) {
+        return false;
+    }
 
     zstr::ifstream t(filename);
 
@@ -111,6 +119,7 @@ void Grammar2D::loadFromFile(const std::string &fname) {
     if (S.empty()) {
         S.push_back({'c', 'c', L's'});
     }
+    return true;
 }
 
 std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord) {

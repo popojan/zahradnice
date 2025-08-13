@@ -80,7 +80,7 @@ public:
 
     bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
 
-    void loadFromFile(const std::string &fname);
+    bool loadFromFile(const std::string &fname);
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 

@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    std::string config("programs/menu.cfg");
+    std::string config(".");
     int seed = 0;
 
     std::stringstream ss;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     Derivation w;
 
     bool clear = true;
-
+    bool err = 0;
     while (config != "quit") {
         bool success = true;
         bool paused = true;
@@ -74,7 +74,11 @@ int main(int argc, char *argv[]) {
         int elapsed_m = 0;
 
         Grammar2D cfg;
-        cfg.loadFromFile(config);
+        if (cfg.loadFromFile(config) == false) {
+            std::cerr << "Program " << config << " not found, exiting." << std::endl;
+            err = 1;
+            break;
+        }
 
         std::unordered_map<wchar_t, sample> sounds;
         // load timing if defined
@@ -250,5 +254,5 @@ int main(int argc, char *argv[]) {
 
     endwin();
 
-    return 0;
+    return err;
 }
