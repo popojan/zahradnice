@@ -269,7 +269,7 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     if (lhs.size() > 9)
         rule.zord = lhs.at(9);
     else
-        rule.zord = 'a';
+        rule.zord = L'a';
 
     if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
@@ -280,25 +280,32 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     R[s].push_back(rule);
 }
 
-Derivation::Derivation(): memory(nullptr), screen_chars(nullptr) {
+Derivation::Derivation(): memory(nullptr), screen_chars(nullptr), clear_needed(true) {
 }
 
 void Derivation::reset(const Grammar2D &g, int row, int col) {
     this->g = g;
-    this->row = row;
-    this->col = col;
+    if (this->row != row || this->col != col) {
+        clear_needed = true;
+        this->row = row;
+        this->col = col;
+    } else {
+        clear_needed = false;
+    }
     // Cache wrap calculation values
     this->effective_max_row = ((row - 1) / g.grid_height) * g.grid_height;
     this->effective_max_col = (col / g.grid_width) * g.grid_width;
 }
 
-void Derivation::init() {
-    delete [] memory;
-    delete [] screen_chars;
-    memory = new G[row * col];
-    screen_chars = new wchar_t[row * col];
-    initColors();
-    restart();
+void Derivation::init(bool clear) {
+    if (clear || clear_needed) {
+        delete [] memory;
+        delete [] screen_chars;
+        memory = new G[row * col];
+        screen_chars = new wchar_t[row * col];
+        restart();
+        initColors();
+    }
 }
 
 void Derivation::initColors() {
@@ -431,7 +438,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
         sumw += rule.weight;
         if (sumw >= prob) {
             auto &rc = xx[nit->b];
-            bool applied = apply(rc.first - rule.rq, rc.second - rule.cq, rule);
+            bool applied = rule.load || apply(rc.first - rule.rq, rc.second - rule.cq, rule);
             if (applied) {
                 *dbgrule = rule;
                 score += rule.reward;
@@ -447,7 +454,7 @@ void Derivation::restart() {
     clear();
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
-            memory[r * col + c] = {L' ', 7, 0, 'a'};
+            memory[r * col + c] = {L' ', 7, 0, L'a'};
             screen_chars[r * col + c] = L' ';
         }
     }
