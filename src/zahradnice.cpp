@@ -66,12 +66,13 @@ int main(int argc, char *argv[]) {
 
     bool clear = true;
     bool err = 0;
+    bool paused = true;
     while (config != "quit") {
-        bool success = true;
-        bool paused = true;
         int elapsed_t = 0;
         int elapsed_b = 0;
         int elapsed_m = 0;
+
+        bool success = true;
 
         Grammar2D cfg;
         if (cfg.loadFromFile(config) == false) {
@@ -108,7 +109,7 @@ int main(int argc, char *argv[]) {
 
         //top row reserved as status line
         w.reset(cfg, row, col);
-        if (clear) w.init();
+        w.init(clear);
         w.start();
 
         wint_t wch = L' ';
@@ -128,20 +129,31 @@ int main(int argc, char *argv[]) {
             }
             // switch programs if requested
             else if (success && rule.load && !rule.lhsa.empty()) {
-                std::wstring lhsa_substr = rule.lhsa.substr(5);
-                std::string lhsa_narrow(lhsa_substr.begin(), lhsa_substr.end());
-                std::stringstream ss(lhsa_narrow);
-                std::string new_program;
-                ss >> new_program;
+                std::string new_program("");
+                if (rule.lhsa.length() > 5) {
+                    std::wstring lhsa_substr = rule.lhsa.substr(5);
+                    std::string lhsa_narrow(lhsa_substr.begin(), lhsa_substr.end());
+                    std::stringstream ss(lhsa_narrow);
+                    ss >> new_program;
+                }
                 if (new_program == "quit") {
                     config = new_program;
                 } else {
                     std::stringstream nss;
-                    nss << config.substr(0, config.rfind('/')) << "/" << new_program;
+                    if (config.ends_with(".cfg") || config.ends_with(".cfg.gz")) {
+                        nss << config.substr(0, config.rfind('/'));
+                    } else {
+                        nss << config;
+                    }
+                    nss << "/" << new_program;
                     config = nss.str();
                     clear = rule.clear;
-                    if (rule.pause)
+                    if (rule.pause) {
+                        paused = true;
                         timeout(-1);
+                    } else {
+                        paused = false;
+                    }
                 }
                 break;
             }
@@ -213,7 +225,7 @@ int main(int argc, char *argv[]) {
                 timeout(-1);
                 getmaxyx(stdscr, row, col);
                 w.reset(cfg, row, col);
-                w.init();
+                w.init(true);
                 w.start();
             }
 

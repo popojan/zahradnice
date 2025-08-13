@@ -117,7 +117,7 @@ public:
 
     void reset(const Grammar2D &g, int row, int col);
 
-    void init();
+    void init(bool clear);
 
     void initColors();
 
@@ -150,6 +150,7 @@ private:
     Grammar2D g;
     int col, row;
     // Cached wrap calculation values
+    bool clear_needed;
     int effective_max_row;
     int effective_max_col;
     std::unordered_map<std::pair<char, char>, int, hash_pair> colors;
