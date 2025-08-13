@@ -3,13 +3,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
-#include <fstream>
-#include <functional>
 #include <vector>
 #include <algorithm>
 #include <cstdint>
 #include <cwchar>
-#include <clocale>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
