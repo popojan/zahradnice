@@ -18,17 +18,14 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstrin
 }
 
 bool Grammar2D::loadFromFile(const std::string &fname) {
+    std::string filename = fname.ends_with(".cfg") ? fname : fname + "/index.cfg";
 
     struct stat buffer;
-    std::string filename(fname);
-    if (!fname.ends_with(".cfg")) {
-        filename.append("/index.cfg");
-    }
-    filename = stat(fname.c_str(), &buffer) == 0
-        ? filename : filename + ".gz";
-
-    if (stat(fname.c_str(), &buffer) != 0) {
-        return false;
+    if (stat(filename.c_str(), &buffer) != 0) {
+        filename += ".gz";
+        if (stat(filename.c_str(), &buffer) != 0) {
+            return false;
+        }
     }
 
     zstr::ifstream t(filename);
@@ -460,7 +457,8 @@ void Derivation::restart() {
     }
 }
 
-bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
+template<bool DryRun>
+bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
     int r = ro;
     int c = co;
 
@@ -477,111 +475,75 @@ bool Derivation::dryapply(int ro, int co, const Grammar2D::Rule &rule) {
         if (ch == L' ')
             continue;
 
-        if (horiz) {
-            if (c - co >= rule.cm) // @ LHS @ >>RHS<<
-                continue;
+        if constexpr (DryRun) {
+            if (horiz) {
+                if (c - co >= rule.cm) // @ LHS @ >>RHS<<
+                    continue;
+            } else {
+                if (r - ro >= rule.rm)
+                    break;
+            }
         } else {
-            if (r - ro >= rule.rm)
-                break;
+            if (rule.cq > rule.co && c - co <= rule.cm) // @ LHS @ >>RHS<<
+                continue;
+            if (rule.cq <= rule.co && r - ro <= rule.rm)
+                continue;
         }
 
-        wchar_t req = ch;
         // Wrap coordinates cyclically for toroidal screen
         int wrapped_r = wrap_row(r);
         int wrapped_c = wrap_col(c);
 
-        // Always get context from wrapped position using fast character lookup
-        wchar_t ctx = screen_chars[wrapped_r * col + wrapped_c];
-        if (ctx == L' ') ctx = L'~';
-        if (req == L'@')
-            req = rule.lhs;
-        if (ch == L'&')
-            req = rule.ctx;
-        if (req == L' ')
-            req = L'~';
-        if ((req != L'!' && req != L'%' && req != ctx)
-            || (req == L'!' && ctx == rule.ctx)
-            || (ch == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool Derivation::apply(int ro, int co, const Grammar2D::Rule &rule) {
-    int r = ro;
-    int c = co;
-    const size_t rhs_length = rule.rhs.length();
-
-    for (size_t i = 0; i < rhs_length; ++i, ++c) {
-        wchar_t ch = rule.rhs[i];
-        if (ch == L'\n') {
-            ++r;
-            c = co - 1;
-            continue;
-        }
-        if (rule.cq > rule.co && c - co <= rule.cm) // @ LHS @ >>RHS<<
-            continue;
-        if (rule.cq <= rule.co && r - ro <= rule.rm)
-            continue;
-        G saved = {L' ', 7, 8, 'a'};
-        wchar_t rep = ch;
-        if (rep == L'@')
-            rep = rule.rep;
-        if (rep == L'&')
-            rep = rule.ctxrep;
-        bool isNonTerminal = g.V.find(rep) != g.V.end();
-        if (rep != L' ') {
-            // Wrap coordinates cyclically for toroidal screen
-            int wrapped_r = wrap_row(r);
-            int wrapped_c = wrap_col(c);
-            if (rep == L'~')
-                rep = L' ';
-
-            char back = rule.back;
-
-            // transparent background; take background from memory
-            if (rule.back > 7) {
-                back = memory[col * wrapped_r + wrapped_c].back;
+        if constexpr (DryRun) {
+            wchar_t req = ch;
+            wchar_t ctx = screen_chars[wrapped_r * col + wrapped_c];
+            if (ctx == L' ') ctx = L'~';
+            if (req == L'@') req = rule.lhs;
+            if (ch == L'&') req = rule.ctx;
+            if (req == L' ') req = L'~';
+            if ((req != L'!' && req != L'%' && req != ctx)
+                || (req == L'!' && ctx == rule.ctx)
+                || (ch == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
+                return false;
             }
-            // to be saved in memory
-
-            G d = {rep, rule.fore, back, rule.zord};
-
-            // special char: restore from memory
-            if (rep == L'$') d = memory[col * wrapped_r + wrapped_c];
-            // memory empty
-            if (d.c == -1) d = {L' ', rule.fore, back, 'a'};
-
-            int cidx = getColor(d.fore, d.back);
-
-            if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
-                if (cidx > 0) {
-                    attron(COLOR_PAIR(cidx));
+        } else {
+            G saved = {L' ', 7, 8, 'a'};
+            wchar_t rep = ch;
+            if (rep == L'@') rep = rule.rep;
+            if (rep == L'&') rep = rule.ctxrep;
+            bool isNonTerminal = g.V.find(rep) != g.V.end();
+            if (rep != L' ') {
+                if (rep == L'~') rep = L' ';
+                char back = rule.back;
+                if (rule.back > 7) {
+                    back = memory[col * wrapped_r + wrapped_c].back;
                 }
-                cchar_t cchar;
-                wchar_t wch[2] = {d.c, 0};
-                setcchar(&cchar, wch, 0, cidx, NULL);
-                mvadd_wch(wrapped_r, wrapped_c, &cchar);
-                // Update redundant character storage
-                screen_chars[wrapped_r * col + wrapped_c] = d.c;
-                if (!isNonTerminal) {
-                    //terminal symbol: save all
-                    saved = d;
+                G d = {rep, rule.fore, back, rule.zord};
+                if (rep == L'$') d = memory[col * wrapped_r + wrapped_c];
+                if (d.c == -1) d = {L' ', rule.fore, back, 'a'};
+                int cidx = getColor(d.fore, d.back);
+                if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
+                    if (cidx > 0) attron(COLOR_PAIR(cidx));
+                    cchar_t cchar;
+                    wchar_t wch[2] = {d.c, 0};
+                    setcchar(&cchar, wch, 0, cidx, NULL);
+                    mvadd_wch(wrapped_r, wrapped_c, &cchar);
+                    screen_chars[wrapped_r * col + wrapped_c] = d.c;
+                    if (!isNonTerminal) {
+                        saved = d;
+                    } else {
+                        saved = memory[col * wrapped_r + wrapped_c];
+                        saved.back = d.back;
+                    }
+                    if (cidx > 0) attroff(COLOR_PAIR(cidx));
+                    memory[col * wrapped_r + wrapped_c] = saved;
+                }
+                auto loc = std::pair<int, int>(wrapped_r, wrapped_c);
+                if (isNonTerminal) {
+                    x[loc] = rep;
                 } else {
-                    //nonterminal symbol: replace bg color if any
-                    saved = memory[col * wrapped_r + wrapped_c];
-                    saved.back = d.back; //TODO reconsider
+                    x.erase(loc);
                 }
-                if (cidx > 0)
-                    attroff(COLOR_PAIR(cidx));
-                memory[col * wrapped_r + wrapped_c] = saved;
-            }
-            auto loc = std::pair<int, int>(wrapped_r, wrapped_c);
-            if (isNonTerminal) {
-                x[loc] = rep;
-            } else {
-                x.erase(loc);
             }
         }
     }

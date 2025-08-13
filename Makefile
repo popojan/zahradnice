@@ -8,7 +8,7 @@ zahradnice-debug:
 
 zahradnice-size:
 	g++ -std=c++20 -I zstr/src/ -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
-   -ffunction-sections -fdata-sections -Wl,--gc-sections
+   -ffunction-sections -fdata-sections -Wl,--gc-sections -fno-rtti -fmerge-all-constants -flto
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
 
 RELEASE_DIR=release
