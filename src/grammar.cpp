@@ -10,15 +10,15 @@
 static std::string decompress_gzip_file(const std::string& filename) {
     gzFile file = gzopen(filename.c_str(), "rb");
     if (!file) return "";
-    
+
     std::string result;
     char buffer[4096];
     int bytes_read;
-    
+
     while ((bytes_read = gzread(file, buffer, sizeof(buffer))) > 0) {
         result.append(buffer, bytes_read);
     }
-    
+
     gzclose(file);
     return result;
 }
@@ -33,7 +33,7 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstrin
 bool Grammar2D::loadFromFile(const std::string &fname) {
     struct stat buffer;
     std::string filename = fname;
-    
+
     // Try original filename first
     if (stat(filename.c_str(), &buffer) == 0) {
         // File exists as-is
@@ -65,7 +65,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         if (!file.is_open()) return false;
         content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
-    
+
     std::istringstream stream(content);
     std::string line_utf8;
     std::vector<std::wstring> lhs;
