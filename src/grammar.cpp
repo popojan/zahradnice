@@ -85,35 +85,10 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                 } else if (line.at(1) == L'=') {
                     if (line.at(2) == L'=' && line.size() > 3) {
                         // Parse grid configuration: #=G width height
-                        std::wstring config = line.substr(3);
-                        // Skip leading whitespace
-                        size_t start = config.find_first_not_of(L" \t");
-                        if (start != std::wstring::npos) {
-                            config = config.substr(start);
-                            size_t space_pos = config.find(L' ');
-                            if (space_pos != std::wstring::npos) {
-                                std::wstring width_str = config.substr(0, space_pos);
-                                std::string width_narrow(width_str.begin(), width_str.end());
-                                grid_width = std::atoi(width_narrow.c_str());
-                                std::wstring height_str = config.substr(space_pos + 1);
-                                // Skip whitespace in height string too
-                                size_t height_start = height_str.find_first_not_of(L" \t");
-                                if (height_start != std::wstring::npos) {
-                                    std::wstring height_clean = height_str.substr(height_start);
-                                    std::string height_narrow(height_clean.begin(), height_clean.end());
-                                    grid_height = std::atoi(height_narrow.c_str());
-                                } else {
-                                    grid_height = 1;
-                                }
-                            } else {
-                                std::string config_narrow(config.begin(), config.end());
-                                grid_width = std::atoi(config_narrow.c_str());
-                                grid_height = 1;
-                            }
-                        }
-                        // Ensure valid values
-                        if (grid_width <= 0) grid_width = 1;
-                        if (grid_height <= 0) grid_height = 1;
+                        int vals[2] = {1, 1};
+                        parse_ints<2>(line.substr(3), vals);
+                        grid_width = vals[0] > 0 ? vals[0] : 1;
+                        grid_height = vals[1] > 0 ? vals[1] : 1;
                     } else {
                         // Dictionary entry: #=<key><value>
                         if (line.length() > 2) {
@@ -282,15 +257,10 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     int weight = 1;
     rule.key = lhs.length() > 3 ? lhs.at(3) : L'?';
     if (lhs.size() > 11) {
-        std::wstring score_str = lhs.substr(11);
-        std::string score_narrow(score_str.begin(), score_str.end());
-        size_t space_pos = score_narrow.find(' ');
-        if (space_pos != std::string::npos) {
-            reward = std::atoi(score_narrow.substr(0, space_pos).c_str());
-            weight = std::atoi(score_narrow.substr(space_pos + 1).c_str());
-        } else {
-            reward = std::atoi(score_narrow.c_str());
-        }
+        int vals[2] = {0, 1};
+        parse_ints<2>(lhs.substr(11), vals);
+        reward = vals[0];
+        weight = vals[1];
         if (weight < 1) weight = 1;
     }
     rule.reward = reward;
