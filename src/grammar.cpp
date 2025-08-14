@@ -152,25 +152,43 @@ std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_
     return std::pair<int, int>(-1, -1);
 }
 
-char Grammar2D::getColor(wchar_t c, const char def) {
-    char val = -1;
+std::pair<char, int> Grammar2D::getColorAndAttrs(wchar_t c, const char def_color, int def_attrs) {
+    auto it = dict.find(c);
+    if (it == dict.end()) {
+        return {def_color, def_attrs};
+    }
 
-    // First try if it's a direct digit character
-    if (c >= L'0' && c <= L'9') {
-        val = static_cast<char>(c - L'0');
-    } else {
-        // Look up in dictionary for wide character keys
-        auto it = dict.find(c);
-        if (it != dict.end()) {
-            if (!it->second.empty()) {
-                wchar_t first_char = it->second[0];
-                if (first_char >= L'0' && first_char <= L'9') {
-                    val = static_cast<char>(first_char - L'0');
-                }
-            }
+    const std::wstring& value = it->second;
+    if (value.empty()) {
+        return {def_color, def_attrs};
+    }
+
+    // Parse color,attrs format (e.g. "1,BOLD" or "7,DIM" or just "3")
+    size_t comma_pos = value.find(L',');
+
+    // Extract color (first part)
+    char color = def_color;
+    wchar_t first_char = value[0];
+    if (first_char >= L'0' && first_char <= L'9') {
+        color = static_cast<char>(first_char - L'0');
+    }
+
+    // Extract attributes (after comma)
+    int attrs = def_attrs;
+    if (comma_pos != std::wstring::npos && comma_pos + 1 < value.length()) {
+        std::wstring attr_str = value.substr(comma_pos + 1);
+        if (attr_str == L"BOLD") {
+            attrs |= A_BOLD;
+        } else if (attr_str == L"DIM") {
+            attrs |= A_DIM;
         }
     }
-    return val >= 0 && val <= 9 ? val : def;
+
+    return {(color >= 0 && color <= 8) ? color : def_color, attrs};
+}
+
+char Grammar2D::getColor(wchar_t c, const char def) {
+    return getColorAndAttrs(c, def, 0).first;
 }
 
 wchar_t Grammar2D::utf8_to_wchar(const std::string& utf8_char) {
@@ -245,14 +263,23 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     rule.rhs = rhs;
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
+    int fore_attrs = 0;
+    int back_attrs = 0;
+
     if (lhs.size() > 5) {
-        fore = getColor(lhs[5], fore);
+        auto fore_result = getColorAndAttrs(lhs[5], fore, 0);
+        fore = fore_result.first;
+        fore_attrs = fore_result.second;
     }
     if (lhs.size() > 6) {
-        back = getColor(lhs[6], back);
+        auto back_result = getColorAndAttrs(lhs[6], back, 0);
+        back = back_result.first;
+        back_attrs = back_result.second;
     }
     rule.fore = fore;
     rule.back = back;
+    rule.fore_attrs = fore_attrs;
+    rule.back_attrs = back_attrs;
     int reward = 0; //default reward
     int weight = 1;
     rule.key = lhs.length() > 3 ? lhs[3] : L'?';
@@ -466,7 +493,7 @@ void Derivation::restart() {
     clear();
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
-            memory[r * col + c] = {L' ', 7, 0, L'a'};
+            memory[r * col + c] = {L' ', 7, 0, L'a', 0, 0};
             screen_chars[r * col + c] = L' ';
         }
     }
@@ -522,7 +549,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                 return false;
             }
         } else {
-            G saved = {L' ', 7, 8, 'a'};
+            G saved = {L' ', 7, 8, 'a', 0, 0};
             wchar_t rep = ch;
             if (rep == L'@') rep = rule.rep;
             if (rep == L'&') rep = rule.ctxrep;
@@ -530,26 +557,36 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
             if (rep != L' ') {
                 if (rep == L'~') rep = L' ';
                 char back = rule.back;
+                int back_attrs = rule.back_attrs;
                 if (rule.back > 7) {
                     back = memory[col * wrapped_r + wrapped_c].back;
+                    back_attrs = memory[col * wrapped_r + wrapped_c].back_attrs;
                 }
-                G d = {rep, rule.fore, back, rule.zord};
+                G d = {rep, rule.fore, back, rule.zord, rule.fore_attrs, back_attrs};
                 if (rep == L'$') d = memory[col * wrapped_r + wrapped_c];
-                if (d.c == -1) d = {L' ', rule.fore, back, 'a'};
+                if (d.c == -1) d = {L' ', rule.fore, back, 'a', rule.fore_attrs, back_attrs};
                 int cidx = getColor(d.fore, d.back);
                 if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
+                    // Apply color and attributes
+                    int combined_attrs = d.fore_attrs | d.back_attrs;
                     if (cidx > 0) attron(COLOR_PAIR(cidx));
+                    if (combined_attrs != 0) attron(combined_attrs);
+
                     cchar_t cchar;
                     wchar_t wch[2] = {d.c, 0};
-                    setcchar(&cchar, wch, 0, cidx, NULL);
+                    setcchar(&cchar, wch, combined_attrs, cidx, NULL);
                     mvadd_wch(wrapped_r, wrapped_c, &cchar);
                     screen_chars[wrapped_r * col + wrapped_c] = d.c;
+
                     if (!isNonTerminal) {
                         saved = d;
                     } else {
                         saved = memory[col * wrapped_r + wrapped_c];
                         saved.back = d.back;
+                        saved.back_attrs = d.back_attrs;
                     }
+
+                    if (combined_attrs != 0) attroff(combined_attrs);
                     if (cidx > 0) attroff(COLOR_PAIR(cidx));
                     memory[col * wrapped_r + wrapped_c] = saved;
                 }
