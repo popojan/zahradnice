@@ -77,13 +77,13 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         std::string line_utf8 = content.substr(start, end - start);
         start = end + 1;
         std::wstring line = string_to_wstring(line_utf8);
-        if (!line.empty() && line.at(0) == '#') //comment
+        if (!line.empty() && line[0] == '#') //comment
         {
             if (line.size() > 1) {
-                if (first && line.at(1) == L'!') {
+                if (first && line[1] == L'!') {
                     help = line.substr(2);
-                } else if (line.at(1) == L'=') {
-                    if (line.at(2) == L'=' && line.size() > 3) {
+                } else if (line[1] == L'=') {
+                    if (line.size() > 2 && line[2] == L'=' && line.size() > 3) {
                         // Parse grid configuration: #=G width height
                         int vals[2] = {1, 1};
                         parse_ints<2>(line.substr(3), vals);
@@ -92,7 +92,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                     } else {
                         // Dictionary entry: #=<key><value>
                         if (line.length() > 2) {
-                            wchar_t key = line.at(2);
+                            wchar_t key = line[2];
                             std::wstring value = line.substr(3);
                             dict.insert({key, value});
                         }
@@ -102,16 +102,16 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
             first = false;
             continue;
         }
-        if (!line.empty() && line.at(0) == L'^') //starting symbol
+        if (!line.empty() && line[0] == L'^') //starting symbol
         {
-            wchar_t s = line.length() > 1 ? line.at(1) : L's';
+            wchar_t s = line.length() > 1 ? line[1] : L's';
 
             // Position indicators are still ASCII, so we can convert back
-            char ul = line.length() > 2 ? static_cast<char>(line.at(2)) : 'c';
-            char lr = line.length() > 3 ? static_cast<char>(line.at(3)) : 'c';
+            char ul = line.length() > 2 ? static_cast<char>(line[2]) : 'c';
+            char lr = line.length() > 3 ? static_cast<char>(line[3]) : 'c';
             S.push_back({ul, lr, s});
         }
-        if (!line.empty() && line.at(0) == L'=') //new rule LHSs
+        if (!line.empty() && line[0] == L'=') //new rule LHSs
         {
             if (!rule.empty() && _process(lhs, rule)) {
                 rule.clear();
@@ -163,7 +163,7 @@ char Grammar2D::getColor(wchar_t c, const char def) {
         auto it = dict.find(c);
         if (it != dict.end()) {
             if (!it->second.empty()) {
-                wchar_t first_char = it->second.at(0);
+                wchar_t first_char = it->second[0];
                 if (first_char >= L'0' && first_char <= L'9') {
                     val = static_cast<char>(first_char - L'0');
                 }
@@ -211,7 +211,7 @@ std::wstring Grammar2D::string_to_wstring(const std::string& str) {
 }
 
 void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
-    wchar_t s = lhs.length() > 2 ? lhs.at(2) : L's';
+    wchar_t s = lhs.length() > 2 ? lhs[2] : L's';
     if (R.find(s) == R.end()) {
         R[s] = Rules();
         V.insert(s);
@@ -219,8 +219,8 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     Rule rule;
     rule.load = false;
     rule.sound = 0;
-    if (lhs.length() > 1 && lhs.at(1) != L'=') {
-        wchar_t c = lhs.at(1);
+    if (lhs.length() > 1 && lhs[1] != L'=') {
+        wchar_t c = lhs[1];
         if (std::wstring(L">])|").find(c) == std::wstring::npos) {
             sounds.insert(c);
             rule.sound = c;
@@ -246,16 +246,16 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     char fore = 7; //default: white foreground
     char back = 8; //default: transparent background
     if (lhs.size() > 5) {
-        fore = getColor(lhs.at(5), fore);
+        fore = getColor(lhs[5], fore);
     }
     if (lhs.size() > 6) {
-        back = getColor(lhs.at(6), back);
+        back = getColor(lhs[6], back);
     }
     rule.fore = fore;
     rule.back = back;
     int reward = 0; //default reward
     int weight = 1;
-    rule.key = lhs.length() > 3 ? lhs.at(3) : L'?';
+    rule.key = lhs.length() > 3 ? lhs[3] : L'?';
     if (lhs.size() > 11) {
         int vals[2] = {0, 1};
         parse_ints<2>(lhs.substr(11), vals);
@@ -266,26 +266,26 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     rule.reward = reward;
     rule.weight = weight;
     if (lhs.length() > 7)
-        rule.ctx = lhs.at(7);
+        rule.ctx = lhs[7];
     else
         rule.ctx = static_cast<wchar_t>(-1);
     if (rule.ctx == L'?')
         rule.ctx = static_cast<wchar_t>(-1);
 
     if (lhs.length() > 8) {
-        rule.ctxrep = lhs.at(8);
+        rule.ctxrep = lhs[8];
     } else
         rule.ctxrep = L' ';
 
     if (lhs.size() > 9)
-        rule.zord = lhs.at(9);
+        rule.zord = lhs[9];
     else
         rule.zord = L'a';
 
     if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
     }
-    rule.rep = lhs.length() > 4 ? lhs.at(4) : L' ';
+    rule.rep = lhs.length() > 4 ? lhs[4] : L' ';
     //std::replace(rule.rhs.begin(), rule.rhs.end(), L'@', rule.rep);
     std::replace(rule.rhs.begin(), rule.rhs.end(), L'*', rule.lhs);
     R[s].push_back(rule);
@@ -312,8 +312,9 @@ void Derivation::init(bool clear) {
     if (clear || clear_needed) {
         delete [] memory;
         delete [] screen_chars;
-        memory = new G[row * col];
-        screen_chars = new wchar_t[row * col];
+        memory = new(std::nothrow) G[row * col];
+        screen_chars = new(std::nothrow) wchar_t[row * col];
+        if (!memory || !screen_chars) std::exit(1);
         restart();
         initColors();
     }
