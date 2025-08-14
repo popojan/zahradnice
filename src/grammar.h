@@ -87,6 +87,19 @@ public:
     // String to wstring conversion helper
     static std::wstring string_to_wstring(const std::string& str);
 
+private:
+    // Parse up to N whitespace-delimited integers from wide string
+    template<int N> static void parse_ints(const std::wstring& s, int* vals) {
+        size_t pos = 0;
+        for (int i = 0; i < N; ++i) {
+            pos = s.find_first_not_of(L" \t", pos);
+            if (pos == std::wstring::npos) break;
+            vals[i] = std::wcstol(s.c_str() + pos, nullptr, 10);
+            pos = s.find_first_of(L" \t", pos);
+        }
+    }
+
+public:
     friend class Derivation;
 
 private:
