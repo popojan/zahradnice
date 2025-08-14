@@ -47,6 +47,8 @@ public:
         int cq;
         char fore;
         char back;
+        int fore_attrs;
+        int back_attrs;
         int reward;
         wchar_t key;
         wchar_t ctx;
@@ -71,6 +73,16 @@ public:
     int grid_height = 1;
 
     Grammar2D() {
+        // Initialize default color dictionary entries
+        dict[L'0'] = L"0";  // black
+        dict[L'1'] = L"1";  // red
+        dict[L'2'] = L"2";  // green
+        dict[L'3'] = L"3";  // yellow
+        dict[L'4'] = L"4";  // blue
+        dict[L'5'] = L"5";  // magenta
+        dict[L'6'] = L"6";  // cyan
+        dict[L'7'] = L"7";  // white
+        dict[L'8'] = L"8";  // transparent
     }
 
     bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
@@ -103,6 +115,7 @@ public:
     friend class Derivation;
 
 private:
+    std::pair<char, int> getColorAndAttrs(wchar_t val, char def_color, int def_attrs = 0);
     char getColor(wchar_t val, char def);
 };
 
@@ -116,6 +129,8 @@ public:
         char fore;
         char back;
         char zord;
+        int fore_attrs;
+        int back_attrs;
     };
 
     G *memory;
