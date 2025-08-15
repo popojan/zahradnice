@@ -82,56 +82,58 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
             if (line.size() > 1) {
                 if (first && line[1] == L'!') {
                     help = line.substr(2);
-                } else if (line[1] == L'=') {
-                    if (line.size() > 2 && line[2] == L'=' && line.size() > 3) {
-                        // Parse grid configuration: #=G width height
-                        int vals[2] = {1, 1};
-                        parse_ints<2>(line.substr(3), vals);
-                        grid_width = vals[0] > 0 ? vals[0] : 1;
-                        grid_height = vals[1] > 0 ? vals[1] : 1;
-                    } else {
-                        // Dictionary entry: #=<key><value>
-                        if (line.length() > 2) {
-                            wchar_t key = line[2];
-                            std::wstring value = line.substr(3);
+                } else {
+                    // New keyword-based parsing
+                    std::wstring keyword;
+                    size_t space_pos = line.find(L' ', 1);
+                    if (space_pos != std::wstring::npos) {
+                        keyword = line.substr(1, space_pos - 1);
+                        std::wstring args = line.substr(space_pos + 1);
 
-                            // Parse special configurations immediately
-                            if (key == L'T' && !value.empty() && value[0] == L' ') {
-                                // Timing configuration: #=T 500 50 0
-                                std::wstring timing_str = value.substr(1);
-                                size_t pos1 = timing_str.find(L' ');
-                                size_t pos2 = timing_str.find(L' ', pos1 + 1);
-                                if (pos1 != std::wstring::npos) {
-                                    B_step = std::wcstol(timing_str.c_str(), nullptr, 10);
-                                    if (pos2 != std::wstring::npos) {
-                                        M_step = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
-                                        T_step = std::wcstol(timing_str.c_str() + pos2 + 1, nullptr, 10);
-                                    } else if (timing_str.length() > pos1 + 1) {
-                                        M_step = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
-                                    }
+                        if (keyword == L"timing") {
+                            // #timing 500 50 0
+                            size_t pos1 = args.find(L' ');
+                            size_t pos2 = args.find(L' ', pos1 + 1);
+                            if (pos1 != std::wstring::npos) {
+                                B_step = std::wcstol(args.c_str(), nullptr, 10);
+                                if (pos2 != std::wstring::npos) {
+                                    M_step = std::wcstol(args.c_str() + pos1 + 1, nullptr, 10);
+                                    T_step = std::wcstol(args.c_str() + pos2 + 1, nullptr, 10);
+                                } else if (args.length() > pos1 + 1) {
+                                    M_step = std::wcstol(args.c_str() + pos1 + 1, nullptr, 10);
                                 }
-                            } else {
-                                // Check if this is a control key remapping
-                                static const wchar_t controls[] = {L'B', L'M', L'T', L'q', L'x', L'~'};
-                                bool is_control = false;
-                                wchar_t internal_key = key;
+                            }
+                        } else if (keyword == L"grid") {
+                            // #grid width height
+                            int vals[2] = {1, 1};
+                            parse_ints<2>(args, vals);
+                            grid_width = vals[0] > 0 ? vals[0] : 1;
+                            grid_height = vals[1] > 0 ? vals[1] : 1;
+                        } else if (keyword == L"color") {
+                            // #color M 5,BOLD
+                            if (args.length() >= 3) {
+                                wchar_t alias = args[0];
+                                std::wstring value = args.substr(2); // Skip alias and space
+                                dict.insert({alias, value});
+                            }
+                        } else if (keyword == L"sound") {
+                            // #sound S sounds/file.wav
+                            if (args.length() >= 3) {
+                                wchar_t sound_char = args[0];
+                                std::wstring path = args.substr(2); // Skip char and space
+                                std::string sound_path(path.begin(), path.end());
+                                sound_paths[sound_char] = sound_path;
+                                sounds.insert(sound_char);
+                            }
+                        } else if (keyword == L"control") {
+                            // #control x r
+                            if (args.length() >= 3) {
+                                wchar_t control = args[0];
+                                wchar_t new_key = args[2]; // Skip control and space
 
-                                for (wchar_t control : controls) {
-                                    if (key == control) {
-                                        is_control = true;
-                                        // Convert ~ to space for internal representation
-                                        internal_key = (control == L'~') ? L' ' : control;
-                                        break;
-                                    }
-                                }
-
-                                if (is_control && !value.empty()) {
-                                    // Control key remapping: only store reverse mapping
-                                    control_remaps.insert({value[0], std::wstring(1, internal_key)});
-                                } else {
-                                    // Regular dictionary entry (colors, etc.)
-                                    dict.insert({key, value});
-                                }
+                                // Convert control aliases to internal representation
+                                wchar_t internal_key = (control == L'~') ? L' ' : control;
+                                control_remaps.insert({new_key, std::wstring(1, internal_key)});
                             }
                         }
                     }
@@ -170,17 +172,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         S.push_back({'c', 'c', L's'});
     }
 
-    // Post-process: extract sound definitions and remove from general dictionary
-    for (wchar_t sound_char : sounds) {
-        auto it = dict.find(sound_char);
-        if (it != dict.end()) {
-            // Convert wstring to string for file path
-            std::string sound_path(it->second.begin(), it->second.end());
-            sound_paths[sound_char] = sound_path;
-            // Remove from general dictionary to avoid control key conflicts
-            dict.erase(it);
-        }
-    }
+    // Sound paths are now parsed directly during #sound processing
 
     return true;
 }
