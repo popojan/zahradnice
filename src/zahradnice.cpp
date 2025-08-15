@@ -8,6 +8,27 @@
 #include "sample.h"
 #include <cstdlib>
 #include <algorithm>
+#include <unistd.h>
+#include <libgen.h>
+#include <sys/stat.h>
+
+std::string resolve_sound_path(const std::string& sound_path, const std::string& program_dir) {
+    // If path is already absolute, use as-is
+    if (!sound_path.empty() && sound_path[0] == '/') {
+        return sound_path;
+    }
+
+    struct stat buffer;
+
+    // Try relative to program file directory first
+    std::string program_relative = program_dir + "/" + sound_path;
+    if (stat(program_relative.c_str(), &buffer) == 0) {
+        return program_relative;
+    }
+
+    // Fallback to current working directory
+    return sound_path;
+}
 
 void clear_status(size_t len) {
     std::wstring empty(len, L' ');
@@ -78,15 +99,23 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        // Get program directory for sound path resolution
+        std::string program_dir = ".";
+        size_t last_slash = config.find_last_of("/");
+        if (last_slash != std::string::npos) {
+            program_dir = config.substr(0, last_slash);
+        }
+
         std::unordered_map<wchar_t, sample> sounds;
         // Use pre-parsed timing values
         int B = cfg.B_step;
         int M = cfg.M_step;
         int T = cfg.T_step;
 
-        // Load sounds from pre-parsed paths
+        // Load sounds from pre-parsed paths with proper resolution
         for (const auto& sound_entry : cfg.sound_paths) {
-            sounds.insert({sound_entry.first, sample(sound_entry.second, 100)});
+            std::string resolved_path = resolve_sound_path(sound_entry.second, program_dir);
+            sounds.insert({sound_entry.first, sample(resolved_path, 100)});
         }
 
         // Control key translation handled by reverse dictionary mappings

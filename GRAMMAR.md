@@ -21,7 +21,10 @@ Key case matters.
 ## Syntax
 
 Lines starting with
-* `#` ... comments or preliminary setup
+* `# ` (space after #) ... comments
+* `#keyword` (no space after #) ... configuration keywords (#timing, #color, etc.)
+* To comment out keywords: `#timing 500 50 0` → `# #timing 500 50 0`
+* If rule bodies need `#` at start of line, precede with spaces to avoid parsing as keyword/comment
 * `^` ... initial symbol and its position
 * `=` ... rule or special rule header
 * otherwise the line forms a part of body belonging to the preceding rule headers
@@ -40,7 +43,7 @@ For the rule to be **applicable** to a char on screen these conditions must be m
 
 i.e. these chars and tokens left to right `=S12345678 <score> <weight>`
 
-* `S.` `=` for silence or a sound char previously defined using dictionary comments, i.e. `#=S<relative/path/to/file.wav>` 
+* `S.` `=` for silence or a sound char previously defined using sound comments, i.e. `#sound S sounds/click.wav` 
 * `1.` LHS non-terminal character (obligatory)
 * `2.` trigger char (a rule is invoked by pressing corresponding key or by B/M/T time steps) (obligatory)
 * `3.` RHS non-terminal replacement character (first @ in the rule body to be replaced by this char) (obligatory)
@@ -125,16 +128,30 @@ look of the 'pixels'.
 ### Special comments
 
 * `#!<Program description>` ... defines a help string shown on top when program execution is paused (e.g. on load) (has to be the first line of a program file)
-* `#=<single-char-key><value-string>` ... defines a dictionary entry saved under a single char key, used to:
-    * define sounds (by a relative path to a wav file)
-    * define colors (to allow changing colors for multiple rules at once)
-* `#=T <B-step-ms> <M-step-ms> <T-step-ms>` ... define timing steps (long/medium/instant) in milliseconds; if not given defaults to 500/50/0
-* `#== <grid-width> <grid-height>` ... define grid alignment constraints for toroidal screen wrapping; ensures symbols wrap at boundaries that are multiples of the specified dimensions
-    * `#== 1 1` - default (no grid constraints)
-    * `#== 2 1` - double-width columns (prevents splitting of paired symbols like `@@` or `~~`)  
-    * `#== 3 1` - triple-width columns (for Conway's Game of Life patterns)
-    * `#== 2 2` - double-width columns and double-height rows
-    * Affects both coordinate wrapping and uppercase initial placement variants (`R`, `C`, `X`, `L`)
+* `#timing <B-step-ms> <M-step-ms> <T-step-ms>` ... define timing steps (long/medium/instant) in milliseconds; defaults to 500/50/0
+* `#grid <width> <height>` ... define grid alignment for toroidal wrapping; defaults to 1/1
+* `#sound <char> <path>` ... define sound mapping (e.g. `#sound S sounds/click.wav`)
+* `#color <char> <color>,<attrs>` ... define color with attributes (e.g. `#color M 5,BOLD`)
+* `#control <old-key> <new-key>` ... remap controls (e.g. `#control x r` remaps reload from x to r)
+
+### Color attributes and control remapping
+
+**Color with attributes:**
+* `#color <char> <color-code>,<attribute>` ... define color with attributes
+* Available attributes: `BOLD`, `DIM`
+* Examples:
+    * `#color M 1,BOLD` - define 'M' as bold red
+    * `#color D 7,DIM` - define 'D' as dimmed white
+    * `#color P 5,BOLD` - define 'P' as bold magenta
+
+**Control key remapping:**
+* `#control <old-key> <new-key>` ... remap control keys
+* Available controls: `B` (long step), `M` (medium step), `T` (instant step), `q` (quit), `x` (reload), `~` (unpause/space)
+* Examples:
+    * `#control x r` - remap reload from 'x' to 'r'
+    * `#control ~ ,` - remap unpause from space to comma
+    * `#control q .` - remap quit from 'q' to period
+* Note: ESC key always works as emergency exit regardless of remapping
 
 ### Special rules
 **Quit rule**
