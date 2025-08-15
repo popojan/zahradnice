@@ -100,9 +100,17 @@ Complex example (shortcut combining both the above rules):
 ```
 ### Initial symbols
 
-One or more lines beginning with `^` required.
+Initial symbols are optional and define starting symbols to be placed on screen.
 
 `^<inital-symbol-char><vertical-placement-char><horizontal-placement-char>`
+
+**Special case:** Plain `^` (with no characters following) requests screen clearing. This is useful for utility programs that need a clean slate.
+
+**Example:**
+```
+^        # Clear screen first
+^Scc     # Then place S symbol at center
+```
 
 The chars can be one of the following. There are uppercase variants 
 to force column indices divisible by 2 to allow defining full-block
@@ -131,8 +139,52 @@ look of the 'pixels'.
 * `#timing <B-step-ms> <M-step-ms> <T-step-ms>` ... define timing steps (long/medium/instant) in milliseconds; defaults to 500/50/0
 * `#grid <width> <height>` ... define grid alignment for toroidal wrapping; defaults to 1/1
 * `#sound <char> <path>` ... define sound mapping (e.g. `#sound S sounds/click.wav`)
+* `#program <char> <path>` ... define program mapping for switching (e.g. `#program 1 snake.cfg`)
 * `#color <char> <color>,<attrs>` ... define color with attributes (e.g. `#color M 5,BOLD`)
 * `#control <old-key> <new-key>` ... remap controls (e.g. `#control x r` remaps reload from x to r)
+
+### Program switching
+
+Programs can call other programs using a compositional system that preserves derivation state.
+
+**1. Define program mappings:**
+```
+#program 1 snake.cfg
+#program 2 tetris.cfg
+#program R return
+#program Q quit
+```
+
+**2. Use mapped characters in rules:**
+```
+=X1T~        # When X symbol and T key pressed, replace with ~ and switch to snake.cfg
+@@@
+```
+
+**Key features:**
+- **Compositional:** Derivation state (screen contents) flows between programs
+- **Call stack:** Programs can return to their caller using `return`
+- **Standard rules:** Program switching uses normal rule syntax with RHS replacement
+- **File completion:** Supports `.cfg`, `.gz`, and directory/index.cfg resolution
+
+**Special program names:**
+- `return` - Return to the calling program (pops from call stack)
+- `quit` - Exit the application
+
+**Example call/return pattern:**
+```
+#! main.cfg - calls utility having replaced S by R on T
+#program U utility.cfg
+#program R return
+=USTR
+@@@
+
+
+#! utility.cfg - does work (replaces R with U on T) and returns
+#program R return
+=RRTU
+@@@
+```
 
 ### Color attributes and control remapping
 
@@ -152,30 +204,6 @@ look of the 'pixels'.
     * `#control ~ ,` - remap unpause from space to comma
     * `#control q .` - remap quit from 'q' to period
 * Note: ESC key always works as emergency exit regardless of remapping
-
-### Special rules
-**Quit rule**
-
-The `<replacement-char>` is irrelevant; trigger, non-terminal and its potential context in the rule body must be met for the rule to work.
-
-```
-=<s-char><nonterminal-char><trigger-char><replacement-char> quit
-<left-context>@<right-context>@@
-```
-**Program switching rule**
-
-Switches to a different program in runtime.
-```
-=<s-char><nonterminal-char><trigger-char><replacement-char> <relative/program/path/and/filename.cfg>`
-<left-context>@<right-context>@@
-```
-
-The `<s-char>` can be on of the following
-
-* `>` **keeps** the previous screen content, switches to a given program **running** it immediately 
-* `]` **keeps** the previous screen content, switches to a given program **paused**
-* `)` **clears** the screen, switches to a given program **running** it immediately 
-* `|` **clears** the screen, switches to a given program **paused**
 
 ## TODO
 
