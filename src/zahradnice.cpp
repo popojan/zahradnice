@@ -114,6 +114,8 @@ int main(int argc, char *argv[]) {
     if (argc > 1) config = argv[1];
     if (argc > 2) seed = std::atoi(argv[2]);
 
+    config = resolve_program_path(config, config);
+
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
     }

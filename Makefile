@@ -14,15 +14,14 @@ zahradnice-size:
 RELEASE_DIR=release
 release:
 	mkdir -p ${RELEASE_DIR}/zahradnice/programs
-	gzip -k programs/*.cfg
-	gzip -k index.cfg
-	mv index.cfg.gz ${RELEASE_DIR}/zahradnice
-	mv programs/*.cfg.gz ${RELEASE_DIR}/zahradnice/programs
+	cp index.cfg ${RELEASE_DIR}/zahradnice
+	cp programs/*.cfg ${RELEASE_DIR}/zahradnice/programs
 	#mkdir -p ${RELEASE_DIR}/zahradnice/sounds
 	#cp sounds/*.wav ${RELEASE_DIR}/zahradnice/sounds
 	cp zahradnice ${RELEASE_DIR}/zahradnice
 	cd ${RELEASE_DIR}; \
-	tar -czf zahradnice.tar.gz zahradnice/
+	tar -czf zahradnice.tar.gz zahradnice/; \
+	rm -rf zahradnice
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
 SOKOFILES=picokosmosText.html #sasquatch5Text.html
