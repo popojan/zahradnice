@@ -67,22 +67,22 @@ public:
 
     std::unordered_map<wchar_t, Rules> R;
     std::unordered_map<wchar_t, std::wstring> dict;
+    std::unordered_map<wchar_t, std::wstring> control_remaps;
 
     // Grid configuration for symbol alignment (default 1,1 = no constraints)
     int grid_width = 1;
     int grid_height = 1;
 
+    // Timing configuration (default values)
+    int B_step = 500;
+    int M_step = 50;
+    int T_step = 0;
+
+    // Sound paths (parsed from dictionary)
+    std::unordered_map<wchar_t, std::string> sound_paths;
+
     Grammar2D() {
-        // Initialize default color dictionary entries
-        dict[L'0'] = L"0";  // black
-        dict[L'1'] = L"1";  // red
-        dict[L'2'] = L"2";  // green
-        dict[L'3'] = L"3";  // yellow
-        dict[L'4'] = L"4";  // blue
-        dict[L'5'] = L"5";  // magenta
-        dict[L'6'] = L"6";  // cyan
-        dict[L'7'] = L"7";  // white
-        dict[L'8'] = L"8";  // transparent
+        // No default dictionary entries needed - functions return same key/digit if not found
     }
 
     bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
@@ -113,6 +113,8 @@ private:
 
 public:
     friend class Derivation;
+
+    wchar_t getControlKey(wchar_t control) const;
 
 private:
     std::pair<char, int> getColorAndAttrs(wchar_t val, char def_color, int def_attrs = 0);

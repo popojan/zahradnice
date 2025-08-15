@@ -94,7 +94,45 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                         if (line.length() > 2) {
                             wchar_t key = line[2];
                             std::wstring value = line.substr(3);
-                            dict.insert({key, value});
+
+                            // Parse special configurations immediately
+                            if (key == L'T' && !value.empty() && value[0] == L' ') {
+                                // Timing configuration: #=T 500 50 0
+                                std::wstring timing_str = value.substr(1);
+                                size_t pos1 = timing_str.find(L' ');
+                                size_t pos2 = timing_str.find(L' ', pos1 + 1);
+                                if (pos1 != std::wstring::npos) {
+                                    B_step = std::wcstol(timing_str.c_str(), nullptr, 10);
+                                    if (pos2 != std::wstring::npos) {
+                                        M_step = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
+                                        T_step = std::wcstol(timing_str.c_str() + pos2 + 1, nullptr, 10);
+                                    } else if (timing_str.length() > pos1 + 1) {
+                                        M_step = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
+                                    }
+                                }
+                            } else {
+                                // Check if this is a control key remapping
+                                static const wchar_t controls[] = {L'B', L'M', L'T', L'q', L'x', L'~'};
+                                bool is_control = false;
+                                wchar_t internal_key = key;
+
+                                for (wchar_t control : controls) {
+                                    if (key == control) {
+                                        is_control = true;
+                                        // Convert ~ to space for internal representation
+                                        internal_key = (control == L'~') ? L' ' : control;
+                                        break;
+                                    }
+                                }
+
+                                if (is_control && !value.empty()) {
+                                    // Control key remapping: only store reverse mapping
+                                    control_remaps.insert({value[0], std::wstring(1, internal_key)});
+                                } else {
+                                    // Regular dictionary entry (colors, etc.)
+                                    dict.insert({key, value});
+                                }
+                            }
                         }
                     }
                 }
@@ -131,6 +169,19 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
     if (S.empty()) {
         S.push_back({'c', 'c', L's'});
     }
+
+    // Post-process: extract sound definitions and remove from general dictionary
+    for (wchar_t sound_char : sounds) {
+        auto it = dict.find(sound_char);
+        if (it != dict.end()) {
+            // Convert wstring to string for file path
+            std::string sound_path(it->second.begin(), it->second.end());
+            sound_paths[sound_char] = sound_path;
+            // Remove from general dictionary to avoid control key conflicts
+            dict.erase(it);
+        }
+    }
+
     return true;
 }
 
@@ -153,8 +204,16 @@ std::pair<int, int> Grammar2D::origin(wchar_t s, const std::wstring &rhs, wchar_
 }
 
 std::pair<char, int> Grammar2D::getColorAndAttrs(wchar_t c, const char def_color, int def_attrs) {
+    // First check dictionary (allows overriding digit colors)
     auto it = dict.find(c);
-    if (it == dict.end()) {
+    if (it != dict.end()) {
+        // Dictionary entry found - process it
+    } else if (c >= L'0' && c <= L'9') {
+        // No dictionary override, use direct digit parsing
+        char color = static_cast<char>(c - L'0');
+        return {color, def_attrs};
+    } else {
+        // Neither dictionary nor digit
         return {def_color, def_attrs};
     }
 
@@ -189,6 +248,14 @@ std::pair<char, int> Grammar2D::getColorAndAttrs(wchar_t c, const char def_color
 
 char Grammar2D::getColor(wchar_t c, const char def) {
     return getColorAndAttrs(c, def, 0).first;
+}
+
+wchar_t Grammar2D::getControlKey(wchar_t pressed_key) const {
+    auto it = control_remaps.find(pressed_key);
+    if (it != control_remaps.end() && !it->second.empty()) {
+        return it->second[0];
+    }
+    return pressed_key;  // No remapping, return as-is
 }
 
 wchar_t Grammar2D::utf8_to_wchar(const std::string& utf8_char) {
@@ -569,9 +636,6 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                 if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
                     // Apply color and attributes
                     int combined_attrs = d.fore_attrs | d.back_attrs;
-                    if (cidx > 0) attron(COLOR_PAIR(cidx));
-                    if (combined_attrs != 0) attron(combined_attrs);
-
                     cchar_t cchar;
                     wchar_t wch[2] = {d.c, 0};
                     setcchar(&cchar, wch, combined_attrs, cidx, NULL);
@@ -585,9 +649,6 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                         saved.back = d.back;
                         saved.back_attrs = d.back_attrs;
                     }
-
-                    if (combined_attrs != 0) attroff(combined_attrs);
-                    if (cidx > 0) attroff(COLOR_PAIR(cidx));
                     memory[col * wrapped_r + wrapped_c] = saved;
                 }
                 auto loc = std::pair{wrapped_r, wrapped_c};
