@@ -58,8 +58,6 @@ public:
         char zord;
         wchar_t sound;
         bool load;
-        bool clear;
-        bool pause;
     };
 
     typedef std::vector<Rule> Rules;
@@ -78,8 +76,14 @@ public:
     int M_step = 50;
     int T_step = 0;
 
+    // Screen clearing flag (set by plain ^ starting symbol)
+    bool clear_requested = false;
+
     // Sound paths (parsed from dictionary)
     std::unordered_map<wchar_t, std::string> sound_paths;
+
+    // Program paths (parsed from dictionary)
+    std::unordered_map<wchar_t, std::string> program_paths;
 
     Grammar2D() {
         // No default dictionary entries needed - functions return same key/digit if not found

@@ -30,6 +30,66 @@ std::string resolve_sound_path(const std::string& sound_path, const std::string&
     return sound_path;
 }
 
+std::string resolve_program_path(const std::string& program_path, const std::string& current_config) {
+    // If program path is "quit", return as-is
+    if (program_path == "quit") {
+        return program_path;
+    }
+
+    // If program path is already absolute, use as-is
+    if (!program_path.empty() && program_path[0] == '/') {
+        return program_path;
+    }
+
+    std::string base_path;
+
+    // If program path already includes directory, use relative to current directory
+    if (program_path.find('/') != std::string::npos) {
+        base_path = program_path;
+    } else {
+        // Get directory of current config
+        size_t last_slash = current_config.find_last_of("/");
+        if (last_slash != std::string::npos) {
+            // Current config has directory, use that directory
+            base_path = current_config.substr(0, last_slash) + "/" + program_path;
+        } else {
+            // Current config has no directory, use current working directory
+            base_path = program_path;
+        }
+    }
+
+    // Apply file completion logic from loadFromFile
+    struct stat buffer;
+
+    // Try original path first
+    if (stat(base_path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)) {
+        return base_path;
+    }
+
+    // If not .cfg, try adding /index.cfg
+    if (!base_path.ends_with(".cfg") && !base_path.ends_with(".cfg.gz")) {
+        std::string index_path = base_path + "/index.cfg";
+        if (stat(index_path.c_str(), &buffer) == 0) {
+            return index_path;
+        }
+        // Try compressed index
+        std::string index_gz_path = index_path + ".gz";
+        if (stat(index_gz_path.c_str(), &buffer) == 0) {
+            return index_gz_path;
+        }
+    }
+    // Try adding .gz to original path
+    else {
+        std::string gz_path = base_path + ".gz";
+        if (stat(gz_path.c_str(), &buffer) == 0) {
+            return gz_path;
+        }
+    }
+
+    // If nothing found, return original base_path (let loadFromFile handle the error)
+    return base_path;
+}
+
 void clear_status(size_t len) {
     std::wstring empty(len, L' ');
     mvaddwstr(0, 0, empty.c_str());
@@ -81,8 +141,9 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     Derivation w;
+    std::vector<std::string> caller_stack;  // Stack of calling programs
 
-    bool clear = true;
+    bool clear = true;  // Clear on first program load
     bool err = 0;
     bool paused = true;
     while (config != "quit") {
@@ -124,64 +185,46 @@ int main(int argc, char *argv[]) {
 
         //top row reserved as status line
         w.reset(cfg, row, col);
-        w.init(clear);
+        w.init(clear || cfg.clear_requested);
+        clear = false;  // Subsequent program switches preserve state
         w.start();
 
         wint_t wch = L' ';
         wint_t last = L' ';
 
-        Grammar2D::Rule rule;
+        Grammar2D::Rule rule = {};  // Initialize all members to zero/false
 
         auto start = std::chrono::steady_clock::now();
 
         while (true) {
+            // switch programs if requested (check first)
+            if (success && rule.load && rule.sound != 0) {
+                // Look up program path from dictionary
+                auto it = cfg.program_paths.find(rule.sound);
+                if (it != cfg.program_paths.end()) {
+                    std::string new_program = it->second;
+                    if (new_program == "return") {
+                        // Pop from caller stack
+                        if (!caller_stack.empty()) {
+                            config = caller_stack.back();
+                            caller_stack.pop_back();
+                        } else {
+                            config = "quit";  // No caller to return to
+                        }
+                    } else {
+                        // Push current program to stack and switch
+                        caller_stack.push_back(config);
+                        config = resolve_program_path(new_program, config);
+                    }
+                    break;
+                }
+            }
             // play sound if any
-            if (success && rule.sound != 0) {
+            else if (success && rule.sound != 0) {
                 auto it = sounds.find(rule.sound);
                 if (it != sounds.end()) {
                     it->second.play();
                 }
-            }
-            // switch programs if requested
-            else if (success && rule.load && !rule.lhsa.empty()) {
-                std::string new_program("");
-                if (rule.lhsa.length() > 5) {
-                    std::wstring lhsa_substr = rule.lhsa.substr(5);
-                    // Skip leading whitespace, then extract first word
-                    size_t start_pos = lhsa_substr.find_first_not_of(L" \t\n\r");
-                    std::wstring new_program_wide;
-                    if (start_pos != std::wstring::npos) {
-                        size_t end_pos = lhsa_substr.find_first_of(L" \t\n\r", start_pos);
-                        new_program_wide = (end_pos != std::wstring::npos) ? 
-                            lhsa_substr.substr(start_pos, end_pos - start_pos) : 
-                            lhsa_substr.substr(start_pos);
-                    }
-                    // Convert back to UTF-8 string for filesystem operations
-                    if (!new_program_wide.empty()) {
-                        size_t len = std::wcstombs(nullptr, new_program_wide.c_str(), 0);
-                        if (len != static_cast<size_t>(-1)) {
-                            new_program.resize(len);
-                            std::wcstombs(&new_program[0], new_program_wide.c_str(), len);
-                        }
-                    }
-                }
-                if (new_program == "quit") {
-                    config = new_program;
-                } else {
-                    if (config.ends_with(".cfg") || config.ends_with(".cfg.gz")) {
-                        config = config.substr(0, config.rfind('/')) + "/" + new_program;
-                    } else {
-                        config = config + "/" + new_program;
-                    }
-                    clear = rule.clear;
-                    if (rule.pause) {
-                        paused = true;
-                        timeout(-1);
-                    } else {
-                        paused = false;
-                    }
-                }
-                break;
             }
 
             // print status
@@ -298,6 +341,9 @@ int main(int argc, char *argv[]) {
     }
 
     endwin();
+
+    Mix_CloseAudio();
+    Mix_Quit();
 
     return err;
 }

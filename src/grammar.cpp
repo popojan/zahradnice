@@ -125,6 +125,14 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                                 sound_paths[sound_char] = sound_path;
                                 sounds.insert(sound_char);
                             }
+                        } else if (keyword == L"program") {
+                            // #program P program.cfg
+                            if (args.length() >= 3) {
+                                wchar_t program_char = args[0];
+                                std::wstring path = args.substr(2); // Skip char and space
+                                std::string program_path(path.begin(), path.end());
+                                program_paths[program_char] = program_path;
+                            }
                         } else if (keyword == L"control") {
                             // #control old_key new_key - remap system functions only
                             size_t start = args.find_first_not_of(L" \t");
@@ -149,12 +157,17 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         }
         if (!line.empty() && line[0] == L'^') //starting symbol
         {
-            wchar_t s = line.length() > 1 ? line[1] : L's';
+            // Plain ^ requests screen clear
+            if (line.length() == 1) {
+                clear_requested = true;
+            } else {
+                wchar_t s = line.length() > 1 ? line[1] : L's';
 
-            // Position indicators are still ASCII, so we can convert back
-            char ul = line.length() > 2 ? static_cast<char>(line[2]) : 'c';
-            char lr = line.length() > 3 ? static_cast<char>(line[3]) : 'c';
-            S.push_back({ul, lr, s});
+                // Position indicators are still ASCII, so we can convert back
+                char ul = line.length() > 2 ? static_cast<char>(line[2]) : 'c';
+                char lr = line.length() > 3 ? static_cast<char>(line[3]) : 'c';
+                S.push_back({ul, lr, s});
+            }
         }
         if (!line.empty() && line[0] == L'=') //new rule LHSs
         {
@@ -173,9 +186,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
     if (!rule.empty()) {
         _process(lhs, rule);
     }
-    if (S.empty()) {
-        S.push_back({'c', 'c', L's'});
-    }
+    // No default starting symbol - programs control their own initialization
 
     // Sound paths are now parsed directly during #sound processing
 
@@ -303,14 +314,14 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     rule.sound = 0;
     if (lhs.length() > 1 && lhs[1] != L'=') {
         wchar_t c = lhs[1];
-        if (std::wstring(L">])|").find(c) == std::wstring::npos) {
+        if (program_paths.find(c) != program_paths.end()) {
+            // Character is a program switch
+            rule.sound = c;
+            rule.load = true;
+        } else {
+            // Character is a sound
             sounds.insert(c);
             rule.sound = c;
-        } else {
-            rule.sound = 0;
-            rule.load = true;
-            rule.clear = c == L')' || c == L'|';
-            rule.pause = c == L']' || c == L'|';
         }
     }
     auto o = origin(s, rhs, L'@', 0);
@@ -382,7 +393,7 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     R[s].push_back(rule);
 }
 
-Derivation::Derivation(): memory(nullptr), screen_chars(nullptr), clear_needed(true) {
+Derivation::Derivation(): memory(nullptr), screen_chars(nullptr), clear_needed(true), row(0), col(0) {
 }
 
 void Derivation::reset(const Grammar2D &g, int row, int col) {
@@ -541,7 +552,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
         sumw += rule.weight;
         if (sumw >= prob) {
             auto &rc = xx[nit->b];
-            bool applied = rule.load || apply_impl<false>(rc.first - rule.rq, rc.second - rule.cq, rule);
+            bool applied = apply_impl<false>(rc.first - rule.rq, rc.second - rule.cq, rule);
             if (applied) {
                 *dbgrule = rule;
                 score += rule.reward;
@@ -649,11 +660,8 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                     memory[col * wrapped_r + wrapped_c] = saved;
                 }
                 auto loc = std::pair{wrapped_r, wrapped_c};
-                if (isNonTerminal) {
-                    x[loc] = rep;
-                } else {
-                    x.erase(loc);
-                }
+                // Put all symbols in x for composability - callees can transform any symbol
+                x[loc] = rep;
             }
         }
     }
