@@ -79,35 +79,17 @@ int main(int argc, char *argv[]) {
         }
 
         std::unordered_map<wchar_t, sample> sounds;
-        // load timing if defined
-        int B = 500;
-        int M = 50;
-        int T = 0;
-        auto it = cfg.dict.find(L'T'); {
-            if (it != cfg.dict.end()) {
-                const std::wstring &timing_str = it->second.substr(1);
-                size_t pos1 = timing_str.find(L' ');
-                size_t pos2 = timing_str.find(L' ', pos1 + 1);
-                if (pos1 != std::wstring::npos) {
-                    B = std::wcstol(timing_str.c_str(), nullptr, 10);
-                    if (pos2 != std::wstring::npos) {
-                        M = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
-                        T = std::wcstol(timing_str.c_str() + pos2 + 1, nullptr, 10);
-                    } else if (timing_str.length() > pos1 + 1) {
-                        M = std::wcstol(timing_str.c_str() + pos1 + 1, nullptr, 10);
-                    }
-                }
-            }
+        // Use pre-parsed timing values
+        int B = cfg.B_step;
+        int M = cfg.M_step;
+        int T = cfg.T_step;
+
+        // Load sounds from pre-parsed paths
+        for (const auto& sound_entry : cfg.sound_paths) {
+            sounds.insert({sound_entry.first, sample(sound_entry.second, 100)});
         }
 
-        // load sounds if defined
-        for (wchar_t c: cfg.sounds) {
-            auto it = cfg.dict.find(c);
-            if (it != cfg.dict.end()) {
-                std::string sound_path(it->second.begin(), it->second.end()); // Convert wstring to string
-                sounds.insert({c, sample(sound_path, 100)});
-            }
-        }
+        // Control key translation handled by reverse dictionary mappings
 
         getmaxyx(stdscr, row, col);
 
@@ -234,8 +216,10 @@ int main(int argc, char *argv[]) {
             }
 
             //restart scene
+            // Translate user input for control keys
+            wchar_t control_key = cfg.getControlKey(wch);
 
-            if (wch == L'x') {
+            if (control_key == L'x') {
                 paused = true;
                 timeout(-1);
                 getmaxyx(stdscr, row, col);
@@ -246,7 +230,7 @@ int main(int argc, char *argv[]) {
 
             // toggle pause
 
-            else if (wch == L' ') {
+            else if (control_key == L' ') {
                 paused = !paused;
                 if (!paused) {
                     timeout(0);
@@ -254,19 +238,27 @@ int main(int argc, char *argv[]) {
                     timeout(-1);
                 }
             }
-            else if(wch == L'q' && !success && paused) {
+            else if(control_key == L'q' && !success && paused) {
+                config = "quit";
+                break;
+            }
+            // Emergency exit (ESC) - always works, bypasses dictionary
+            else if(wch == 27) { // ESC key
                 config = "quit";
                 break;
             }
             // apply a single rule (counts as a step)
 
             else {
+                // Translate user input to internal control key if remapped
+                wchar_t translated_key = cfg.getControlKey(wch);
+
                 rule.sound = 0;
-                success = w.step(static_cast<wchar_t>(wch), score, &rule);
+                success = w.step(translated_key, score, &rule);
                 if (success) {
                     ++steps;
                 }
-                else if (wch == L'T') {
+                else if (translated_key == L'T') {
                     std::this_thread::sleep_for(std::chrono::milliseconds{50});
                 }
                 last = wch;
