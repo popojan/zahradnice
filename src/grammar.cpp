@@ -126,14 +126,19 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                                 sounds.insert(sound_char);
                             }
                         } else if (keyword == L"control") {
-                            // #control x r
-                            if (args.length() >= 3) {
-                                wchar_t control = args[0];
-                                wchar_t new_key = args[2]; // Skip control and space
-
-                                // Convert control aliases to internal representation
-                                wchar_t internal_key = (control == L'~') ? L' ' : control;
-                                control_remaps.insert({new_key, std::wstring(1, internal_key)});
+                            // #control old_key new_key - remap system functions only
+                            size_t start = args.find_first_not_of(L" \t");
+                            if (start != std::wstring::npos) {
+                                size_t end = args.find_first_of(L" \t", start);
+                                if (end != std::wstring::npos) {
+                                    std::wstring from_key = args.substr(start, end - start);
+                                    size_t key_start = args.find_first_not_of(L" \t", end);
+                                    if (key_start != std::wstring::npos && key_start < args.length()) {
+                                        wchar_t to_key = (args[key_start] == L'~') ? L' ' : args[key_start];
+                                        wchar_t from_key_char = (from_key == L"~") ? L' ' : from_key[0];
+                                        control_remaps.insert({from_key_char, std::wstring(1, to_key)});
+                                    }
+                                }
                             }
                         }
                     }
