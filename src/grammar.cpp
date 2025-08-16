@@ -483,7 +483,7 @@ void Derivation::start() {
         } else if (s.ul == 'L') {
             r = g.grid_height * (((row - 2) / g.grid_height)) + 1; // Lower row, grid-aligned
         } else if (s.ul == 'C') {
-            r = g.grid_height * ((effective_row / g.grid_height) / 2); // Center row, grid-aligned
+            r = g.grid_height * ((effective_row / g.grid_height) / 2) + 1; // Center row, grid-aligned
         } else if (s.ul == 'X') {
             r = g.grid_height * ((rand() % ((row - 1) / g.grid_height))) + 1; // Random row, grid-aligned
         } else {
