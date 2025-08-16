@@ -11,6 +11,9 @@
 // Define static mutex for thread-safe screen operations
 std::mutex Derivation::screen_mutex;
 
+// Global thread pool (created once, reused across programs)
+std::unique_ptr<ThreadPool> Derivation::global_thread_pool;
+
 // Static variables for threading stats
 static int g_total_steps = 0;
 static int g_parallel_steps = 0;
@@ -38,11 +41,11 @@ ThreadPool::ThreadPool(size_t threads) : stop(false) {
 template<class F, class... Args>
 auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type> {
     using return_type = typename std::result_of<F(Args...)>::type;
-    
+
     auto task = std::make_shared<std::packaged_task<return_type()>>(
         std::bind(std::forward<F>(f), std::forward<Args>(args)...)
     );
-    
+
     std::future<return_type> res = task->get_future();
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
@@ -471,12 +474,10 @@ void Derivation::reset(const Grammar2D &g, int row, int col) {
     // Cache wrap calculation values
     this->effective_max_row = ((row - 1) / g.grid_height) * g.grid_height;
     this->effective_max_col = (col / g.grid_width) * g.grid_width;
-    
-    // Initialize thread pool if multithreading is enabled
+
+    // Initialize global thread pool on first use (using default hardware detection)
     if (g.thread_count > 1) {
-        thread_pool = std::make_unique<ThreadPool>(g.thread_count);
-    } else {
-        thread_pool.reset();
+        initializeGlobalThreadPool();
     }
 }
 
@@ -917,15 +918,28 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
 
     for (const auto& app : selected_rules) {
         rewards.push_back(app.rule.reward);
-        // Use thread pool instead of std::async
-        futures.push_back(thread_pool->enqueue([this, app]() {
-            // Fine-grained locking - most processing happens in parallel
-            return apply_impl<false>(
+        // Use global thread pool (limit tasks to program's thread_count preference)
+        if (global_thread_pool && futures.size() < static_cast<size_t>(g.thread_count)) {
+            futures.push_back(global_thread_pool->enqueue([this, app]() {
+                // Fine-grained locking - most processing happens in parallel
+                return apply_impl<false>(
+                    app.position.first - app.rule.rq,
+                    app.position.second - app.rule.cq,
+                    app.rule
+                );
+            }));
+        } else {
+            // If no global pool or exceeding program's thread preference, run sequentially
+            bool applied = apply_impl<false>(
                 app.position.first - app.rule.rq,
                 app.position.second - app.rule.cq,
                 app.rule
             );
-        }));
+            // Create a resolved future for consistency
+            std::promise<bool> promise;
+            promise.set_value(applied);
+            futures.push_back(promise.get_future());
+        }
     }
 
     bool any_applied = false;
@@ -941,4 +955,18 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
 
 std::pair<int, int> Derivation::getThreadingStats() {
     return {g_parallel_steps, g_total_steps};
+}
+
+void Derivation::initializeGlobalThreadPool(int max_threads) {
+    if (!global_thread_pool) {
+        // Use provided max_threads, or auto-detect if 0
+        size_t thread_count;
+        if (max_threads > 0) {
+            thread_count = static_cast<size_t>(max_threads);
+        } else {
+            thread_count = std::thread::hardware_concurrency();
+            if (thread_count == 0) thread_count = 4; // fallback
+        }
+        global_thread_pool = std::make_unique<ThreadPool>(thread_count);
+    }
 }
