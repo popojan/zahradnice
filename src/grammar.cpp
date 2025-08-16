@@ -15,6 +15,57 @@ std::mutex Derivation::screen_mutex;
 static int g_total_steps = 0;
 static int g_parallel_steps = 0;
 
+// ThreadPool implementation
+ThreadPool::ThreadPool(size_t threads) : stop(false) {
+    for(size_t i = 0; i < threads; ++i) {
+        workers.emplace_back([this] {
+            for(;;) {
+                std::function<void()> task;
+                {
+                    std::unique_lock<std::mutex> lock(this->queue_mutex);
+                    this->condition.wait(lock, [this]{ return this->stop || !this->tasks.empty(); });
+                    if(this->stop && this->tasks.empty())
+                        return;
+                    task = std::move(this->tasks.front());
+                    this->tasks.pop();
+                }
+                task();
+            }
+        });
+    }
+}
+
+template<class F, class... Args>
+auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type> {
+    using return_type = typename std::result_of<F(Args...)>::type;
+    
+    auto task = std::make_shared<std::packaged_task<return_type()>>(
+        std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+    );
+    
+    std::future<return_type> res = task->get_future();
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        if(stop) {
+            // Return invalid future instead of throwing
+            return std::future<return_type>();
+        }
+        tasks.emplace([task](){ (*task)(); });
+    }
+    condition.notify_one();
+    return res;
+}
+
+ThreadPool::~ThreadPool() {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        stop = true;
+    }
+    condition.notify_all();
+    for(std::thread &worker: workers)
+        worker.join();
+}
+
 static std::string decompress_gzip_file(const std::string& filename) {
     gzFile file = gzopen(filename.c_str(), "rb");
     if (!file) return "";
@@ -420,6 +471,13 @@ void Derivation::reset(const Grammar2D &g, int row, int col) {
     // Cache wrap calculation values
     this->effective_max_row = ((row - 1) / g.grid_height) * g.grid_height;
     this->effective_max_col = (col / g.grid_width) * g.grid_width;
+    
+    // Initialize thread pool if multithreading is enabled
+    if (g.thread_count > 1) {
+        thread_pool = std::make_unique<ThreadPool>(g.thread_count);
+    } else {
+        thread_pool.reset();
+    }
 }
 
 void Derivation::init(bool clear) {
@@ -859,7 +917,8 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
 
     for (const auto& app : selected_rules) {
         rewards.push_back(app.rule.reward);
-        futures.push_back(std::async(std::launch::async, [this, &app]() {
+        // Use thread pool instead of std::async
+        futures.push_back(thread_pool->enqueue([this, app]() {
             // Fine-grained locking - most processing happens in parallel
             return apply_impl<false>(
                 app.position.first - app.rule.rq,
