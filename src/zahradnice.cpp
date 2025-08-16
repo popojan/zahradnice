@@ -162,6 +162,12 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        // Auto-detect thread count if not set
+        if (cfg.thread_count == 0) {
+            cfg.thread_count = std::thread::hardware_concurrency();
+            if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
+        }
+
         // Get program directory for sound path resolution
         std::string program_dir = ".";
         size_t last_slash = config.find_last_of("/");
@@ -230,7 +236,12 @@ int main(int argc, char *argv[]) {
             }
 
             // print status
+            auto [parallel, total] = w.getThreadingStats();
             std::string status_text = "Score: " + std::to_string(score) + " Steps: " + std::to_string(steps);
+            if (total > 0) {
+                status_text += " MT: " + std::to_string(parallel) + "/" + std::to_string(total) + 
+                              " (" + std::to_string(100 * parallel / total) + "%)";
+            }
 
             if (elapsed_b == 0 || paused) {
                 auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
@@ -328,7 +339,7 @@ int main(int argc, char *argv[]) {
                 wchar_t translated_key = cfg.getControlKey(wch);
 
                 rule.sound = 0;
-                success = w.step(translated_key, score, &rule);
+                success = w.stepMultithreaded(translated_key, score, &rule);
                 if (success) {
                     ++steps;
                 }

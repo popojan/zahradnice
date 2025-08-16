@@ -5,6 +5,11 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <future>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -85,8 +90,13 @@ public:
     // Program paths (parsed from dictionary)
     std::unordered_map<wchar_t, std::string> program_paths;
 
+    // Multithreading configuration
+    int thread_count = 0;
+
     Grammar2D() {
         // No default dictionary entries needed - functions return same key/digit if not found
+        // Auto-detect thread count (0 = use all cores, 1 = single-threaded)
+        thread_count = 0;
     }
 
     bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
@@ -126,6 +136,22 @@ private:
 };
 
 
+struct RuleApplication {
+    std::pair<int, int> position;
+    Grammar2D::Rule rule;
+    size_t rule_index;
+    int weight;
+};
+
+struct ScreenArea {
+    int min_row, max_row, min_col, max_col;
+    
+    bool overlaps(const ScreenArea& other) const {
+        return !(max_row < other.min_row || min_row > other.max_row ||
+                 max_col < other.min_col || min_col > other.max_col);
+    }
+};
+
 class Derivation {
 public:
     std::unordered_map<std::pair<int, int>, wchar_t, hash_pair> x;
@@ -156,6 +182,14 @@ public:
 
     bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
 
+    ScreenArea calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule);
+    
+    std::vector<RuleApplication> gatherApplicableRules(wchar_t key);
+    
+    bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
+    
+    std::pair<int, int> getThreadingStats();
+
     void restart();
 
     inline int wrap_row(int r) const {
@@ -183,4 +217,7 @@ private:
     int effective_max_row;
     int effective_max_col;
     std::unordered_map<std::pair<char, char>, int, hash_pair> colors;
+    
+    // Thread safety for screen operations
+    static std::mutex screen_mutex;
 };
