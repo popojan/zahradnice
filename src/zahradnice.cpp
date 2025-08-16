@@ -102,7 +102,13 @@ int main(int argc, char *argv[]) {
         auto param = std::string(argv[1]);
         if (param == "-h" || param == "--help") {
             std::cout
-                    << "Usage: ./zahradnice [<program.cfg>] [seed]"
+                    << "Usage: ./zahradnice [<program.cfg>] [seed] [max-threads]"
+                    << std::endl
+                    << "  program.cfg  - Program to run (default: current directory)"
+                    << std::endl  
+                    << "  seed         - Random seed (default: time-based)"
+                    << std::endl
+                    << "  max-threads  - Maximum worker threads (default: hardware cores)"
                     << std::endl;
             return 0;
         }
@@ -110,11 +116,16 @@ int main(int argc, char *argv[]) {
 
     std::string config(".");
     int seed = 0;
+    int max_threads = 0; // 0 = auto-detect
 
     if (argc > 1) config = argv[1];
     if (argc > 2) seed = std::atoi(argv[2]);
+    if (argc > 3) max_threads = std::atoi(argv[3]);
 
     config = resolve_program_path(config, config);
+
+    // Initialize global thread pool with command-line specified max threads
+    Derivation::initializeGlobalThreadPool(max_threads);
 
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
@@ -239,8 +250,7 @@ int main(int argc, char *argv[]) {
             auto [parallel, total] = w.getThreadingStats();
             std::string status_text = "Score: " + std::to_string(score) + " Steps: " + std::to_string(steps);
             if (total > 0) {
-                status_text += " MT: " + std::to_string(parallel) + "/" + std::to_string(total) + 
-                              " (" + std::to_string(100 * parallel / total) + "%)";
+                status_text += " (" + std::to_string(100 * parallel / total) + "%)";
             }
 
             if (elapsed_b == 0 || paused) {

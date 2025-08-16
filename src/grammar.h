@@ -28,10 +28,10 @@ class ThreadPool {
 public:
     ThreadPool(size_t threads);
     ~ThreadPool();
-    
+
     template<class F, class... Args>
     auto enqueue(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type>;
-    
+
 private:
     std::vector<std::thread> workers;
     std::queue<std::function<void()>> tasks;
@@ -209,6 +209,8 @@ public:
 
     std::pair<int, int> getThreadingStats();
 
+    static void initializeGlobalThreadPool(int max_threads = 0);
+
     void restart();
 
     inline int wrap_row(int r) const {
@@ -239,7 +241,7 @@ private:
 
     // Thread safety for screen operations
     static std::mutex screen_mutex;
-    
-    // Thread pool for rule application
-    std::unique_ptr<ThreadPool> thread_pool;
+
+    // Global thread pool for rule application (shared across all programs)
+    static std::unique_ptr<ThreadPool> global_thread_pool;
 };
