@@ -6,6 +6,14 @@
 #include <zlib.h>
 #include <fstream>
 #include <algorithm>
+#include <climits>
+
+// Define static mutex for thread-safe screen operations
+std::mutex Derivation::screen_mutex;
+
+// Static variables for threading stats
+static int g_total_steps = 0;
+static int g_parallel_steps = 0;
 
 static std::string decompress_gzip_file(const std::string& filename) {
     gzFile file = gzopen(filename.c_str(), "rb");
@@ -148,6 +156,10 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                                     }
                                 }
                             }
+                        } else if (keyword == L"threads") {
+                            // #threads N - set thread count (0 = auto-detect)
+                            thread_count = std::wcstol(args.c_str(), nullptr, 10);
+                            if (thread_count < 0) thread_count = 0;
                         }
                     }
                 }
@@ -673,4 +685,193 @@ int Derivation::getColor(char fore, char back) {
     if (cit != colors.end())
         return cit->second;
     return -1;
+}
+
+ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule) {
+    // Calculate area that includes both LHS pattern (context checking) and RHS replacements
+    // This ensures proper conflict detection for both read and write operations
+    
+    ScreenArea area = {INT_MAX, INT_MIN, INT_MAX, INT_MIN};
+    bool found_any = false;
+    
+    // Scan the entire RHS to find bounding box of all non-space characters
+    int r = ro;
+    int c = co;
+    
+    for (size_t i = 0; i < rule.rhs.length(); ++i, ++c) {
+        wchar_t ch = rule.rhs[i];
+        if (ch == L'\n') {
+            ++r;
+            c = co - 1;
+            continue;
+        }
+        if (ch == L' ') continue;
+        
+        int wrapped_r = wrap_row(r);
+        int wrapped_c = wrap_col(c);
+        
+        if (!found_any) {
+            area.min_row = area.max_row = wrapped_r;
+            area.min_col = area.max_col = wrapped_c;
+            found_any = true;
+        } else {
+            area.min_row = std::min(area.min_row, wrapped_r);
+            area.max_row = std::max(area.max_row, wrapped_r);
+            area.min_col = std::min(area.min_col, wrapped_c);
+            area.max_col = std::max(area.max_col, wrapped_c);
+        }
+    }
+    
+    // If no characters found, use a minimal area at rule position
+    if (!found_any) {
+        int wrapped_r = wrap_row(ro);
+        int wrapped_c = wrap_col(co);
+        area = {wrapped_r, wrapped_r, wrapped_c, wrapped_c};
+    }
+    
+    return area;
+}
+
+std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
+    std::vector<RuleApplication> applicable_rules;
+    
+    std::unordered_set<wchar_t> a;
+    for (const auto &rr : g.R) {
+        for (const auto &rrr : rr.second) {
+            if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
+        }
+    }
+    
+    std::vector<std::pair<int, int> > xx;
+    for (auto nit = x.begin(); nit != x.end(); ++nit) {
+        if (a.find(nit->second) != a.end())
+            xx.push_back(nit->first);
+    }
+    
+    for (auto nit = xx.begin(); nit != xx.end(); ++nit) {
+        auto &n = x[*nit];
+        auto res = g.R.find(n);
+        if (res != g.R.end()) {
+            auto &rs = res->second;
+            for (size_t i = 0; i < rs.size(); ++i) {
+                const auto &rule = rs[i];
+                if (rule.key == key || rule.key == L'?') {
+                    bool app = apply_impl<true>(nit->first - rule.ro, nit->second - rule.co, rule);
+                    if (app) {
+                        applicable_rules.push_back({*nit, rule, i, rule.weight});
+                    }
+                }
+            }
+        }
+    }
+    
+    return applicable_rules;
+}
+
+bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
+    if (g.thread_count <= 1) {
+        return step(key, score, dbgrule);
+    }
+    
+    auto applicable_rules = gatherApplicableRules(key);
+    if (applicable_rules.empty()) {
+        return false;
+    }
+    
+    std::vector<RuleApplication> selected_rules;
+    std::vector<ScreenArea> selected_areas;
+    
+    double total_weight = 0.0;
+    for (const auto& app : applicable_rules) {
+        total_weight += app.weight;
+    }
+    
+    while (!applicable_rules.empty() && selected_rules.size() < static_cast<size_t>(g.thread_count)) {
+        double prob = static_cast<double>(random()) / RAND_MAX * total_weight;
+        double sum_weight = 0.0;
+        size_t selected_idx = 0;
+        
+        for (size_t i = 0; i < applicable_rules.size(); ++i) {
+            sum_weight += applicable_rules[i].weight;
+            if (sum_weight >= prob) {
+                selected_idx = i;
+                break;
+            }
+        }
+        
+        auto& selected = applicable_rules[selected_idx];
+        ScreenArea area = calculateRuleArea(
+            selected.position.first - selected.rule.rq,
+            selected.position.second - selected.rule.cq,
+            selected.rule
+        );
+        
+        bool conflicts = false;
+        for (const auto& existing_area : selected_areas) {
+            if (area.overlaps(existing_area)) {
+                conflicts = true;
+                break;
+            }
+        }
+        
+        if (!conflicts) {
+            selected_rules.push_back(selected);
+            selected_areas.push_back(area);
+            if (dbgrule && selected_rules.size() == 1) {
+                *dbgrule = selected.rule;
+            }
+        }
+        
+        total_weight -= selected.weight;
+        applicable_rules.erase(applicable_rules.begin() + selected_idx);
+    }
+    
+    if (selected_rules.empty()) {
+        return false;
+    }
+    
+    // Track threading stats for debugging
+    g_total_steps++;
+    if (selected_rules.size() > 1) g_parallel_steps++;
+    
+    if (selected_rules.size() == 1) {
+        bool applied = apply_impl<false>(
+            selected_rules[0].position.first - selected_rules[0].rule.rq,
+            selected_rules[0].position.second - selected_rules[0].rule.cq,
+            selected_rules[0].rule
+        );
+        if (applied) {
+            score += selected_rules[0].rule.reward;
+        }
+        return applied;
+    }
+    
+    std::vector<std::future<bool>> futures;
+    std::vector<int> rewards;
+    
+    for (const auto& app : selected_rules) {
+        rewards.push_back(app.rule.reward);
+        futures.push_back(std::async(std::launch::async, [this, &app]() {
+            // Fine-grained locking - most processing happens in parallel
+            return apply_impl<false>(
+                app.position.first - app.rule.rq,
+                app.position.second - app.rule.cq,
+                app.rule
+            );
+        }));
+    }
+    
+    bool any_applied = false;
+    for (size_t i = 0; i < futures.size(); ++i) {
+        if (futures[i].get()) {
+            score += rewards[i];
+            any_applied = true;
+        }
+    }
+    
+    return any_applied;
+}
+
+std::pair<int, int> Derivation::getThreadingStats() {
+    return {g_parallel_steps, g_total_steps};
 }
