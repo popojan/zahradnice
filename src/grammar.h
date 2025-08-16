@@ -145,7 +145,7 @@ struct RuleApplication {
 
 struct ScreenArea {
     int min_row, max_row, min_col, max_col;
-    
+
     bool overlaps(const ScreenArea& other) const {
         return !(max_row < other.min_row || min_row > other.max_row ||
                  max_col < other.min_col || min_col > other.max_col);
@@ -183,11 +183,11 @@ public:
     bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
 
     ScreenArea calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule);
-    
+
     std::vector<RuleApplication> gatherApplicableRules(wchar_t key);
-    
+
     bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
-    
+
     std::pair<int, int> getThreadingStats();
 
     void restart();
@@ -217,7 +217,7 @@ private:
     int effective_max_row;
     int effective_max_col;
     std::unordered_map<std::pair<char, char>, int, hash_pair> colors;
-    
+
     // Thread safety for screen operations
     static std::mutex screen_mutex;
 };

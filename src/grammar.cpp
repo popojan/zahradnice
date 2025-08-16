@@ -654,26 +654,34 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                 if (d.c == -1) d = {L' ', rule.fore, back, 'a', rule.fore_attrs, back_attrs};
                 int cidx = getColor(d.fore, d.back);
                 if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
-                    // Apply color and attributes
+                    // Apply color and attributes (parallel work)
                     int combined_attrs = d.fore_attrs | d.back_attrs;
                     cchar_t cchar;
                     wchar_t wch[2] = {d.c, 0};
                     setcchar(&cchar, wch, combined_attrs, cidx, NULL);
-                    mvadd_wch(wrapped_r, wrapped_c, &cchar);
-                    screen_chars[wrapped_r * col + wrapped_c] = d.c;
 
-                    if (!isNonTerminal) {
-                        saved = d;
-                    } else {
-                        saved = memory[col * wrapped_r + wrapped_c];
-                        saved.back = d.back;
-                        saved.back_attrs = d.back_attrs;
+                    // Critical section: screen and memory updates
+                    {
+                        std::lock_guard<std::mutex> lock(screen_mutex);
+                        mvadd_wch(wrapped_r, wrapped_c, &cchar);
+                        screen_chars[wrapped_r * col + wrapped_c] = d.c;
+
+                        if (!isNonTerminal) {
+                            saved = d;
+                        } else {
+                            saved = memory[col * wrapped_r + wrapped_c];
+                            saved.back = d.back;
+                            saved.back_attrs = d.back_attrs;
+                        }
+                        memory[col * wrapped_r + wrapped_c] = saved;
                     }
-                    memory[col * wrapped_r + wrapped_c] = saved;
                 }
-                auto loc = std::pair{wrapped_r, wrapped_c};
-                // Put all symbols in x for composability - callees can transform any symbol
-                x[loc] = rep;
+                // Critical section: x map update
+                {
+                    std::lock_guard<std::mutex> lock(screen_mutex);
+                    auto loc = std::pair{wrapped_r, wrapped_c};
+                    x[loc] = rep;
+                }
             }
         }
     }
@@ -690,14 +698,14 @@ int Derivation::getColor(char fore, char back) {
 ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule) {
     // Calculate area that includes both LHS pattern (context checking) and RHS replacements
     // This ensures proper conflict detection for both read and write operations
-    
+
     ScreenArea area = {INT_MAX, INT_MIN, INT_MAX, INT_MIN};
     bool found_any = false;
-    
+
     // Scan the entire RHS to find bounding box of all non-space characters
     int r = ro;
     int c = co;
-    
+
     for (size_t i = 0; i < rule.rhs.length(); ++i, ++c) {
         wchar_t ch = rule.rhs[i];
         if (ch == L'\n') {
@@ -706,10 +714,10 @@ ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &
             continue;
         }
         if (ch == L' ') continue;
-        
+
         int wrapped_r = wrap_row(r);
         int wrapped_c = wrap_col(c);
-        
+
         if (!found_any) {
             area.min_row = area.max_row = wrapped_r;
             area.min_col = area.max_col = wrapped_c;
@@ -721,33 +729,33 @@ ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &
             area.max_col = std::max(area.max_col, wrapped_c);
         }
     }
-    
+
     // If no characters found, use a minimal area at rule position
     if (!found_any) {
         int wrapped_r = wrap_row(ro);
         int wrapped_c = wrap_col(co);
         area = {wrapped_r, wrapped_r, wrapped_c, wrapped_c};
     }
-    
+
     return area;
 }
 
 std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
     std::vector<RuleApplication> applicable_rules;
-    
+
     std::unordered_set<wchar_t> a;
     for (const auto &rr : g.R) {
         for (const auto &rrr : rr.second) {
             if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
         }
     }
-    
+
     std::vector<std::pair<int, int> > xx;
     for (auto nit = x.begin(); nit != x.end(); ++nit) {
         if (a.find(nit->second) != a.end())
             xx.push_back(nit->first);
     }
-    
+
     for (auto nit = xx.begin(); nit != xx.end(); ++nit) {
         auto &n = x[*nit];
         auto res = g.R.find(n);
@@ -764,7 +772,7 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
             }
         }
     }
-    
+
     return applicable_rules;
 }
 
@@ -772,25 +780,25 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
     if (g.thread_count <= 1) {
         return step(key, score, dbgrule);
     }
-    
+
     auto applicable_rules = gatherApplicableRules(key);
     if (applicable_rules.empty()) {
         return false;
     }
-    
+
     std::vector<RuleApplication> selected_rules;
     std::vector<ScreenArea> selected_areas;
-    
+
     double total_weight = 0.0;
     for (const auto& app : applicable_rules) {
         total_weight += app.weight;
     }
-    
+
     while (!applicable_rules.empty() && selected_rules.size() < static_cast<size_t>(g.thread_count)) {
         double prob = static_cast<double>(random()) / RAND_MAX * total_weight;
         double sum_weight = 0.0;
         size_t selected_idx = 0;
-        
+
         for (size_t i = 0; i < applicable_rules.size(); ++i) {
             sum_weight += applicable_rules[i].weight;
             if (sum_weight >= prob) {
@@ -798,14 +806,14 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
                 break;
             }
         }
-        
+
         auto& selected = applicable_rules[selected_idx];
         ScreenArea area = calculateRuleArea(
             selected.position.first - selected.rule.rq,
             selected.position.second - selected.rule.cq,
             selected.rule
         );
-        
+
         bool conflicts = false;
         for (const auto& existing_area : selected_areas) {
             if (area.overlaps(existing_area)) {
@@ -813,7 +821,7 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
                 break;
             }
         }
-        
+
         if (!conflicts) {
             selected_rules.push_back(selected);
             selected_areas.push_back(area);
@@ -821,19 +829,19 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
                 *dbgrule = selected.rule;
             }
         }
-        
+
         total_weight -= selected.weight;
         applicable_rules.erase(applicable_rules.begin() + selected_idx);
     }
-    
+
     if (selected_rules.empty()) {
         return false;
     }
-    
+
     // Track threading stats for debugging
     g_total_steps++;
     if (selected_rules.size() > 1) g_parallel_steps++;
-    
+
     if (selected_rules.size() == 1) {
         bool applied = apply_impl<false>(
             selected_rules[0].position.first - selected_rules[0].rule.rq,
@@ -845,10 +853,10 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         }
         return applied;
     }
-    
+
     std::vector<std::future<bool>> futures;
     std::vector<int> rewards;
-    
+
     for (const auto& app : selected_rules) {
         rewards.push_back(app.rule.reward);
         futures.push_back(std::async(std::launch::async, [this, &app]() {
@@ -860,7 +868,7 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
             );
         }));
     }
-    
+
     bool any_applied = false;
     for (size_t i = 0; i < futures.size(); ++i) {
         if (futures[i].get()) {
@@ -868,7 +876,7 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
             any_applied = true;
         }
     }
-    
+
     return any_applied;
 }
 
