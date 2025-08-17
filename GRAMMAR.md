@@ -12,8 +12,10 @@ Key case matters.
 1. **load a program** config
 1. choose a **trigger key** based either on time lapse (B/M/T) or user pressed keys 
 1. for the given trigger key find all **applicable rules** in the current state (based on non-terminals and their context)
-1. **choose randomly** one of the rules (sample according to rule weights if unequal)
-1. **apply** the chosen rule to change state and optionally alter score and/or play sound
+1. **choose randomly** rule(s) to apply (sample according to rule weights if unequal):
+   * **Single-threaded mode** (`#threads 1`): Choose exactly one rule
+   * **Multi-threaded mode** (`#threads >1`): Choose up to N non-conflicting rules that can be applied simultaneously
+1. **apply** the chosen rule(s) to change state and optionally alter score and/or play sound
 1. **repeat** from 2. if the chosen rule is not a special rule:
    * quit rule (exit to shell)
    * program switching rule (load a given program and repeat from 2.) 
@@ -138,6 +140,7 @@ look of the 'pixels'.
 * `#!<Program description>` ... defines a help string shown on top when program execution is paused (e.g. on load) (has to be the first line of a program file)
 * `#timing <B-step-ms> <M-step-ms> <T-step-ms>` ... define timing steps (long/medium/instant) in milliseconds; defaults to 500/50/0
 * `#grid <width> <height>` ... define grid alignment for toroidal wrapping; defaults to 1/1
+* `#threads <count>` ... define thread count for parallel rule execution; defaults to auto-detect CPU cores
 * `#sound <char> <path>` ... define sound mapping (e.g. `#sound S sounds/click.wav`)
 * `#program <char> <path>` ... define program mapping for switching (e.g. `#program 1 snake.cfg`)
 * `#color <char> <color>,<attrs>` ... define color with attributes (e.g. `#color M 5,BOLD`)
@@ -204,6 +207,37 @@ Programs can call other programs using a compositional system that preserves der
     * `#control ~ ,` - remap unpause from space to comma
     * `#control q .` - remap quit from 'q' to period
 * Note: ESC key always works as emergency exit regardless of remapping
+
+## Multithreaded Execution
+
+The grammar engine supports parallel rule execution for improved performance in complex scenarios like Conway's Game of Life.
+
+### Thread Configuration
+
+Use `#threads <count>` to control threading behavior:
+
+* `#threads 0` - Auto-detect CPU cores (default)
+* `#threads 1` - Single-threaded mode (original behavior)
+* `#threads N` - Use exactly N threads
+
+### Execution Semantics
+
+**Single-threaded mode** (`#threads 1`):
+- Finds all applicable rules for the current trigger
+- Randomly selects exactly one rule based on weights
+- Applies that single rule
+
+**Multi-threaded mode** (`#threads >1`):
+- Finds all applicable rules for the current trigger
+- Randomly selects up to N non-conflicting rules (where N = thread count)
+- Uses area-based conflict detection to ensure rules don't overlap
+- Applies all selected rules simultaneously in parallel
+
+**Key difference:** Multi-threaded mode can apply multiple rules per step, fundamentally changing program behavior compared to the traditional one-rule-per-step execution.
+
+### Performance Impact
+
+Multi-threading provides significant speedup in scenarios with many independent rule applications (e.g., cellular automata). The engine displays threading statistics in the status line as `Steps: X (Y%)` showing step count and parallelization percentage.
 
 ## TODO
 
