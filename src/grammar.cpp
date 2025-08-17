@@ -845,6 +845,12 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         return false;
     }
 
+    // Shuffle applicable rules to eliminate order bias in conflict detection
+    for (size_t i = applicable_rules.size() - 1; i > 0; --i) {
+        size_t j = random() % (i + 1);
+        std::swap(applicable_rules[i], applicable_rules[j]);
+    }
+
     std::vector<RuleApplication> selected_rules;
     std::vector<ScreenArea> selected_areas;
 
