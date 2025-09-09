@@ -205,7 +205,7 @@ public:
 
     std::vector<RuleApplication> gatherApplicableRules(wchar_t key);
 
-    bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
+    bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule, std::vector<wchar_t> *sounds = nullptr);
 
     std::pair<int, int> getThreadingStats();
 

@@ -238,13 +238,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
-            // play sound if any
-            else if (success && rule.sound != 0) {
-                auto it = sounds.find(rule.sound);
-                if (it != sounds.end()) {
-                    it->second.play();
-                }
-            }
+            // Sound playing is now handled in the rule application section
 
             // print status
             auto [parallel, total] = w.getThreadingStats();
@@ -349,9 +343,17 @@ int main(int argc, char *argv[]) {
                 wchar_t translated_key = cfg.getControlKey(wch);
 
                 rule.sound = 0;
-                success = w.stepMultithreaded(translated_key, score, &rule);
+                std::vector<wchar_t> applied_sounds;
+                success = w.stepMultithreaded(translated_key, score, &rule, &applied_sounds);
                 if (success) {
                     ++steps;
+                    // Play all sounds from applied rules
+                    for (wchar_t sound_char : applied_sounds) {
+                        auto it = sounds.find(sound_char);
+                        if (it != sounds.end()) {
+                            it->second.play();
+                        }
+                    }
                 }
                 else if (translated_key == L'T') {
                     std::this_thread::sleep_for(std::chrono::milliseconds{50});
