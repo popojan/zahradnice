@@ -839,9 +839,14 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
     return applicable_rules;
 }
 
-bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
+bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule, std::vector<wchar_t> *sounds) {
     if (g.thread_count <= 1) {
-        return step(key, score, dbgrule);
+        bool result = step(key, score, dbgrule);
+        // Collect sound from the applied rule if successful
+        if (result && sounds && dbgrule && dbgrule->sound != 0) {
+            sounds->push_back(dbgrule->sound);
+        }
+        return result;
     }
 
     auto applicable_rules = gatherApplicableRules(key);
@@ -919,15 +924,21 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         );
         if (applied) {
             score += selected_rules[0].rule.reward;
+            // Collect sound from successfully applied rule
+            if (sounds && selected_rules[0].rule.sound != 0) {
+                sounds->push_back(selected_rules[0].rule.sound);
+            }
         }
         return applied;
     }
 
     std::vector<std::future<bool>> futures;
     std::vector<int> rewards;
+    std::vector<wchar_t> rule_sounds;
 
     for (const auto& app : selected_rules) {
         rewards.push_back(app.rule.reward);
+        rule_sounds.push_back(app.rule.sound);
         // Use global thread pool (limit tasks to program's thread_count preference)
         if (global_thread_pool && futures.size() < static_cast<size_t>(g.thread_count)) {
             futures.push_back(global_thread_pool->enqueue([this, app]() {
@@ -957,6 +968,10 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         if (futures[i].get()) {
             score += rewards[i];
             any_applied = true;
+            // Collect sound from successfully applied rule
+            if (sounds && rule_sounds[i] != 0) {
+                sounds->push_back(rule_sounds[i]);
+            }
         }
     }
 
