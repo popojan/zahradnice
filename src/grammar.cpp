@@ -450,6 +450,10 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     else
         rule.zord = L'a';
 
+    // Treat space as default z-order
+    if (rule.zord == L' ')
+        rule.zord = L'a';
+
     if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
     }
