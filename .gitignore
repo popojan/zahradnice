@@ -1,6 +1,7 @@
 zahradnice*
 callgrind.*
 cachegrind.*
+programs.wip
 *.log
 .idea
 *.ipynb
