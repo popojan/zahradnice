@@ -28,6 +28,13 @@ Features under consideration for future implementation:
 Technical analysis documents (no implementation required):
 - `screen-alternatives-comparison.md` - Comparison of screen system approaches
 
+### 🔬 `research/`
+Research documents exploring theoretical applications and advanced use cases:
+- `gravity-simulation-ideas.md` - Physics simulation possibilities in toroidal space
+- `theoretical-background.md` - Connections to L-systems, cellular automata theory
+- `emergent-ai-coding.md` - Spatial AI and swarm intelligence implementation strategies
+- `rl-opportunities.md` - Reinforcement learning research applications
+
 ## Status Indicators
 
 Each document includes a clear status header:

@@ -5,7 +5,6 @@
 Key case matters.
 
 * `SPACE` ... unpause program execution (programs are loaded paused)
-* `x` ... reload current program (e.g. when terminal size changed or when in undesired state)
 * `B/M/T` ... when paused simulate a single long/medium/instant step manually (rule application) 
 
 ## Main loop
@@ -143,7 +142,7 @@ look of the 'pixels'.
 * `#sound <char> <path>` ... define sound mapping (e.g. `#sound S sounds/click.wav`)
 * `#program <char> <path>` ... define program mapping for switching (e.g. `#program 1 snake.cfg`)
 * `#color <char> <color>,<attrs>` ... define color with attributes (e.g. `#color M 5,BOLD`)
-* `#control <old-key> <new-key>` ... remap controls (e.g. `#control x r` remaps reload from x to r)
+* `#control <old-key> <new-key>` ... remap controls (e.g. `#control q .` remaps quit from q to period)
 
 ### Program switching
 
@@ -200,9 +199,8 @@ Programs can call other programs using a compositional system that preserves der
 
 **Control key remapping:**
 * `#control <old-key> <new-key>` ... remap control keys
-* Available controls: `B` (long step), `M` (medium step), `T` (instant step), `q` (quit), `x` (reload), `~` (unpause/space)
+* Available controls: `B` (long step), `M` (medium step), `T` (instant step), `q` (quit), `~` (unpause/space)
 * Examples:
-    * `#control x r` - remap reload from 'x' to 'r'
     * `#control ~ ,` - remap unpause from space to comma
     * `#control q .` - remap quit from 'q' to period
 * Note: ESC key always works as emergency exit regardless of remapping

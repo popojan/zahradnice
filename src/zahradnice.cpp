@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/stat.h>
+#include <unordered_map>
+#include <memory>
 
 std::string resolve_sound_path(const std::string& sound_path, const std::string& program_dir) {
     // If path is already absolute, use as-is
@@ -155,10 +157,16 @@ int main(int argc, char *argv[]) {
 
     Derivation w;
     std::vector<std::string> caller_stack;  // Stack of calling programs
+    caller_stack.push_back(config);  // Add initial program to stack
+
+    // Program caching
+    std::unordered_map<std::string, Grammar2D> program_cache;
+    std::unordered_map<std::string, std::unordered_map<wchar_t, std::shared_ptr<sample>>> sound_cache;
 
     bool clear = true;  // Clear on first program load
     bool err = 0;
     bool paused = true;
+    bool was_running = false;  // Track if we were running when switching programs
     while (config != "quit") {
         int elapsed_t = 0;
         int elapsed_b = 0;
@@ -167,36 +175,50 @@ int main(int argc, char *argv[]) {
         bool success = true;
 
         Grammar2D cfg;
-        if (cfg.loadFromFile(config) == false) {
-            std::cerr << "Program " << config << " not found, exiting." << std::endl;
-            err = 1;
-            break;
+        std::unordered_map<wchar_t, std::shared_ptr<sample>> sounds;
+        
+        // Check if program is cached
+        auto cache_it = program_cache.find(config);
+        if (cache_it != program_cache.end()) {
+            // Use cached program
+            cfg = cache_it->second;
+            sounds = sound_cache[config];
+        } else {
+            // Load and cache new program
+            if (cfg.loadFromFile(config) == false) {
+                std::cerr << "Program " << config << " not found, exiting." << std::endl;
+                err = 1;
+                break;
+            }
+
+            // Auto-detect thread count if not set
+            if (cfg.thread_count == 0) {
+                cfg.thread_count = std::thread::hardware_concurrency();
+                if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
+            }
+
+            // Get program directory for sound path resolution
+            std::string program_dir = ".";
+            size_t last_slash = config.find_last_of("/");
+            if (last_slash != std::string::npos) {
+                program_dir = config.substr(0, last_slash);
+            }
+
+            // Load sounds from pre-parsed paths with proper resolution
+            for (const auto& sound_entry : cfg.sound_paths) {
+                std::string resolved_path = resolve_sound_path(sound_entry.second, program_dir);
+                sounds.insert({sound_entry.first, std::make_shared<sample>(resolved_path, 100)});
+            }
+
+            // Cache the loaded program and sounds
+            program_cache[config] = cfg;
+            sound_cache[config] = sounds;
         }
 
-        // Auto-detect thread count if not set
-        if (cfg.thread_count == 0) {
-            cfg.thread_count = std::thread::hardware_concurrency();
-            if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
-        }
-
-        // Get program directory for sound path resolution
-        std::string program_dir = ".";
-        size_t last_slash = config.find_last_of("/");
-        if (last_slash != std::string::npos) {
-            program_dir = config.substr(0, last_slash);
-        }
-
-        std::unordered_map<wchar_t, sample> sounds;
         // Use pre-parsed timing values
         int B = cfg.B_step;
         int M = cfg.M_step;
         int T = cfg.T_step;
-
-        // Load sounds from pre-parsed paths with proper resolution
-        for (const auto& sound_entry : cfg.sound_paths) {
-            std::string resolved_path = resolve_sound_path(sound_entry.second, program_dir);
-            sounds.insert({sound_entry.first, sample(resolved_path, 100)});
-        }
 
         // Control key translation handled by reverse dictionary mappings
 
@@ -207,6 +229,12 @@ int main(int argc, char *argv[]) {
         w.init(clear || cfg.clear_requested);
         clear = false;  // Subsequent program switches preserve state
         w.start();
+
+        // Restore running state after program switch
+        if (was_running) {
+            paused = false;
+            timeout(0);
+        }
 
         wint_t wch = L' ';
         wint_t last = L' ';
@@ -222,6 +250,8 @@ int main(int argc, char *argv[]) {
                 auto it = cfg.program_paths.find(rule.sound);
                 if (it != cfg.program_paths.end()) {
                     std::string new_program = it->second;
+                    // Track if we were running when switching
+                    was_running = !paused;
                     if (new_program == "return") {
                         // Pop from caller stack
                         if (!caller_stack.empty()) {
@@ -247,7 +277,7 @@ int main(int argc, char *argv[]) {
                 status_text += " (" + std::to_string(100 * parallel / total) + "%)";
             }
 
-            if (elapsed_b == 0 || paused) {
+            if (paused) {
                 auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
                 std::wstring help_truncated = cfg.help;
                 help_truncated.erase(limit, std::wstring::npos);
@@ -351,7 +381,7 @@ int main(int argc, char *argv[]) {
                     for (wchar_t sound_char : applied_sounds) {
                         auto it = sounds.find(sound_char);
                         if (it != sounds.end()) {
-                            it->second.play();
+                            it->second->play();
                         }
                     }
                 }
