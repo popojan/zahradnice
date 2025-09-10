@@ -16,11 +16,14 @@ release:
 	mkdir -p ${RELEASE_DIR}/zahradnice/programs
 	cp index.cfg ${RELEASE_DIR}/zahradnice
 	cp programs/*.cfg ${RELEASE_DIR}/zahradnice/programs
-	#mkdir -p ${RELEASE_DIR}/zahradnice/sounds
-	#cp sounds/*.wav ${RELEASE_DIR}/zahradnice/sounds
 	cp zahradnice ${RELEASE_DIR}/zahradnice
 	cd ${RELEASE_DIR}; \
 	tar -czf zahradnice.tar.gz zahradnice/; \
+	cd ..
+	mkdir -p ${RELEASE_DIR}/zahradnice/sounds
+	cp sounds/*.wav ${RELEASE_DIR}/zahradnice/sounds
+	cd ${RELEASE_DIR}; \
+	tar -czf zahradnice-sounds.tar.gz zahradnice/sounds
 	rm -rf zahradnice
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
