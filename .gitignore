@@ -1,1 +1,10 @@
-zahradnice
+zahradnice*
+callgrind.*
+cachegrind.*
+*.log
+.idea
+*.ipynb
+*.py
+*.htm
+*.html
+
