@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
                     << "Usage: ./zahradnice [<program.cfg>] [seed] [max-threads]"
                     << std::endl
                     << "  program.cfg  - Program to run (default: current directory)"
-                    << std::endl  
+                    << std::endl
                     << "  seed         - Random seed (default: time-based)"
                     << std::endl
                     << "  max-threads  - Maximum worker threads (default: hardware cores)"
@@ -167,9 +167,9 @@ int main(int argc, char *argv[]) {
     bool err = 0;
     bool paused = true;
     bool was_running = false;  // Track if we were running when switching programs
-    
+
     std::wstring preserved_rule_lhsa;  // Preserve only display info across switches
-    
+
     while (config != "quit") {
         int elapsed_t = 0;
         int elapsed_b = 0;
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
 
         Grammar2D cfg;
         std::unordered_map<wchar_t, std::shared_ptr<sample>> sounds;
-        
+
         // Check if program is cached
         auto cache_it = program_cache.find(config);
         if (cache_it != program_cache.end()) {
@@ -346,10 +346,14 @@ int main(int argc, char *argv[]) {
             if (control_key == L'x') {
                 paused = true;
                 timeout(-1);
-                getmaxyx(stdscr, row, col);
-                w.reset(cfg, row, col);
-                w.init(true);
-                w.start();
+
+                // Reset to top-level program from stack
+                if (!caller_stack.empty()) {
+                    config = caller_stack[0];  // Top-level program
+                    caller_stack.clear();
+                    caller_stack.push_back(config);  // Re-add to stack
+                }
+                break;  // Force reload of top-level program
             }
 
             // toggle pause
