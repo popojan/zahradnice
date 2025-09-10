@@ -79,7 +79,6 @@ public:
         wchar_t rep;
         wchar_t ctxrep;
         int weight;
-        char zord;
         wchar_t sound;
         bool load;
     };
@@ -179,7 +178,6 @@ public:
         wchar_t c;
         char fore;
         char back;
-        char zord;
         int fore_attrs;
         int back_attrs;
     };

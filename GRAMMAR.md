@@ -41,9 +41,9 @@ For the rule to be **applicable** to a char on screen these conditions must be m
 * surrounding context matches 
 
 #### Rule header
-`=<s-char><nonterminal-char><trigger-char><fore-color-char><bg-color-char><extra-context-char><extra-replacement-char><z-order-char> <rule-score-num> <rule-weight-num>`
+`=<s-char><nonterminal-char><trigger-char><fore-color-char><bg-color-char><extra-context-char><extra-replacement-char> <rule-score-num> <rule-weight-num>`
 
-i.e. these chars and tokens left to right `=S12345678 <score> <weight>`
+i.e. these chars and tokens left to right `=S1234567 <score> <weight>`
 
 * `S.` `=` for silence or a sound char previously defined using sound comments, i.e. `#sound S sounds/click.wav` 
 * `1.` LHS non-terminal character (obligatory)
@@ -53,7 +53,6 @@ i.e. these chars and tokens left to right `=S12345678 <score> <weight>`
 * `5.` background char (same as foreground plus `8` for transparent) (default `8`)
 * `6.` extra required context char (special values: `?` for any, `*` for LHS char, `$` for char saved in memory, `#` for out-of-screen, `~` empty space) at each char `&` in the rule body
 * `7.` extra required context replacement (char to replace `&` in the rule body, special values: `~` space)
-* `8.` z-order layer char (greater values in front) (default `a`)
 * `<score>` integer (default `0`)
 * `<weight>` positive integer (default `1`)
 
