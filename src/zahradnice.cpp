@@ -167,6 +167,9 @@ int main(int argc, char *argv[]) {
     bool err = 0;
     bool paused = true;
     bool was_running = false;  // Track if we were running when switching programs
+    
+    std::wstring preserved_rule_lhsa;  // Preserve only display info across switches
+    
     while (config != "quit") {
         int elapsed_t = 0;
         int elapsed_b = 0;
@@ -239,7 +242,9 @@ int main(int argc, char *argv[]) {
         wint_t wch = L' ';
         wint_t last = L' ';
 
-        Grammar2D::Rule rule = {};  // Initialize all members to zero/false
+        Grammar2D::Rule rule = {};  // Initialize fresh rule for each program
+        // Restore preserved display info
+        rule.lhsa = preserved_rule_lhsa;
 
         auto start = std::chrono::steady_clock::now();
 
@@ -377,6 +382,8 @@ int main(int argc, char *argv[]) {
                 success = w.stepMultithreaded(translated_key, score, &rule, &applied_sounds);
                 if (success) {
                     ++steps;
+                    // Preserve rule display info across program switches
+                    preserved_rule_lhsa = rule.lhsa;
                     // Play all sounds from applied rules
                     for (wchar_t sound_char : applied_sounds) {
                         auto it = sounds.find(sound_char);
