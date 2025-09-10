@@ -1,6 +1,20 @@
-# Modular Programs: Program Inheritance and Inclusion System
+# Modular Programs: Program Inheritance and Inclusion System - REJECTED
 
-## Overview
+## Status: REJECTED
+
+**Decision**: This feature has been **rejected** in favor of the current stackful program switching system.
+
+**Rationale**:
+- **Symbol Semantic Pollution**: Would cause symbols to lose clear, unambiguous meaning
+- **Unnecessary Complexity**: Adds import/export mechanisms, namespace resolution, scope management
+- **Against Core Philosophy**: Zahradnice's strength is simplicity and direct symbol mapping
+- **Current System Superior**: Stackful program switching provides modularity without semantic pollution
+
+**Alternative**: Use compositional program calls via `#program` mappings and call/return mechanism.
+
+---
+
+## Original Proposal (REJECTED)
 
 Implement a program inheritance and inclusion system that allows Zahradnice programs to compose functionality from multiple sources, enabling code reuse, modularity, and hierarchical game design. This addresses the current limitation where programs exist as monolithic .cfg files with significant code duplication across similar games.
 

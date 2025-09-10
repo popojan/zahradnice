@@ -1,6 +1,20 @@
-# Namespace Design Analysis for Modular Programs
+# Namespace Design Analysis for Modular Programs - REJECTED
 
-## Problem Statement
+## Status: REJECTED
+
+**Decision**: Namespace system has been **rejected** as part of the broader modular programs rejection.
+
+**Rationale**:
+- **Symbol Confusion**: `A` in namespace1 vs `A` in namespace2 destroys semantic clarity
+- **Cognitive Overhead**: Users must track which namespace each symbol belongs to  
+- **Loss of Directness**: Zahradnice's power comes from direct, unambiguous symbol meaning
+- **Unnecessary Complexity**: Namespace resolution adds complexity without sufficient benefit
+
+**Alternative**: Current stackful program switching maintains clear symbol semantics while providing compositionality.
+
+---
+
+## Original Analysis (REJECTED)
 
 Modular programs require splitting rulesets into reusable components while handling two critical collision types:
 1. **Non-terminal Symbol Collisions**: Different modules using the same single-character symbols
