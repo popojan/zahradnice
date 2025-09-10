@@ -1,12 +1,13 @@
-# Z-Order Removal
+# Z-Order Removal - COMPLETED
 
 ## Overview
-Remove the z-order layering system from the Zahradnice grammar engine to simplify the codebase while maintaining core functionality.
+✅ **COMPLETED**: Removed the z-order layering system from the Zahradnice grammar engine to simplify the codebase while maintaining core functionality.
 
-## Current State
-- Z-order is implemented but **unused in current programs**
-- Only backup programs (`programs.bak/flowers.cfg`, `programs.bak/maze.cfg`) contain z-order usage
-- System adds complexity without providing value to existing games
+## Implementation Status
+- ✅ Z-order feature completely removed from engine
+- ✅ Rule syntax simplified from 9 characters to 8 characters  
+- ✅ All affected programs updated to new syntax
+- ✅ System complexity reduced without breaking functionality
 
 ### Photon System Analysis (programs/flowers.cfg)
 The current `programs/flowers.cfg` (original "zahradnice" program) implements a complex photon system using the `f` non-terminal for yellow diagonal-flowing symbols. All photon rules use memory restoration (`$`) instead of z-order layering:
@@ -30,35 +31,44 @@ The current `programs/flowers.cfg` (original "zahradnice" program) implements a 
 
 This demonstrates that **complex visual layering effects are achieved through the memory system alone**, confirming z-order is unnecessary for sophisticated animations.
 
-## Technical Impact
+## Technical Changes Implemented
 
-### Code to Remove
-- `Rule.zord` field in `grammar.h:59`
-- `G.zord` field in `grammar.h:98` 
-- Z-order parsing in `grammar.cpp:161-164`
-- Z-order comparison in `grammar.cpp:418`
-- Memory initialization in `grammar.cpp:327`
+### Code Removed
+- ✅ `Rule.zord` field removed from `grammar.h`
+- ✅ `G.zord` field removed from `grammar.h` 
+- ✅ Z-order parsing logic removed from `grammar.cpp`
+- ✅ Z-order comparison removed from rule application logic
+- ✅ Memory initialization updated to remove z-order field
 
-### Simplifications
-1. **Rule Structure**: Remove 9th character from rule syntax
-2. **Memory**: Reduce `G` struct size by 1 byte per screen position
-3. **Rendering**: Eliminate z-order comparison check
-4. **Grammar**: Simplify rule format documentation
+### Simplifications Achieved
+1. ✅ **Rule Structure**: 9th character removed from rule syntax (`=S1234567` instead of `=S12345678`)
+2. ✅ **Memory**: Reduced `G` struct size by 1 byte per screen position
+3. ✅ **Rendering**: Eliminated unnecessary z-order comparison check
+4. ✅ **Grammar**: Simplified rule format documentation
+5. ✅ **Score Parsing**: Updated to expect score/weight at position 10 instead of 11
 
-### Breaking Changes
-- Rule syntax changes from `=<sound><nonterminal><trigger><replacement><colors><context><z-order>` to `=<sound><nonterminal><trigger><replacement><colors><context>`
-- Backup programs using z-order would need updates (minimal impact)
+### Programs Updated
+The following programs were updated to use 8-character rule syntax:
+- ✅ `programs/archived/arkanoid.cfg`
+- ✅ `programs/flowers.cfg`
+- ✅ `programs/highnoon.cfg` 
+- ✅ `programs/maze.cfg`
 
-## Benefits
-- **Simplicity**: Reduces cognitive load for grammar authors
-- **Performance**: Eliminates unnecessary comparisons during rendering
-- **Memory**: Slightly reduces memory usage per screen position
-- **Maintenance**: Less code to maintain and debug
+## Benefits Realized
+- ✅ **Simplicity**: Reduced cognitive load for grammar authors (8-char vs 9-char rules)
+- ✅ **Performance**: Eliminated unnecessary comparisons during rendering  
+- ✅ **Memory**: Reduced memory usage per screen position
+- ✅ **Maintenance**: Less code to maintain and debug
+- ✅ **Language Evolution**: Demonstrated maturity by removing early design decisions
 
-## Alternatives Considered
-1. **Keep as-is**: Maintains unused complexity
-2. **Document only**: Doesn't address simplification goal
-3. **Make optional**: Adds conditional complexity
+## Design Philosophy Validation
+This removal validates the principle that **language features should be driven by current needs, not legacy constraints**. The original Z-order feature was added to solve a specific problem in `flowers.cfg`, but as the language matured, better solutions emerged:
 
-## Recommendation
-**Proceed with removal** - aligns with simplicity goals and eliminates unused feature.
+- **Memory system (`$`)** - More flexible state preservation
+- **Rule weights** - Better probabilistic control  
+- **Context matching** - More precise rule application
+
+The current `flowers.cfg` demonstrates sophisticated layering effects using these mature features instead of Z-order, proving the removal was architecturally sound.
+
+## Completion Status
+✅ **FULLY IMPLEMENTED** - Z-order system completely removed, all programs updated, documentation revised.

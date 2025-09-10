@@ -424,9 +424,9 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     int reward = 0; //default reward
     int weight = 1;
     rule.key = lhs.length() > 3 ? lhs[3] : L'?';
-    if (lhs.size() > 11) {
+    if (lhs.size() > 10) {
         int vals[2] = {0, 1};
-        parse_ints<2>(lhs.substr(11), vals);
+        parse_ints<2>(lhs.substr(10), vals);
         reward = vals[0];
         weight = vals[1];
         if (weight < 1) weight = 1;
@@ -445,14 +445,6 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     } else
         rule.ctxrep = L' ';
 
-    if (lhs.size() > 9)
-        rule.zord = lhs[9];
-    else
-        rule.zord = L'a';
-
-    // Treat space as default z-order
-    if (rule.zord == L' ')
-        rule.zord = L'a';
 
     if (rule.ctxrep == L'*') {
         rule.ctxrep = rule.lhs;
@@ -643,7 +635,7 @@ void Derivation::restart() {
     clear();
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
-            memory[r * col + c] = {L' ', 7, 0, L'a', 0, 0};
+            memory[r * col + c] = {L' ', 7, 0, 0, 0};
             screen_chars[r * col + c] = L' ';
         }
     }
@@ -699,7 +691,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                 return false;
             }
         } else {
-            G saved = {L' ', 7, 8, 'a', 0, 0};
+            G saved = {L' ', 7, 8, 0, 0};
             wchar_t rep = ch;
             if (rep == L'@') rep = rule.rep;
             if (rep == L'&') rep = rule.ctxrep;
@@ -712,11 +704,11 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                     back = memory[col * wrapped_r + wrapped_c].back;
                     back_attrs = memory[col * wrapped_r + wrapped_c].back_attrs;
                 }
-                G d = {rep, rule.fore, back, rule.zord, rule.fore_attrs, back_attrs};
+                G d = {rep, rule.fore, back, rule.fore_attrs, back_attrs};
                 if (rep == L'$') d = memory[col * wrapped_r + wrapped_c];
-                if (d.c == -1) d = {L' ', rule.fore, back, 'a', rule.fore_attrs, back_attrs};
+                if (d.c == -1) d = {L' ', rule.fore, back, rule.fore_attrs, back_attrs};
                 int cidx = getColor(d.fore, d.back);
-                if (rule.zord >= memory[col * wrapped_r + wrapped_c].zord) {
+                {
                     // Apply color and attributes (parallel work)
                     int combined_attrs = d.fore_attrs | d.back_attrs;
                     cchar_t cchar;
