@@ -1,6 +1,20 @@
-# Infinite Screen with Sparse Grid Implementation
+# Infinite Screen with Sparse Grid Implementation - REJECTED
 
-## Overview
+## Status: REJECTED
+
+**Decision**: Rejected in favor of toroidal (cyclic) screen system already implemented.
+
+**Rationale**: 
+- **WYSIWYG Principle**: Users should see the complete game state within terminal bounds
+- **Infinite complexity**: Infinite screen adds viewport management, scrolling, and performance complexity  
+- **Toroidal superiority**: Current `#grid` directive provides elegant cyclic wrapping within visible bounds
+- **Terminal constraints**: Terminal-based games work best with bounded, visible play areas
+
+**Current alternative**: Use `#grid <width> <height>` for toroidal wrapping within terminal dimensions.
+
+---
+
+## Original Proposal (REJECTED)
 
 Implement a **truly infinite coordinate space** using a sparse grid data structure with a **viewport system**. The terminal screen becomes a movable "window" into unlimited 2D space, enabling terminal-size-independent programs and massive-scale simulations.
 
