@@ -2,6 +2,7 @@
 #include <clocale>
 #include <iostream>
 #include "grammar.h"
+#include "statusline.h"
 #include <thread>
 #include <chrono>
 #include <SDL2/SDL_mixer.h>
@@ -137,6 +138,7 @@ int main(int argc, char *argv[]) {
 
     int score = 0;
     int steps = 0;
+    int moves = 0;
     bool started = false;
 
     if (seed == 0) {
@@ -152,7 +154,7 @@ int main(int argc, char *argv[]) {
     start_color();
     raw();
     noecho();
-    timeout(-1);
+    timeout(0);  // Non-blocking mode since programs start running
     curs_set(0);
 
     Derivation w;
@@ -165,16 +167,13 @@ int main(int argc, char *argv[]) {
 
     bool clear = true;  // Clear on first program load
     bool err = 0;
-    bool paused = true;
+    bool paused = false;
     bool was_running = false;  // Track if we were running when switching programs
 
     std::wstring preserved_rule_lhsa;  // Preserve only display info across switches
 
     while (config != "quit") {
-        int elapsed_t = 0;
-        int elapsed_b = 0;
-        int elapsed_m = 0;
-
+        std::unordered_map<wchar_t, int> elapsed_counts;  // Track elapsed counts per timing char
         bool success = true;
 
         Grammar2D cfg;
@@ -218,10 +217,13 @@ int main(int argc, char *argv[]) {
             sound_cache[config] = sounds;
         }
 
-        // Use pre-parsed timing values
-        int B = cfg.B_step;
-        int M = cfg.M_step;
-        int T = cfg.T_step;
+        // Initialize elapsed counts for all timing characters
+        for (const auto& [timing_char, interval] : cfg.timing_chars) {
+            elapsed_counts[timing_char] = 0;
+        }
+
+        // Initialize status line renderer for this program
+        StatusLineRenderer::initialize_program(cfg.help, cfg.help_text);
 
         // Control key translation handled by reverse dictionary mappings
 
@@ -275,35 +277,35 @@ int main(int argc, char *argv[]) {
             }
             // Sound playing is now handled in the rule application section
 
-            // print status
+            // print status using template system
+            clear_status(col);
+            
+            // Get threading stats
             auto [parallel, total] = w.getThreadingStats();
-            std::string status_text = "Score: " + std::to_string(score) + " Steps: " + std::to_string(steps);
-            if (total > 0) {
-                status_text += " (" + std::to_string(100 * parallel / total) + "%)";
+            int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
+            
+            // Render left part (template content)
+            std::string left_content = StatusLineRenderer::render(score, steps, moves, parallel_pct);
+            
+            // Render right part (rule display)
+            std::wstring lhsa_truncated = rule.lhsa;
+            int display_width = wcswidth(lhsa_truncated.c_str(), lhsa_truncated.length());
+            if (display_width < 0) display_width = lhsa_truncated.length(); // fallback for non-printable chars
+            
+            // Ensure space for rule display
+            int max_left_width = col - display_width - 1;
+            if (max_left_width > 0 && left_content.length() > max_left_width) {
+                left_content = left_content.substr(0, max_left_width);
             }
-
-            if (paused) {
-                auto limit = std::min(static_cast<size_t>(col-1), cfg.help.size());
-                std::wstring help_truncated = cfg.help;
-                help_truncated.erase(limit, std::wstring::npos);
-                clear_status(col);
-                mvaddwstr(0, 0, help_truncated.c_str());
+            
+            // Display left content
+            if (max_left_width > 0) {
+                mvprintw(0, 0, left_content.c_str());
             }
-            else {
-                auto limit = std::min(static_cast<size_t>(col-1), status_text.size());
-                clear_status(col);
-                if (limit < status_text.length()) status_text.erase(limit);
-                mvprintw(0, 0, status_text.c_str());
-                limit = std::min(static_cast<size_t>(col-1), rule.lhsa.size());
-                std::wstring lhsa_truncated = rule.lhsa;
-                lhsa_truncated.erase(limit, std::wstring::npos);
-
-                // Calculate actual display width (wide chars take 2 columns)
-                int display_width = wcswidth(lhsa_truncated.c_str(), lhsa_truncated.length());
-                if (display_width < 0) display_width = lhsa_truncated.length(); // fallback
-
-                int start_col = col - display_width - 1;
-                if (start_col < 0) start_col = 0; // prevent overflow
+            
+            // Display right content (rule)
+            if (display_width > 0 && display_width < col) {
+                int start_col = col - display_width;
                 mvaddwstr(0, start_col, lhsa_truncated.c_str());
             }
 
@@ -311,6 +313,9 @@ int main(int argc, char *argv[]) {
             if (result == ERR) {
                 wch = ERR;
             }
+            
+            // Track if this was real user input (not timing event)
+            bool user_input = (result != ERR);
 
             //time lapse
             //save CPU if no rule applicable
@@ -322,72 +327,92 @@ int main(int argc, char *argv[]) {
                 wch = 0;
                 auto stop = std::chrono::steady_clock::now();
                 std::chrono::duration<double, std::milli> duration = stop - start;
-                int el_t = T > 0 ? static_cast<int>(duration.count() / T) : elapsed_t + 1;
-                int el_b = static_cast<int>(duration.count() / B);
-                int el_m = static_cast<int>(duration.count() / M);
-                if (el_t > elapsed_t) {
-                    wch = L'T';
-                    elapsed_t = el_t;
+                
+                // First check interval-based timing (overdue events get priority)
+                for (const auto& [timing_char, interval] : cfg.timing_chars) {
+                    if (interval > 0) {
+                        int elapsed = static_cast<int>(duration.count() / interval);
+                        if (elapsed > elapsed_counts[timing_char]) {
+                            wch = timing_char;
+                            elapsed_counts[timing_char] = elapsed;
+                            break;
+                        }
+                    }
                 }
-                if (el_m > elapsed_m) {
-                    wch = L'M';
-                    elapsed_m = el_m;
-                }
-                if (el_b > elapsed_b) {
-                    wch = L'B';
-                    elapsed_b = el_b;
+                
+                // Only if no interval timing fired, check immediate timing
+                if (wch == 0) {
+                    for (const auto& [timing_char, interval] : cfg.timing_chars) {
+                        if (interval == 0) {
+                            wch = timing_char;
+                            break;
+                        }
+                    }
                 }
             }
 
-            //restart scene
-            // Translate user input for control keys
-            wchar_t control_key = cfg.getControlKey(wch);
-
-            if (control_key == L'x') {
-                paused = true;
-                timeout(-1);
-
-                // Reset to top-level program from stack
-                if (!caller_stack.empty()) {
-                    config = caller_stack[0];  // Top-level program
-                    caller_stack.clear();
-                    caller_stack.push_back(config);  // Re-add to stack
-                }
-                break;  // Force reload of top-level program
+            // Emergency exit (ESC) - always works, bypasses all control systems
+            if(wch == 27) { // ESC key
+                config = "quit";
+                break;
             }
-
-            // toggle pause
-
-            else if (control_key == L' ') {
-                paused = !paused;
-                if (!paused) {
-                    timeout(0);
-                } else {
+            
+            // Check if this key triggers an engine action directly
+            std::string direct_action = cfg.getEngineAction(wch);
+            if (!direct_action.empty()) {
+                if (direct_action == "pause") {
+                    paused = !paused;
+                    if (!paused) {
+                        timeout(0);
+                    } else {
+                        timeout(-1);
+                    }
+                } else if (direct_action == "restart") {
+                    paused = true;
                     timeout(-1);
+                    // Reset to top-level program from stack
+                    if (!caller_stack.empty()) {
+                        config = caller_stack[0];  // Top-level program
+                        caller_stack.clear();
+                        caller_stack.push_back(config);  // Re-add to stack
+                    }
+                    break;  // Force reload of top-level program
+                } else if (direct_action == "quit") {
+                    if (!success && paused) {
+                        config = "quit";
+                        break;
+                    }
                 }
             }
-            else if(control_key == L'q' && !success && paused) {
-                config = "quit";
-                break;
-            }
-            // Emergency exit (ESC) - always works, bypasses dictionary
-            else if(wch == 27) { // ESC key
-                config = "quit";
-                break;
-            }
-            // apply a single rule (counts as a step)
-
+            // apply a single rule (counts as a step) or handle timing
             else {
-                // Translate user input to internal control key if remapped
-                wchar_t translated_key = cfg.getControlKey(wch);
-
                 rule.sound = 0;
                 std::vector<wchar_t> applied_sounds;
-                success = w.stepMultithreaded(translated_key, score, &rule, &applied_sounds);
+                success = w.stepMultithreaded(wch, score, &rule, &applied_sounds);
                 if (success) {
                     ++steps;
+                    // Increment moves counter only for successful user input
+                    if (user_input) {
+                        ++moves;
+                    }
                     // Preserve rule display info across program switches
                     preserved_rule_lhsa = rule.lhsa;
+                    
+                    // Handle engine actions
+                    if (rule.engine_action && rule.sound != 0) {
+                        std::string action = cfg.getEngineAction(rule.sound);
+                        if (action == "pause") {
+                            paused = true;
+                            timeout(-1);
+                        } else if (action == "reset") {
+                            // Reload current program (counters persist for strict scoring)
+                            break;
+                        } else if (action == "quit") {
+                            config = "quit";
+                            break;
+                        }
+                    }
+                    
                     // Play all sounds from applied rules
                     for (wchar_t sound_char : applied_sounds) {
                         auto it = sounds.find(sound_char);
@@ -396,7 +421,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                else if (translated_key == L'T') {
+                else if (wch == L'T') {
                     std::this_thread::sleep_for(std::chrono::milliseconds{50});
                 }
                 last = wch;

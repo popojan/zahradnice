@@ -13,6 +13,7 @@
 #include <queue>
 #include <functional>
 #include <memory>
+#include <set>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -51,7 +52,8 @@ public:
         wchar_t s; //symbol
     };
 
-    std::wstring help;
+    std::wstring help;          // Status line template (from #!)
+    std::wstring help_text;     // Help content (from #help)
 
     std::vector<Start> S;
 
@@ -81,6 +83,7 @@ public:
         int weight;
         wchar_t sound;
         bool load;
+        bool engine_action;
     };
 
     typedef std::vector<Rule> Rules;
@@ -88,16 +91,16 @@ public:
 
     std::unordered_map<wchar_t, Rules> R;
     std::unordered_map<wchar_t, std::wstring> dict;
-    std::unordered_map<wchar_t, std::wstring> control_remaps;
+    
+    // Engine actions (parsed from #control directives)
+    std::unordered_map<wchar_t, std::string> engine_actions;
 
     // Grid configuration for symbol alignment (default 1,1 = no constraints)
     int grid_width = 1;
     int grid_height = 1;
 
-    // Timing configuration (default values)
-    int B_step = 500;
-    int M_step = 50;
-    int T_step = 0;
+    // Timing configuration - map from character to interval (ms)
+    std::unordered_map<wchar_t, int> timing_chars;
 
     // Screen clearing flag (set by plain ^ starting symbol)
     bool clear_requested = false;
@@ -120,6 +123,10 @@ public:
     bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
 
     bool loadFromFile(const std::string &fname);
+
+private:
+    // Recursive file loading with include support
+    std::string loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) const;
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 
@@ -146,7 +153,11 @@ private:
 public:
     friend class Derivation;
 
-    wchar_t getControlKey(wchar_t control) const;
+    // Check if a character represents an engine action
+    bool isEngineAction(wchar_t ch) const;
+    
+    // Get engine action for a character (returns empty string if not found)
+    std::string getEngineAction(wchar_t ch) const;
 
 private:
     std::pair<char, int> getColorAndAttrs(wchar_t val, char def_color, int def_attrs = 0);

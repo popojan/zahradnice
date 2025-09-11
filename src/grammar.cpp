@@ -92,7 +92,14 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstrin
     return true;
 }
 
-bool Grammar2D::loadFromFile(const std::string &fname) {
+std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) const {
+    // Circular include detection
+    if (included_files.find(fname) != included_files.end()) {
+        return "";  // Skip circular includes silently
+    }
+    included_files.insert(fname);
+
+    // Try to load file with same logic as loadFromFile
     struct stat buffer;
     std::string filename = fname;
 
@@ -106,7 +113,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         if (stat(filename.c_str(), &buffer) != 0) {
             filename += ".gz";
             if (stat(filename.c_str(), &buffer) != 0) {
-                return false;
+                return "";  // File not found
             }
         }
     }
@@ -114,19 +121,65 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
     else {
         filename = fname + ".gz";
         if (stat(filename.c_str(), &buffer) != 0) {
-            return false;
+            return "";  // File not found
         }
     }
 
+    // Load file content
     std::string content;
     if (filename.ends_with(".gz")) {
         content = decompress_gzip_file(filename);
-        if (content.empty()) return false;
+        if (content.empty()) return "";
     } else {
         std::ifstream file(filename);
-        if (!file.is_open()) return false;
+        if (!file.is_open()) return "";
         content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
+
+    // Process content line by line, handling includes
+    std::string result;
+    size_t start = 0;
+    while (start < content.length()) {
+        size_t end = content.find('\n', start);
+        if (end == std::string::npos) end = content.length();
+        std::string line = content.substr(start, end - start);
+        start = end + 1;
+
+        // Check for #include directive
+        if (line.length() > 8 && line.substr(0, 8) == "#include") {
+            // Extract include filename
+            size_t space_pos = line.find(' ', 8);
+            if (space_pos != std::string::npos) {
+                std::string include_file = line.substr(space_pos + 1);
+                // Resolve path relative to current file's directory
+                std::string include_dir = ".";
+                size_t last_slash = filename.find_last_of("/");
+                if (last_slash != std::string::npos) {
+                    include_dir = filename.substr(0, last_slash);
+                }
+                std::string include_path = include_dir + "/" + include_file;
+                
+                // Recursively load included file
+                std::string included_content = loadFileWithIncludes(include_path, included_files);
+                result += included_content;
+                if (!included_content.empty() && !included_content.ends_with("\n")) {
+                    result += "\n";
+                }
+            }
+        } else {
+            // Regular line, add to result
+            result += line + "\n";
+        }
+    }
+
+    return result;
+}
+
+bool Grammar2D::loadFromFile(const std::string &fname) {
+    // Use include system to load file with all includes processed
+    std::set<std::string> included_files;
+    std::string content = loadFileWithIncludes(fname, included_files);
+    if (content.empty()) return false;
 
     std::vector<std::wstring> lhs;
     std::wstring rule;
@@ -153,17 +206,12 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                         std::wstring args = line.substr(space_pos + 1);
 
                         if (keyword == L"timing") {
-                            // #timing 500 50 0
-                            size_t pos1 = args.find(L' ');
-                            size_t pos2 = args.find(L' ', pos1 + 1);
-                            if (pos1 != std::wstring::npos) {
-                                B_step = std::wcstol(args.c_str(), nullptr, 10);
-                                if (pos2 != std::wstring::npos) {
-                                    M_step = std::wcstol(args.c_str() + pos1 + 1, nullptr, 10);
-                                    T_step = std::wcstol(args.c_str() + pos2 + 1, nullptr, 10);
-                                } else if (args.length() > pos1 + 1) {
-                                    M_step = std::wcstol(args.c_str() + pos1 + 1, nullptr, 10);
-                                }
+                            // #timing char interval
+                            size_t space_pos = args.find(L' ');
+                            if (space_pos != std::wstring::npos && space_pos > 0) {
+                                wchar_t timing_char = args[0];
+                                int interval = std::wcstol(args.c_str() + space_pos + 1, nullptr, 10);
+                                timing_chars[timing_char] = interval;
                             }
                         } else if (keyword == L"grid") {
                             // #grid width height
@@ -196,20 +244,23 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                                 program_paths[program_char] = program_path;
                             }
                         } else if (keyword == L"control") {
-                            // #control old_key new_key - remap system functions only
-                            size_t start = args.find_first_not_of(L" \t");
-                            if (start != std::wstring::npos) {
-                                size_t end = args.find_first_of(L" \t", start);
-                                if (end != std::wstring::npos) {
-                                    std::wstring from_key = args.substr(start, end - start);
-                                    size_t key_start = args.find_first_not_of(L" \t", end);
-                                    if (key_start != std::wstring::npos && key_start < args.length()) {
-                                        wchar_t to_key = (args[key_start] == L'~') ? L' ' : args[key_start];
-                                        wchar_t from_key_char = (from_key == L"~") ? L' ' : from_key[0];
-                                        control_remaps.insert({from_key_char, std::wstring(1, to_key)});
+                            // #control char action - define engine control actions
+                            size_t first_space = args.find_first_not_of(L" \t");
+                            if (first_space != std::wstring::npos) {
+                                size_t char_end = args.find_first_of(L" \t", first_space);
+                                if (char_end != std::wstring::npos) {
+                                    wchar_t control_char = args[first_space];
+                                    size_t action_start = args.find_first_not_of(L" \t", char_end);
+                                    if (action_start != std::wstring::npos) {
+                                        std::wstring action_wide = args.substr(action_start);
+                                        std::string action(action_wide.begin(), action_wide.end());
+                                        engine_actions[control_char] = action;
                                     }
                                 }
                             }
+                        } else if (keyword == L"help") {
+                            // #help Help text for status line
+                            help_text = args;
                         } else if (keyword == L"threads") {
                             // #threads N - set thread count (0 = auto-detect)
                             thread_count = std::wcstol(args.c_str(), nullptr, 10);
@@ -324,12 +375,16 @@ char Grammar2D::getColor(wchar_t c, const char def) {
     return getColorAndAttrs(c, def, 0).first;
 }
 
-wchar_t Grammar2D::getControlKey(wchar_t pressed_key) const {
-    auto it = control_remaps.find(pressed_key);
-    if (it != control_remaps.end() && !it->second.empty()) {
-        return it->second[0];
+bool Grammar2D::isEngineAction(wchar_t ch) const {
+    return engine_actions.find(ch) != engine_actions.end();
+}
+
+std::string Grammar2D::getEngineAction(wchar_t ch) const {
+    auto it = engine_actions.find(ch);
+    if (it != engine_actions.end()) {
+        return it->second;
     }
-    return pressed_key;  // No remapping, return as-is
+    return "";
 }
 
 wchar_t Grammar2D::utf8_to_wchar(const std::string& utf8_char) {
@@ -378,12 +433,17 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     Rule rule;
     rule.load = false;
     rule.sound = 0;
+    rule.engine_action = false;
     if (lhs.length() > 1 && lhs[1] != L'=') {
         wchar_t c = lhs[1];
         if (program_paths.find(c) != program_paths.end()) {
             // Character is a program switch
             rule.sound = c;
             rule.load = true;
+        } else if (engine_actions.find(c) != engine_actions.end()) {
+            // Character is an engine action
+            rule.sound = c;
+            rule.engine_action = true;
         } else {
             // Character is a sound
             sounds.insert(c);
@@ -424,6 +484,7 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     int reward = 0; //default reward
     int weight = 1;
     rule.key = lhs.length() > 3 ? lhs[3] : L'?';
+    if (rule.key == L'~') rule.key = L' ';  // Convert ~ trigger to space
     if (lhs.size() > 10) {
         int vals[2] = {0, 1};
         parse_ints<2>(lhs.substr(10), vals);
