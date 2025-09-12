@@ -274,9 +274,9 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         }
         if (!line.empty() && line[0] == L'^') //starting symbol
         {
-            // Plain ^ requests screen clear
+            // Plain ^ requests screen clear - store as special marker
             if (line.length() == 1) {
-                clear_requested = true;
+                S.push_back({'^', '^', L'^'});  // Special marker for clear request
             } else {
                 wchar_t s = line.length() > 1 ? line[1] : L's';
 
@@ -577,7 +577,22 @@ Derivation::~Derivation() {
 }
 
 void Derivation::start() {
-    for (const auto &s : g.S) {
+    // Check for clear request (plain ^ marker)
+    bool should_clear = false;
+    size_t start_index = 0;
+    if (!g.S.empty() && g.S[0].ul == '^' && g.S[0].lr == '^' && g.S[0].s == L'^') {
+        should_clear = true;
+        start_index = 1;  // Skip the clear marker
+    }
+    
+    // Clear if requested
+    if (should_clear) {
+        init(true);
+    }
+    
+    // Process normal starting symbols
+    for (size_t i = start_index; i < g.S.size(); ++i) {
+        const auto &s = g.S[i];
         // Use grid-aligned effective dimensions consistent with wrap functions
         int effective_col = (col / g.grid_width) * g.grid_width;
         int effective_row = ((row - 1) / g.grid_height) * g.grid_height;

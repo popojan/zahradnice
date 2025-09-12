@@ -34,10 +34,6 @@ std::string resolve_sound_path(const std::string& sound_path, const std::string&
 }
 
 std::string resolve_program_path(const std::string& program_path, const std::string& current_config) {
-    // If program path is "quit", return as-is
-    if (program_path == "quit") {
-        return program_path;
-    }
 
     // If program path is already absolute, use as-is
     if (!program_path.empty() && program_path[0] == '/') {
@@ -159,7 +155,6 @@ int main(int argc, char *argv[]) {
 
     Derivation w;
     std::vector<std::string> caller_stack;  // Stack of calling programs
-    caller_stack.push_back(config);  // Add initial program to stack
 
     // Program caching
     std::unordered_map<std::string, Grammar2D> program_cache;
@@ -231,7 +226,7 @@ int main(int argc, char *argv[]) {
 
         //top row reserved as status line
         w.reset(cfg, row, col);
-        w.init(clear || cfg.clear_requested);
+        w.init(clear);
         clear = false;  // Subsequent program switches preserve state
         w.start();
 
@@ -259,19 +254,9 @@ int main(int argc, char *argv[]) {
                     std::string new_program = it->second;
                     // Track if we were running when switching
                     was_running = !paused;
-                    if (new_program == "return") {
-                        // Pop from caller stack
-                        if (!caller_stack.empty()) {
-                            config = caller_stack.back();
-                            caller_stack.pop_back();
-                        } else {
-                            config = "quit";  // No caller to return to
-                        }
-                    } else {
-                        // Push current program to stack and switch
-                        caller_stack.push_back(config);
-                        config = resolve_program_path(new_program, config);
-                    }
+                    // Push current program to stack and switch
+                    caller_stack.push_back(config);
+                    config = resolve_program_path(new_program, config);
                     break;
                 }
             }
@@ -384,7 +369,21 @@ int main(int argc, char *argv[]) {
                             if (!caller_stack.empty()) {
                                 config = caller_stack[0];  // Top-level program
                                 caller_stack.clear();
-                                caller_stack.push_back(config);  // Re-add to stack
+                            }
+                            // If stack is empty, we're already at top-level, just continue
+                            break;
+                        } else if (action == "clear") {
+                            // Clear screen and restart current program with its starting symbols
+                            w.init(true);  // Clear the screen
+                            w.reset(cfg, row, col);  // Re-apply starting symbols
+                            w.start();  // Start the derivation
+                        } else if (action == "return") {
+                            // Pop from caller stack
+                            if (!caller_stack.empty()) {
+                                config = caller_stack.back();
+                                caller_stack.pop_back();
+                            } else {
+                                config = "quit";  // No caller to return to
                             }
                             break;
                         } else if (action == "quit") {

@@ -102,9 +102,6 @@ public:
     // Timing configuration - map from character to interval (ms)
     std::unordered_map<wchar_t, int> timing_chars;
 
-    // Screen clearing flag (set by plain ^ starting symbol)
-    bool clear_requested = false;
-
     // Sound paths (parsed from dictionary)
     std::unordered_map<wchar_t, std::string> sound_paths;
 

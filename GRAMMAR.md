@@ -114,11 +114,11 @@ Initial symbols are optional and define starting symbols to be placed on screen.
 
 `^<inital-symbol-char><vertical-placement-char><horizontal-placement-char>`
 
-**Special case:** Plain `^` (with no characters following) requests screen clearing. This is useful for utility programs that need a clean slate.
+**Special case:** Plain `^` (with no characters following) requests screen clearing before placing other starting symbols. This is useful for utility programs that need a clean slate.
 
 **Example:**
 ```
-^        # Clear screen first
+^        # Clear screen first  
 ^Scc     # Then place S symbol at center
 ```
 
@@ -208,8 +208,12 @@ look of the 'pixels'.
 * `#control <char> <action>` ... define engine control actions:
   - `#control ~ pause` ... space toggles pause/unpause
   - `#control x restart` ... restart current program
-  - `#control r reset` ... reset score/steps and restart
+  - `#control r reset` ... reset to top-level program from stack
+  - `#control c clear` ... clear screen and restart current program with its starting symbols (runtime clearing)
+  - `#control t return` ... pop call stack, return to caller (or quit if at top-level)
   - `#control q quit` ... quit application
+
+Note: For clearing at program load time, use plain `^` as a starting symbol. For runtime clearing during program execution, use `#control c clear`.
 
 **Other:**
 * `#grid <width> <height>` ... define grid alignment for toroidal wrapping; defaults to 1/1
@@ -226,8 +230,6 @@ Programs can call other programs using a compositional system that preserves der
 ```
 #program 1 snake.cfg
 #program 2 tetris.cfg
-#program R return
-#program Q quit
 ```
 
 **2. Use mapped characters in rules:**
@@ -238,25 +240,23 @@ Programs can call other programs using a compositional system that preserves der
 
 **Key features:**
 - **Compositional:** Derivation state (screen contents) flows between programs
-- **Call stack:** Programs can return to their caller using `return`
-- **Standard rules:** Program switching uses normal rule syntax with RHS replacement
+- **Call stack:** Programs can return to their caller using `#control return`
+- **Standard rules:** Program switching uses normal rule syntax with RHS replacement  
 - **File completion:** Supports `.cfg`, `.gz`, and directory/index.cfg resolution
 
-**Special program names:**
-- `return` - Return to the calling program (pops from call stack)
-- `quit` - Exit the application
+**Note:** For stack operations (return, quit, reset), use `#control` actions instead of program mappings.
 
 **Example call/return pattern:**
 ```
-#! main.cfg - calls utility having replaced S by R on T
+#! main.cfg - calls utility, replaced S with R on T
 #program U utility.cfg
-#program R return
+#control R return
 =USTR
 @@@
 
 
-#! utility.cfg - does work (replaces R with U on T) and returns
-#program R return
+#! utility.cfg - does work (replaces R with U on T) and returns  
+#control R return
 =RRTU
 @@@
 ```
