@@ -2,7 +2,6 @@
 #include <clocale>
 #include <iostream>
 #include "grammar.h"
-#include "statusline.h"
 #include <thread>
 #include <chrono>
 #include <SDL2/SDL_mixer.h>
@@ -14,6 +13,45 @@
 #include <sys/stat.h>
 #include <unordered_map>
 #include <memory>
+
+// Global state for statusline template inheritance
+static std::wstring active_statusline_template = L"";
+static std::wstring current_help_text = L"";
+
+// Simple string replacement helper
+static void replace_all(std::string &str, const std::string &from, const std::string &to) {
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}
+
+// Render statusline with template substitution
+static std::string render_statusline(int score, int steps, int moves, int parallel_pct) {
+    std::string tmpl;
+    if (!active_statusline_template.empty()) {
+        tmpl = std::string(active_statusline_template.begin(), active_statusline_template.end());
+    } else {
+        tmpl = "Score: {score} Steps: {steps} {parallel} {help}";
+    }
+    
+    // Perform variable substitutions
+    replace_all(tmpl, "{score}", std::to_string(score));
+    replace_all(tmpl, "{steps}", std::to_string(steps));
+    replace_all(tmpl, "{moves}", std::to_string(moves));
+    
+    if (parallel_pct >= 0) {
+        replace_all(tmpl, "{parallel}", std::to_string(parallel_pct) + "%");
+    } else {
+        replace_all(tmpl, "{parallel}", "");
+    }
+    
+    std::string help_str(current_help_text.begin(), current_help_text.end());
+    replace_all(tmpl, "{help}", help_str);
+    
+    return tmpl;
+}
 
 std::string resolve_sound_path(const std::string& sound_path, const std::string& program_dir) {
     // If path is already absolute, use as-is
@@ -217,8 +255,11 @@ int main(int argc, char *argv[]) {
             elapsed_counts[timing_char] = 0;
         }
 
-        // Initialize status line renderer for this program
-        StatusLineRenderer::initialize_program(cfg.help, cfg.help_text);
+        // Initialize statusline template for this program
+        current_help_text = cfg.help_text;
+        if (!cfg.help.empty()) {
+            active_statusline_template = cfg.help;
+        }
 
         // Control key translation handled by reverse dictionary mappings
 
@@ -270,7 +311,7 @@ int main(int argc, char *argv[]) {
             int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
 
             // Render left part (template content)
-            std::string left_content = StatusLineRenderer::render(score, steps, moves, parallel_pct);
+            std::string left_content = render_statusline(score, steps, moves, parallel_pct);
 
             // Render right part (rule display)
             std::wstring lhsa_truncated = rule.lhsa;
