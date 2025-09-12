@@ -18,37 +18,53 @@
 static std::wstring active_statusline_template = L"";
 static std::wstring current_help_text = L"";
 
-// Simple string replacement helper
-static void replace_all(std::string &str, const std::string &from, const std::string &to) {
+// Simple wide string replacement helper
+static void replace_all(std::wstring &str, const std::wstring &from, const std::wstring &to) {
     size_t start_pos = 0;
-    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+    while ((start_pos = str.find(from, start_pos)) != std::wstring::npos) {
         str.replace(start_pos, from.length(), to);
         start_pos += to.length();
     }
 }
 
+// Simple integer to wide string conversion
+static std::wstring int_to_wstring(int value) {
+    if (value == 0) return L"0";
+    
+    std::wstring result;
+    bool negative = value < 0;
+    if (negative) value = -value;
+    
+    while (value > 0) {
+        result = static_cast<wchar_t>(L'0' + value % 10) + result;
+        value /= 10;
+    }
+    
+    if (negative) result = L"-" + result;
+    return result;
+}
+
 // Render statusline with template substitution
-static std::string render_statusline(int score, int steps, int moves, int parallel_pct) {
-    std::string tmpl;
+static std::wstring render_statusline(int score, int steps, int moves, int parallel_pct) {
+    std::wstring tmpl;
     if (!active_statusline_template.empty()) {
-        tmpl = std::string(active_statusline_template.begin(), active_statusline_template.end());
+        tmpl = active_statusline_template;
     } else {
-        tmpl = "Score: {score} Steps: {steps} {parallel} {help}";
+        tmpl = L"Score: {score} Steps: {steps} {parallel} {help}";
     }
     
     // Perform variable substitutions
-    replace_all(tmpl, "{score}", std::to_string(score));
-    replace_all(tmpl, "{steps}", std::to_string(steps));
-    replace_all(tmpl, "{moves}", std::to_string(moves));
+    replace_all(tmpl, L"{score}", int_to_wstring(score));
+    replace_all(tmpl, L"{steps}", int_to_wstring(steps));
+    replace_all(tmpl, L"{moves}", int_to_wstring(moves));
     
     if (parallel_pct >= 0) {
-        replace_all(tmpl, "{parallel}", std::to_string(parallel_pct) + "%");
+        replace_all(tmpl, L"{parallel}", int_to_wstring(parallel_pct) + L"%");
     } else {
-        replace_all(tmpl, "{parallel}", "");
+        replace_all(tmpl, L"{parallel}", L"");
     }
     
-    std::string help_str(current_help_text.begin(), current_help_text.end());
-    replace_all(tmpl, "{help}", help_str);
+    replace_all(tmpl, L"{help}", current_help_text);
     
     return tmpl;
 }
@@ -311,7 +327,7 @@ int main(int argc, char *argv[]) {
             int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
 
             // Render left part (template content)
-            std::string left_content = render_statusline(score, steps, moves, parallel_pct);
+            std::wstring left_content = render_statusline(score, steps, moves, parallel_pct);
 
             // Render right part (rule display)
             std::wstring lhsa_truncated = rule.lhsa;
@@ -320,13 +336,26 @@ int main(int argc, char *argv[]) {
 
             // Ensure space for rule display
             int max_left_width = col - display_width - 1;
-            if (max_left_width > 0 && left_content.length() > max_left_width) {
-                left_content = left_content.substr(0, max_left_width);
+            int left_display_width = wcswidth(left_content.c_str(), left_content.length());
+            if (left_display_width < 0) left_display_width = left_content.length();
+            
+            if (max_left_width > 0 && left_display_width > max_left_width) {
+                // Truncate to fit, being careful with wide characters
+                std::wstring truncated;
+                int width = 0;
+                for (wchar_t wc : left_content) {
+                    int char_width = wcwidth(wc);
+                    if (char_width < 0) char_width = 1;
+                    if (width + char_width > max_left_width) break;
+                    truncated += wc;
+                    width += char_width;
+                }
+                left_content = truncated;
             }
 
-            // Display left content
+            // Display left content using wide character function
             if (max_left_width > 0) {
-                mvprintw(0, 0, left_content.c_str());
+                mvaddwstr(0, 0, left_content.c_str());
             }
 
             // Display right content (rule) - shift one char left to keep cursor on top row
