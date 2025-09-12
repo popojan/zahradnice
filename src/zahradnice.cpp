@@ -279,41 +279,43 @@ int main(int argc, char *argv[]) {
 
             // print status using template system
             clear_status(col);
-            
+
             // Get threading stats
             auto [parallel, total] = w.getThreadingStats();
             int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
-            
+
             // Render left part (template content)
             std::string left_content = StatusLineRenderer::render(score, steps, moves, parallel_pct);
-            
+
             // Render right part (rule display)
             std::wstring lhsa_truncated = rule.lhsa;
             int display_width = wcswidth(lhsa_truncated.c_str(), lhsa_truncated.length());
             if (display_width < 0) display_width = lhsa_truncated.length(); // fallback for non-printable chars
-            
+
             // Ensure space for rule display
             int max_left_width = col - display_width - 1;
             if (max_left_width > 0 && left_content.length() > max_left_width) {
                 left_content = left_content.substr(0, max_left_width);
             }
-            
+
             // Display left content
             if (max_left_width > 0) {
                 mvprintw(0, 0, left_content.c_str());
             }
-            
-            // Display right content (rule)
+
+            // Display right content (rule) - shift one char left to keep cursor on top row
             if (display_width > 0 && display_width < col) {
-                int start_col = col - display_width;
-                mvaddwstr(0, start_col, lhsa_truncated.c_str());
+                int start_col = col - display_width - 1;  // Shift one position left
+                if (start_col >= 0) {
+                    mvaddwstr(0, start_col, lhsa_truncated.c_str());
+                }
             }
 
             int result = wget_wch(stdscr, &wch);
             if (result == ERR) {
                 wch = ERR;
             }
-            
+
             // Track if this was real user input (not timing event)
             bool user_input = (result != ERR);
 
@@ -327,7 +329,7 @@ int main(int argc, char *argv[]) {
                 wch = 0;
                 auto stop = std::chrono::steady_clock::now();
                 std::chrono::duration<double, std::milli> duration = stop - start;
-                
+
                 // First check interval-based timing (overdue events get priority)
                 for (const auto& [timing_char, interval] : cfg.timing_chars) {
                     if (interval > 0) {
@@ -339,7 +341,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                
+
                 // Only if no interval timing fired, check immediate timing
                 if (wch == 0) {
                     for (const auto& [timing_char, interval] : cfg.timing_chars) {
@@ -356,36 +358,9 @@ int main(int argc, char *argv[]) {
                 config = "quit";
                 break;
             }
-            
-            // Check if this key triggers an engine action directly
-            std::string direct_action = cfg.getEngineAction(wch);
-            if (!direct_action.empty()) {
-                if (direct_action == "pause") {
-                    paused = !paused;
-                    if (!paused) {
-                        timeout(0);
-                    } else {
-                        timeout(-1);
-                    }
-                } else if (direct_action == "restart") {
-                    paused = true;
-                    timeout(-1);
-                    // Reset to top-level program from stack
-                    if (!caller_stack.empty()) {
-                        config = caller_stack[0];  // Top-level program
-                        caller_stack.clear();
-                        caller_stack.push_back(config);  // Re-add to stack
-                    }
-                    break;  // Force reload of top-level program
-                } else if (direct_action == "quit") {
-                    if (!success && paused) {
-                        config = "quit";
-                        break;
-                    }
-                }
-            }
-            // apply a single rule (counts as a step) or handle timing
-            else {
+
+            // Apply a single rule (counts as a step) or handle timing
+            {
                 rule.sound = 0;
                 std::vector<wchar_t> applied_sounds;
                 success = w.stepMultithreaded(wch, score, &rule, &applied_sounds);
@@ -397,22 +372,27 @@ int main(int argc, char *argv[]) {
                     }
                     // Preserve rule display info across program switches
                     preserved_rule_lhsa = rule.lhsa;
-                    
-                    // Handle engine actions
+
+                    // Handle rule-based engine actions (counts as moves, unlike direct actions)
                     if (rule.engine_action && rule.sound != 0) {
                         std::string action = cfg.getEngineAction(rule.sound);
                         if (action == "pause") {
                             paused = true;
                             timeout(-1);
                         } else if (action == "reset") {
-                            // Reload current program (counters persist for strict scoring)
+                            // Reset to top-level program from stack
+                            if (!caller_stack.empty()) {
+                                config = caller_stack[0];  // Top-level program
+                                caller_stack.clear();
+                                caller_stack.push_back(config);  // Re-add to stack
+                            }
                             break;
                         } else if (action == "quit") {
                             config = "quit";
                             break;
                         }
                     }
-                    
+
                     // Play all sounds from applied rules
                     for (wchar_t sound_char : applied_sounds) {
                         auto it = sounds.find(sound_char);

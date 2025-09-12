@@ -244,7 +244,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                                 program_paths[program_char] = program_path;
                             }
                         } else if (keyword == L"control") {
-                            // #control char action - define engine control actions
+                            // #control char action - define engine control actions for rule-based use
                             size_t first_space = args.find_first_not_of(L" \t");
                             if (first_space != std::wstring::npos) {
                                 size_t char_end = args.find_first_of(L" \t", first_space);
@@ -373,10 +373,6 @@ std::pair<char, int> Grammar2D::getColorAndAttrs(wchar_t c, const char def_color
 
 char Grammar2D::getColor(wchar_t c, const char def) {
     return getColorAndAttrs(c, def, 0).first;
-}
-
-bool Grammar2D::isEngineAction(wchar_t ch) const {
-    return engine_actions.find(ch) != engine_actions.end();
 }
 
 std::string Grammar2D::getEngineAction(wchar_t ch) const {

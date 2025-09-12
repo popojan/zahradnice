@@ -29,7 +29,7 @@ std::string StatusLineRenderer::render(int score, int steps, int moves, int para
     
     // Add parallel percentage if available (>= 0)
     if (parallel_pct >= 0) {
-        replace_all(tmpl, "{parallel}", "(" + std::to_string(parallel_pct) + "%)");
+        replace_all(tmpl, "{parallel}", std::to_string(parallel_pct) + "%");
     } else {
         replace_all(tmpl, "{parallel}", "");
     }

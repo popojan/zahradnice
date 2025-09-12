@@ -92,7 +92,7 @@ public:
     std::unordered_map<wchar_t, Rules> R;
     std::unordered_map<wchar_t, std::wstring> dict;
     
-    // Engine actions (parsed from #control directives)
+    // Engine actions (parsed from #control directives, for rule-based actions only)
     std::unordered_map<wchar_t, std::string> engine_actions;
 
     // Grid configuration for symbol alignment (default 1,1 = no constraints)
@@ -153,9 +153,6 @@ private:
 public:
     friend class Derivation;
 
-    // Check if a character represents an engine action
-    bool isEngineAction(wchar_t ch) const;
-    
     // Get engine action for a character (returns empty string if not found)
     std::string getEngineAction(wchar_t ch) const;
 
