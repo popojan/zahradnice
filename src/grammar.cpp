@@ -153,12 +153,12 @@ std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<s
                 std::string include_file = line.substr(space_pos + 1);
                 // Resolve path relative to current file's directory
                 std::string include_dir = ".";
-                size_t last_slash = filename.find_last_of("/");
+                size_t last_slash = fname.find_last_of("/");
                 if (last_slash != std::string::npos) {
-                    include_dir = filename.substr(0, last_slash);
+                    include_dir = fname.substr(0, last_slash);
                 }
                 std::string include_path = include_dir + "/" + include_file;
-                
+
                 // Recursively load included file
                 std::string included_content = loadFileWithIncludes(include_path, included_files);
                 result += included_content;
@@ -584,12 +584,12 @@ void Derivation::start() {
         should_clear = true;
         start_index = 1;  // Skip the clear marker
     }
-    
+
     // Clear if requested
     if (should_clear) {
         init(true);
     }
-    
+
     // Process normal starting symbols
     for (size_t i = start_index; i < g.S.size(); ++i) {
         const auto &s = g.S[i];

@@ -13,6 +13,8 @@
 #include <sys/stat.h>
 #include <unordered_map>
 #include <memory>
+#include <fstream>
+#include <ctime>
 
 // Global state for statusline template inheritance
 static std::wstring active_statusline_template = L"";
@@ -30,16 +32,16 @@ static void replace_all(std::wstring &str, const std::wstring &from, const std::
 // Simple integer to wide string conversion
 static std::wstring int_to_wstring(int value) {
     if (value == 0) return L"0";
-    
+
     std::wstring result;
     bool negative = value < 0;
     if (negative) value = -value;
-    
+
     while (value > 0) {
         result = static_cast<wchar_t>(L'0' + value % 10) + result;
         value /= 10;
     }
-    
+
     if (negative) result = L"-" + result;
     return result;
 }
@@ -52,21 +54,113 @@ static std::wstring render_statusline(int score, int steps, int moves, int paral
     } else {
         tmpl = L"Score: {score} Steps: {steps} {parallel} {help}";
     }
-    
+
     // Perform variable substitutions
     replace_all(tmpl, L"{score}", int_to_wstring(score));
     replace_all(tmpl, L"{steps}", int_to_wstring(steps));
     replace_all(tmpl, L"{moves}", int_to_wstring(moves));
-    
+
     if (parallel_pct >= 0) {
         replace_all(tmpl, L"{parallel}", int_to_wstring(parallel_pct) + L"%");
     } else {
         replace_all(tmpl, L"{parallel}", L"");
     }
-    
+
     replace_all(tmpl, L"{help}", current_help_text);
-    
+
     return tmpl;
+}
+
+// Take a screenshot of the current terminal content to a text file
+// capture_colors: if true, output ANSI escape sequences for colors
+static bool take_screenshot(const std::string& filename, bool capture_colors = false) {
+    int max_row, max_col;
+    getmaxyx(stdscr, max_row, max_col);
+
+    std::wofstream file(filename);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    // Read each position from the screen (including status line at row 0)
+    for (int r = 0; r < max_row; ++r) {
+        std::wstring line;
+        for (int c = 0; c < max_col; ++c) {
+            cchar_t ch;
+            if (mvin_wch(r, c, &ch) == OK) {
+                // Extract the wide character(s) and attributes
+                wchar_t wch[CCHARW_MAX + 1];
+                attr_t attrs;
+                short color_pair;
+                if (getcchar(&ch, wch, &attrs, &color_pair, NULL) == OK) {
+                    if (capture_colors && color_pair > 0) {
+                        // Get the actual foreground and background colors from the pair
+                        short fg, bg;
+                        pair_content(color_pair, &fg, &bg);
+
+                        // Generate ANSI escape sequence for colors
+                        // Basic 8 colors: 30-37 (fg), 40-47 (bg)
+                        // Bright colors: 90-97 (fg), 100-107 (bg)
+                        std::wstring color_seq;
+
+                        // Handle foreground color
+                        if (fg < 8) {
+                            color_seq += L"\033[3" + std::to_wstring(fg) + L"m";
+                        } else if (fg < 16) {
+                            color_seq += L"\033[9" + std::to_wstring(fg - 8) + L"m";
+                        }
+
+                        // Handle background color
+                        if (bg < 8) {
+                            color_seq += L"\033[4" + std::to_wstring(bg) + L"m";
+                        } else if (bg < 16) {
+                            color_seq += L"\033[10" + std::to_wstring(bg - 8) + L"m";
+                        }
+
+                        // Handle attributes (bold, underline, etc.)
+                        if (attrs & A_BOLD) {
+                            color_seq += L"\033[1m";
+                        }
+                        if (attrs & A_UNDERLINE) {
+                            color_seq += L"\033[4m";
+                        }
+                        if (attrs & A_REVERSE) {
+                            color_seq += L"\033[7m";
+                        }
+
+                        line += color_seq;
+                    }
+
+                    // Add the character
+                    if (wch[0] != 0) {
+                        line += wch[0];
+                    } else {
+                        line += L' ';
+                    }
+
+                    // Reset colors after each character if colors were applied
+                    if (capture_colors && color_pair > 0) {
+                        line += L"\033[0m";
+                    }
+                } else {
+                    line += L' ';
+                }
+            } else {
+                line += L' ';
+            }
+        }
+        // Trim trailing spaces from the line (but preserve color codes)
+        if (!capture_colors) {
+            size_t end = line.find_last_not_of(L' ');
+            if (end != std::wstring::npos) {
+                line = line.substr(0, end + 1);
+            }
+        }
+        file << line << L'\n';
+    }
+
+    file.close();
+    return true;
 }
 
 std::string resolve_sound_path(const std::string& sound_path, const std::string& program_dir) {
@@ -96,19 +190,14 @@ std::string resolve_program_path(const std::string& program_path, const std::str
 
     std::string base_path;
 
-    // If program path already includes directory, use relative to current directory
-    if (program_path.find('/') != std::string::npos) {
-        base_path = program_path;
+    // Get directory of current config
+    size_t last_slash = current_config.find_last_of("/");
+    if (last_slash != std::string::npos) {
+        // Current config has directory, use that directory
+        base_path = current_config.substr(0, last_slash) + "/" + program_path;
     } else {
-        // Get directory of current config
-        size_t last_slash = current_config.find_last_of("/");
-        if (last_slash != std::string::npos) {
-            // Current config has directory, use that directory
-            base_path = current_config.substr(0, last_slash) + "/" + program_path;
-        } else {
-            // Current config has no directory, use current working directory
-            base_path = program_path;
-        }
+        // Current config has no directory, use current working directory
+        base_path = program_path;
     }
 
     // Apply file completion logic from loadFromFile
@@ -204,6 +293,7 @@ int main(int argc, char *argv[]) {
     start_color();
     raw();
     noecho();
+    keypad(stdscr, TRUE);  // Enable function keys like F12
     timeout(0);  // Non-blocking mode since programs start running
     curs_set(0);
 
@@ -338,7 +428,7 @@ int main(int argc, char *argv[]) {
             int max_left_width = col - display_width - 1;
             int left_display_width = wcswidth(left_content.c_str(), left_content.length());
             if (left_display_width < 0) left_display_width = left_content.length();
-            
+
             if (max_left_width > 0 && left_display_width > max_left_width) {
                 // Truncate to fit, being careful with wide characters
                 std::wstring truncated;
@@ -412,6 +502,26 @@ int main(int argc, char *argv[]) {
             if(wch == 27) { // ESC key
                 config = "quit";
                 break;
+            }
+
+            // Global screenshot feature (F12) - always available
+            // Takes both plain text and colored screenshots
+            if(wch == KEY_F(12)) {
+                // Generate timestamp-based filenames
+                std::time_t t = std::time(nullptr);
+                char timestamp_base[100];
+                std::strftime(timestamp_base, sizeof(timestamp_base), "screenshot_%Y%m%d_%H%M%S", std::localtime(&t));
+
+                std::string txt_filename = std::string(timestamp_base) + ".txt";
+                std::string ansi_filename = std::string(timestamp_base) + ".ansi";
+
+                bool txt_success = take_screenshot(txt_filename, false);   // Plain text screenshot
+                bool ansi_success = take_screenshot(ansi_filename, true);  // Colored screenshot with ANSI codes
+
+                if (txt_success || ansi_success) {
+                    // Set feedback message to be displayed in next loop iteration
+                    rule.lhsa = L"Screenshot saved";
+                }
             }
 
             // Apply a single rule (counts as a step) or handle timing
