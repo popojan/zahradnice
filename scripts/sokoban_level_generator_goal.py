@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+
+def preprocess_sokoban_format(lines):
+    """
+    Convert classical one-char-per-cell Sokoban format to zahradnice two-char format.
+
+    Classical format:
+    - # = wall
+    - ' ' = empty space
+    - $ = box
+    - . = goal
+    - @ = player
+    - + = player on goal
+    - * = box on goal
+    """
+    processed_lines = []
+    for line in lines:
+        # Apply the conversions from soko.sh
+        line = line.replace('#', '##')
+        line = line.replace(' ', '  ')
+        line = line.replace('$', 'st')
+        line = line.replace('.', '..')
+        line = line.replace('@', 'PP')
+        line = line.replace('+', 'P:')
+        line = line.replace('*', 'ST')
+        processed_lines.append(line)
+    return processed_lines
+
+
+def detect_format(lines):
+    """
+    Detect if the input is in classical (one-char) or zahradnice (two-char) format.
+    """
+    # Check for typical two-char patterns
+    for line in lines:
+        if 'st' in line or 'PP' in line or 'ST' in line:
+            return 'zahradnice'
+        if '$' in line or '@' in line or '*' in line:
+            return 'classical'
+    return 'zahradnice'  # default
+
+
+def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.txt',
+                           start_level=1, end_level=50,
+                           auto_detect_format=True,
+                           output_dir='programs/sokoban/original'):
+    """
+    Generate Sokoban level configuration files from a source file.
+
+    Args:
+        input_file: Path to the source file containing maze data
+        start_level: Starting level number (inclusive)
+        end_level: Ending level number (inclusive)
+        auto_detect_format: Whether to auto-detect and convert classical format
+    """
+
+    # Read the source file
+    with open(input_file, 'r') as f:
+        content = f.read()
+
+    # Detect format and split levels accordingly
+    if '---' in content:
+        # Original format with --- separators
+        levels = content.split('---')
+        level_data = []
+        for i, level_text in enumerate(levels):
+            lines = level_text.strip().split('\n')
+            maze_lines = []
+            for line in lines:
+                if line and not line.startswith(';'):
+                    maze_lines.append(line.rstrip())
+            if maze_lines:
+                level_data.append((i, maze_lines))  # i=1 becomes level 1, i=2 becomes level 2, etc.
+    else:
+        # Level X format
+        level_data = []
+        current_level = None
+        current_lines = []
+
+        for line in content.split('\n'):
+            line = line.rstrip()
+            if line.startswith('Level '):
+                # Save previous level if exists
+                if current_level is not None and current_lines:
+                    level_data.append((current_level, current_lines))
+
+                # Start new level
+                try:
+                    current_level = int(line.split()[1])
+                    current_lines = []
+                except (IndexError, ValueError):
+                    current_level = None
+            elif current_level is not None and line:
+                current_lines.append(line)
+
+        # Add the last level
+        if current_level is not None and current_lines:
+            level_data.append((current_level, current_lines))
+
+    # Process specified levels
+    for level_num, maze_lines in level_data:
+        if level_num < start_level or level_num > end_level:
+            continue
+
+        # Auto-detect format and preprocess if needed
+        if auto_detect_format:
+            format_type = detect_format(maze_lines)
+            if format_type == 'classical':
+                maze_lines = preprocess_sokoban_format(maze_lines)
+                print(f"Level {level_num}: Detected classical format, converting...")
+
+        # Find the maximum width to determine the X center
+        max_width = max(len(line) for line in maze_lines)
+
+        # Find center positions
+        center_y = len(maze_lines) // 2
+        center_x = max_width // 2
+
+        # Adjust X position to be on the left of a two-char cell (even position)
+        if center_x % 2 == 1:
+            center_x -= 1
+
+        # Get the character at the center position
+        center_line = maze_lines[center_y] if center_y < len(maze_lines) else ""
+
+        # Find the trigger character at the center position
+        if center_x < len(center_line):
+            trigger_char = center_line[center_x]
+            # If it's a space, look for a better character nearby
+            if trigger_char == ' ':
+                # Try to find a non-space character near the center
+                for offset in range(1, 10):
+                    for dx in [-offset * 2, offset * 2]:  # Check even positions
+                        test_x = center_x + dx
+                        if 0 <= test_x < len(center_line) and center_line[test_x] not in [' ', '#']:
+                            trigger_char = center_line[test_x]
+                            center_x = test_x
+                            break
+                    if trigger_char != ' ':
+                        break
+        else:
+            trigger_char = ' '
+
+        # If trigger is space, use ~ (empty floor)
+        if trigger_char == ' ':
+            trigger_char = '~'
+
+        # Format the maze with proper indentation and @@ markers
+        formatted_maze = []
+        for j, line in enumerate(maze_lines):
+            if j == center_y:
+                # Add @@ at beginning and @ at the center_x position
+                if center_x < len(line):
+                    # Replace character at center_x with @
+                    line_list = list(line)
+                    line_list[center_x] = '@'
+                    line = ''.join(line_list)
+                else:
+                    # Pad the line if necessary
+                    line = line.ljust(center_x + 1)
+                    line = line[:center_x] + '@' + line[center_x+1:]
+                formatted_line = '@@' + line
+            else:
+                formatted_line = '  ' + line
+            formatted_maze.append(formatted_line)
+
+        # Replicate the goal area structure (dots)
+        goal_rows = []
+        margin_left = max_width
+        max_goal_width = 0
+        for row in formatted_maze:
+            goal_row =      row.replace('@@', '  ')
+            goal_row = goal_row.replace('@', trigger_char);
+            goal_row = goal_row.replace('st', '  ')
+            goal_row = goal_row.replace('ST', 'SB')
+            goal_row = goal_row.replace('..', 'SB')
+            goal_row = goal_row.replace('##', '  ')
+            goal_row = goal_row.replace('PP', '  ')
+            goal_row = goal_row.replace('P:', '  ')
+            goal_row = goal_row.rstrip()
+            if goal_rows or goal_row:
+                max_goal_width = max(max_goal_width, len(goal_row))
+                if goal_row:
+                    margin_left = min(
+                        margin_left,
+                        len(goal_row) - len(goal_row.lstrip())
+                    )
+                goal_rows.append(goal_row)
+
+        for i in range(len(goal_rows)):
+            goal_rows[i] = goal_rows[i][margin_left:]
+
+        goal_rows[0] = goal_rows[0].replace('S', '@', 1);
+        goal_rows[0] += ' ' * (max_goal_width - len(goal_rows[0]) - margin_left)
+        goal_rows[0] += '@@'
+        gone_alignment = ' ' * (max_goal_width - margin_left + 1)
+        idx = goal_rows[0].index('@')
+        gone_alignment = gone_alignment[:idx] + '~' + gone_alignment[idx+1:]
+
+        # Create the level file content
+        next_level_num = level_num + 1 if level_num < end_level else level_num
+        level_content = f'''#program N level-{next_level_num:02d}.cfg
+#include ../rules.cfg
+
+# level architecture
+==1T{trigger_char}
+'''
+
+        for line in formatted_maze:
+            level_content += line + '\n'
+
+        level_content += f'''
+# corresponding goal
+==ST 22   1
+{gone_alignment}gone!
+
+'''
+        # Join the goal pattern lines
+        level_content += '\n'.join(goal_rows) + '\n'
+
+        # Write the level file
+        filename = f'{output_dir}/level-{level_num:02d}.cfg'
+        with open(filename, 'w') as f:
+            f.write(level_content)
+
+        print(f'Created {filename} (trigger={trigger_char}, center=({center_x},{center_y}))')
+
+
+if __name__ == '__main__':
+    # Process levels 1-50 by default
+    generate_sokoban_levels(start_level=1, end_level=50)
+    generate_sokoban_levels(start_level=1, end_level=52,
+            input_file='programs/sokoban/yoshio-murase/levels.txt',
+            output_dir='programs/sokoban/yoshio-murase')
