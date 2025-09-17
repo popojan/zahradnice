@@ -43,10 +43,9 @@ def detect_format(lines):
     return 'zahradnice'  # default
 
 
-def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.txt',
-                           start_level=1, end_level=50,
-                           auto_detect_format=True,
-                           output_dir='programs/sokoban/original'):
+def generate_sokoban_levels(input_file, start_level, end_level,
+                           auto_detect_format=True, output_dir=None,
+                           total_levels=None):
     """
     Generate Sokoban level configuration files from a source file.
 
@@ -99,6 +98,11 @@ def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.tx
         # Add the last level
         if current_level is not None and current_lines:
             level_data.append((current_level, current_lines))
+
+    # Determine digit formatting based on total levels
+    if total_levels is None:
+        total_levels = end_level
+    digits = 3 if total_levels > 99 else 2
 
     # Process specified levels
     for level_num, maze_lines in level_data:
@@ -202,7 +206,7 @@ def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.tx
 
         # Create the level file content
         next_level_num = level_num + 1 if level_num < end_level else level_num
-        level_content = f'''#program N level-{next_level_num:02d}.cfg
+        level_content = f'''#program N level-{next_level_num:0{digits}d}.cfg
 #include ../rules.cfg
 
 # level architecture
@@ -222,7 +226,7 @@ def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.tx
         level_content += '\n'.join(goal_rows) + '\n'
 
         # Write the level file
-        filename = f'{output_dir}/level-{level_num:02d}.cfg'
+        filename = f'{output_dir}/level-{level_num:0{digits}d}.cfg'
         with open(filename, 'w') as f:
             f.write(level_content)
 
@@ -230,8 +234,61 @@ def generate_sokoban_levels(input_file='programs/sokoban/original/Sokoban.out.tx
 
 
 if __name__ == '__main__':
-    # Process levels 1-50 by default
-    generate_sokoban_levels(start_level=1, end_level=50)
-    generate_sokoban_levels(start_level=1, end_level=52,
-            input_file='programs/sokoban/yoshio-murase/levels.txt',
-            output_dir='programs/sokoban/yoshio-murase')
+    import sys
+    import os
+
+    if len(sys.argv) != 3:
+        print("Usage: python3 sokoban_level_generator_goal.py <input_file> <target_directory>")
+        print("Example: python3 sokoban_level_generator_goal.py levels.txt output/")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    target_dir = sys.argv[2]
+
+    # Check if input file exists
+    if not os.path.exists(input_file):
+        print(f"Error: Input file '{input_file}' does not exist")
+        sys.exit(1)
+
+    # Create target directory if it doesn't exist
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"Created directory: {target_dir}")
+
+    # Read the input file to detect number of levels
+    with open(input_file, 'r') as f:
+        content = f.read()
+
+    # Count levels based on format
+    if '---' in content:
+        # Original format with --- separators
+        levels = content.split('---')
+        # Count non-empty sections (skip header)
+        level_count = 0
+        for level_text in levels:
+            lines = level_text.strip().split('\n')
+            maze_lines = [line for line in lines if line and not line.startswith(';')]
+            if maze_lines:
+                level_count += 1
+    else:
+        # Level X format
+        import re
+        level_matches = re.findall(r'^Level\s+(\d+)', content, re.MULTILINE)
+        if level_matches:
+            level_count = len(level_matches)
+        else:
+            print("Error: Could not detect level format in input file")
+            sys.exit(1)
+
+    print(f"Detected {level_count} levels in {input_file}")
+    print(f"Generating levels to {target_dir}/")
+
+    # Generate all levels
+    generate_sokoban_levels(input_file=input_file,
+                           start_level=1,
+                           end_level=level_count,
+                           auto_detect_format=True,
+                           output_dir=target_dir,
+                           total_levels=level_count)
+
+    print(f"Successfully generated {level_count} level files")
