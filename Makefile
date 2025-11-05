@@ -74,3 +74,38 @@ soko:
   done;\
   rm -f numbers.txt sokoban.txt
 
+# Testing targets using tmux (for remote/headless testing)
+# Usage examples:
+#   make test-start PROGRAM=programs/snake.cfg
+#   make test-capture SESSION=test
+#   make test-key SESSION=test KEY=space
+#   make test-stop SESSION=test
+
+TMUX_SESSION ?= test
+TMUX_WIDTH ?= 80
+TMUX_HEIGHT ?= 24
+PROGRAM ?= programs/snake.cfg
+
+test-start:
+	@echo "Starting $(PROGRAM) in tmux session '$(TMUX_SESSION)' ($(TMUX_WIDTH)x$(TMUX_HEIGHT))"
+	tmux new-session -d -s $(TMUX_SESSION) -x $(TMUX_WIDTH) -y $(TMUX_HEIGHT) 'TERM=screen ./zahradnice $(PROGRAM)'
+	@echo "Session started. Use 'make test-capture SESSION=$(TMUX_SESSION)' to view output."
+
+test-capture:
+	@echo "Capturing screen from tmux session '$(TMUX_SESSION)':"
+	@tmux capture-pane -t $(TMUX_SESSION) -p
+
+test-key:
+	@echo "Sending key '$(KEY)' to tmux session '$(TMUX_SESSION)'"
+	tmux send-keys -t $(TMUX_SESSION) '$(KEY)'
+
+test-stop:
+	@echo "Stopping tmux session '$(TMUX_SESSION)'"
+	tmux kill-session -t $(TMUX_SESSION)
+
+test-list:
+	@echo "Active tmux sessions:"
+	@tmux list-sessions 2>/dev/null || echo "No active sessions"
+
+.PHONY: test-start test-capture test-key test-stop test-list
+

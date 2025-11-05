@@ -19,9 +19,17 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 - `./zahradnice programs/snake.cfg` - Run specific program
 - `./zahradnice programs/life.cfg 42` - Run with specific seed for deterministic behavior
 
-**Dependencies:** C++14, ncurses, SDL2_mixer, zlib
+**Dependencies:**
+- Required: C++20, ncursesw (wide character support), zlib
+- Optional: SDL2_mixer (audio support - controlled by ENABLE_AUDIO flag)
 
-**No formal test suite** - testing relies on manual execution of demo programs.
+**Build variants:**
+- Default targets (no audio): `zahradnice-speed`, `zahradnice-debug`, `zahradnice-size`
+- Audio targets (requires SDL2_mixer): `zahradnice-speed-audio`, `zahradnice-debug-audio`, `zahradnice-size-audio`
+
+**Testing:** No formal test suite - testing relies on manual execution of demo programs.
+
+**Remote/headless testing:** Use tmux-based testing targets (see Testing section below).
 
 ## Architecture
 
@@ -67,6 +75,40 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 - `SPACE` - Unpause program execution
 - `x` - Reload current program
 - `B/M/T` - Manual step execution when paused (long/medium/instant)
+- `ESC` - Emergency exit (always works)
+- `q` - Quit (when paused and no rule matches)
+
+## Testing in Remote/Headless Environments
+
+**Tmux-based testing** (for environments without proper terminal support):
+
+```bash
+# Start a program in tmux session
+make test-start PROGRAM=programs/snake.cfg
+
+# Capture current screen state
+make test-capture SESSION=test
+
+# Send keypresses (e.g., unpause with space)
+make test-key SESSION=test KEY=space
+
+# Send arrow keys
+make test-key SESSION=test KEY=Up
+
+# List active sessions
+make test-list
+
+# Stop the session
+make test-stop SESSION=test
+```
+
+**Variables:**
+- `TMUX_SESSION` - Session name (default: test)
+- `TMUX_WIDTH` - Terminal width (default: 80)
+- `TMUX_HEIGHT` - Terminal height (default: 24)
+- `PROGRAM` - Program to run (default: programs/snake.cfg)
+
+**Note:** Avoid testing CPU-intensive programs like `programs/flowers.cfg` in automated environments as they animate continuously and consume significant resources.
 
 ## Development Patterns
 
