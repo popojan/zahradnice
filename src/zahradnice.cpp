@@ -4,7 +4,9 @@
 #include "grammar.h"
 #include <thread>
 #include <chrono>
+#ifdef ENABLE_AUDIO
 #include <SDL2/SDL_mixer.h>
+#endif
 #include "sample.h"
 #include <cstdlib>
 #include <algorithm>
@@ -127,11 +129,13 @@ int main(int argc, char *argv[]) {
     // Initialize global thread pool with command-line specified max threads
     Derivation::initializeGlobalThreadPool(max_threads);
 
+#ifdef ENABLE_AUDIO
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
     }
 
     Mix_AllocateChannels(32);
+#endif
 
     int score = 0;
     int steps = 0;
@@ -367,8 +371,10 @@ int main(int argc, char *argv[]) {
 
     endwin();
 
+#ifdef ENABLE_AUDIO
     Mix_CloseAudio();
     Mix_Quit();
+#endif
 
     return err;
 }

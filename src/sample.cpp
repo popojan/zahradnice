@@ -1,5 +1,6 @@
 #include "sample.h"
 
+#ifdef ENABLE_AUDIO
 sample::sample(const std::string &path, int volume)
     : chunk(Mix_LoadWAV(path.c_str()), Mix_FreeChunk) {
     if (!chunk.get()) {
@@ -22,3 +23,21 @@ void sample::play(int times) {
 void sample::set_volume(int volume) {
     Mix_VolumeChunk(chunk.get(), volume);
 }
+#else
+// Stub implementations when audio is disabled
+sample::sample(const std::string &path, int volume) {
+    // No-op
+}
+
+void sample::play() {
+    // No-op
+}
+
+void sample::play(int times) {
+    // No-op
+}
+
+void sample::set_volume(int volume) {
+    // No-op
+}
+#endif

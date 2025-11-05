@@ -5,7 +5,10 @@
 
 #include <string>
 #include <memory>
+
+#ifdef ENABLE_AUDIO
 #include <SDL2/SDL_mixer.h>
+#endif
 
 class sample {
 public:
@@ -18,7 +21,9 @@ public:
     void set_volume(int volume);
 
 private:
+#ifdef ENABLE_AUDIO
     std::unique_ptr<Mix_Chunk, void (*)(Mix_Chunk *)> chunk;
+#endif
 };
 
 #endif //SAMPLE_H

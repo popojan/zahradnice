@@ -1,14 +1,32 @@
+# Default build without audio (for systems without SDL2_mixer)
 all: zahradnice-speed
 
+# Speed-optimized build without audio
 zahradnice-speed:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s
+	g++ -std=c++20 src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s -lz -lncursesw
 
+# Debug build without audio
 zahradnice-debug:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O2 -g
+	g++ -std=c++20 src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O2 -g -lz -lncursesw
 
+# Size-optimized build without audio
 zahradnice-size:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
-   -ffunction-sections -fdata-sections -Wl,--gc-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto
+	g++ -std=c++20 src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
+   -ffunction-sections -fdata-sections -Wl,--gc-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto -lz -lncursesw
+	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
+
+# Speed-optimized build WITH audio (requires SDL2_mixer)
+zahradnice-speed-audio:
+	g++ -std=c++20 -DENABLE_AUDIO src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s -lz -lncursesw -lSDL2_mixer
+
+# Debug build WITH audio (requires SDL2_mixer)
+zahradnice-debug-audio:
+	g++ -std=c++20 -DENABLE_AUDIO src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O2 -g -lz -lncursesw -lSDL2_mixer
+
+# Size-optimized build WITH audio (requires SDL2_mixer)
+zahradnice-size-audio:
+	g++ -std=c++20 -DENABLE_AUDIO src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
+   -ffunction-sections -fdata-sections -Wl,--gc-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto -lz -lncursesw -lSDL2_mixer
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
 
 RELEASE_DIR=release
