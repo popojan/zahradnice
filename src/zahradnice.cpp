@@ -580,9 +580,6 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                else if (wch == L'T') {
-                    std::this_thread::sleep_for(std::chrono::milliseconds{50});
-                }
                 last = wch;
             }
 
