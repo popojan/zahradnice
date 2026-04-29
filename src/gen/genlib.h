@@ -110,6 +110,13 @@ std::string emit_body_horizontal(const LhsPattern& lhs, const RhsPattern& rhs);
 // Compose: header + newline + body.
 std::string emit_rule(const Header&, const std::string& body);
 
+// Emit a `#color <key> <code>[,<attr>]` directive declaring a colour alias
+// usable in Header.fore / Header.back. Generators that want self-documenting
+// generated cfg should emit these once at the program top and reference the
+// alias char in headers.
+std::string emit_color_alias(wchar_t key, int code,
+                             std::optional<std::string> attr = std::nullopt);
+
 // --- Geometry primitives (general; not tied to any specific game) ---
 //
 // Generators that need richer models (piece-orientation bundles, rotation

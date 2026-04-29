@@ -22,7 +22,9 @@ struct Orientation {
 
 struct Piece {
     wchar_t glyph;
-    std::string colour;
+    std::string colour;                       // human-readable name (comments)
+    int color_code = 7;                       // curses fg code 0-7
+    std::optional<std::string> color_attr;    // BOLD / DIM if set
     std::vector<Orientation> orientations;
     int spawn_idx = 0;
     std::vector<int> rotation_chain;
@@ -41,12 +43,20 @@ struct TetrisSyms {
 
 static const TetrisSyms syms;
 
+// Build a header pre-loaded with the piece's colour alias (the glyph itself,
+// declared via #color directives at the top of main()).
+static g::Header coloured(const Piece& p, wchar_t lhs, wchar_t trigger, g::Write replace) {
+    auto h = g::header(lhs, trigger, replace);
+    h.fore = static_cast<char>(p.glyph);
+    return h;
+}
+
 // --- Piece data (matches Python POC byte-for-byte) ---
 
 static std::vector<Piece> all_pieces() {
     return {
         Piece{
-            L'I', "cyan",
+            L'I', "cyan", 6, {},
             {
                 {"H", g::Shape{{{0,0},{0,1},{0,2},{0,3}}, {0,0}}, {0,1}},
                 {"V", g::Shape{{{0,0},{1,0},{2,0},{3,0}}, {0,0}}, {1,0}},
@@ -54,7 +64,7 @@ static std::vector<Piece> all_pieces() {
             0, {0, 1},
         },
         Piece{
-            L'T', "magenta",
+            L'T', "magenta", 5, {},
             {
                 {"T0", g::Shape{{{0,1},{1,0},{1,1},{1,2}}, {0,1}}, {1,1}},
                 {"T1", g::Shape{{{0,0},{1,0},{1,1},{2,0}}, {0,0}}, {1,0}},
@@ -62,6 +72,50 @@ static std::vector<Piece> all_pieces() {
                 {"T3", g::Shape{{{0,1},{1,0},{1,1},{2,1}}, {0,1}}, {1,1}},
             },
             0, {0, 1, 2, 3},
+        },
+        Piece{
+            L'J', "blue", 4, {},
+            {
+                {"J0", g::Shape{{{0,0},{1,0},{1,1},{1,2}}, {0,0}}, {1,1}},
+                {"J1", g::Shape{{{0,0},{0,1},{1,0},{2,0}}, {0,0}}, {1,0}},
+                {"J2", g::Shape{{{0,0},{0,1},{0,2},{1,2}}, {0,0}}, {0,1}},
+                {"J3", g::Shape{{{0,1},{1,1},{2,0},{2,1}}, {0,1}}, {1,1}},
+            },
+            0, {0, 1, 2, 3},
+        },
+        // L: mirror of J — bright yellow stands in for orange
+        Piece{
+            L'L', "orange", 3, std::string("BOLD"),
+            {
+                {"L0", g::Shape{{{0,2},{1,0},{1,1},{1,2}}, {0,2}}, {1,1}},
+                {"L1", g::Shape{{{0,0},{1,0},{2,0},{2,1}}, {0,0}}, {1,0}},
+                {"L2", g::Shape{{{0,0},{0,1},{0,2},{1,0}}, {0,0}}, {0,1}},
+                {"L3", g::Shape{{{0,0},{0,1},{1,1},{2,1}}, {0,0}}, {1,1}},
+            },
+            0, {0, 1, 2, 3},
+        },
+        Piece{
+            L'O', "yellow", 3, {},
+            {
+                {"O0", g::Shape{{{0,0},{0,1},{1,0},{1,1}}, {0,0}}, {0,0}},
+            },
+            0, {},
+        },
+        Piece{
+            L'S', "green", 2, {},
+            {
+                {"S0", g::Shape{{{0,1},{0,2},{1,0},{1,1}}, {0,1}}, {1,1}},
+                {"S1", g::Shape{{{0,0},{1,0},{1,1},{2,1}}, {0,0}}, {1,1}},
+            },
+            0, {0, 1},
+        },
+        Piece{
+            L'Z', "red", 1, {},
+            {
+                {"Z0", g::Shape{{{0,0},{0,1},{1,1},{1,2}}, {0,0}}, {1,1}},
+                {"Z1", g::Shape{{{0,1},{1,0},{1,1},{2,0}}, {0,1}}, {1,1}},
+            },
+            0, {0, 1},
         },
     };
 }
@@ -120,7 +174,7 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
     g::RhsPattern rhs;
     g::mark_each(rhs, siblings, g::put(p.glyph));
 
-    return g::emit_rule(g::header(syms.walker, L'f', g::put(p.glyph)),
+    return g::emit_rule(coloured(p, syms.walker, L'f', g::put(p.glyph)),
                         g::emit_body_horizontal(lhs, rhs));
 }
 
@@ -137,7 +191,7 @@ static std::string emit_fall(const Piece& p, const Orientation& o) {
     g::mark_each(rhs, g::difference(md.erase, {{0, 0}}), g::erase());
     g::mark_each(rhs, md.write, g::put(p.glyph));
 
-    return g::emit_rule(g::header(p.glyph, L'g', g::erase()),
+    return g::emit_rule(coloured(p, p.glyph, L'g', g::erase()),
                         g::emit_body_vertical(lhs, rhs));
 }
 
@@ -154,7 +208,7 @@ static std::vector<std::string> emit_freeze(const Piece& p, const Orientation& o
         rhs[{-1, 0}] = g::put(syms.walker);
         g::mark_each(rhs, g::difference(cells, {{0, 0}}), g::put(syms.frozen));
 
-        auto h = g::header(p.glyph, L'g', g::put(syms.frozen));
+        auto h = coloured(p, p.glyph, L'g', g::put(syms.frozen));
         h.ctx = syms.wall;
         h.ctxrep = syms.frozen;
 
@@ -177,7 +231,7 @@ static std::string emit_lateral(const Piece& p, const Orientation& o, int dc) {
     g::mark_each(rhs, md.write, g::put(p.glyph));
 
     wchar_t trigger = (dc < 0) ? L'a' : L'd';
-    return g::emit_rule(g::header(p.glyph, trigger, g::replace_for_move(new_cells, p.glyph)),
+    return g::emit_rule(coloured(p, p.glyph, trigger, g::replace_for_move(new_cells, p.glyph)),
                         g::emit_body_horizontal(lhs, rhs));
 }
 
@@ -211,7 +265,7 @@ static std::string emit_rotation(const Piece& p, const Orientation& from,
                                  const Orientation& to, wchar_t trigger) {
     auto [lhs, rhs] = rotation_patterns(p, from, to);
     auto replace = g::replace_for_move(to_cells_in_from_frame(from, to), p.glyph);
-    return g::emit_rule(g::header(p.glyph, trigger, replace),
+    return g::emit_rule(coloured(p, p.glyph, trigger, replace),
                         g::emit_body_horizontal(lhs, rhs));
 }
 
@@ -249,8 +303,8 @@ static std::string emit_piece(const Piece& p) {
                 auto replace = g::replace_for_move(to_cells_in_from_frame(from_o, to_o), p.glyph);
 
                 out << "# " << from_o.name << " <-> " << to_o.name << " (CW & CCW share body)\n";
-                out << g::emit_header(g::header(p.glyph, L'w', replace)) << "\n";
-                out << g::emit_rule(g::header(p.glyph, L'e', replace),
+                out << g::emit_header(coloured(p, p.glyph, L'w', replace)) << "\n";
+                out << g::emit_rule(coloured(p, p.glyph, L'e', replace),
                                     g::emit_body_horizontal(lhs, rhs)) << "\n";
             } else {
                 out << "# " << from_o.name << " -> " << p.orientations[cw_i].name << " (CW)\n";
@@ -310,8 +364,18 @@ R
 )";
 
 int main() {
+    auto pieces = all_pieces();
+
     std::cout << FRAMEWORK << "\n";
-    for (auto& p : all_pieces()) {
+
+    std::cout << "# === Colour palette ===\n";
+    for (auto& p : pieces) {
+        std::cout << g::emit_color_alias(p.glyph, p.color_code, p.color_attr)
+                  << "  # " << p.colour << "\n";
+    }
+    std::cout << "\n";
+
+    for (auto& p : pieces) {
         std::cout << emit_piece(p) << "\n";
     }
     return 0;

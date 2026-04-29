@@ -167,6 +167,15 @@ std::string emit_rule(const Header& h, const std::string& body) {
     return emit_header(h) + '\n' + body;
 }
 
+std::string emit_color_alias(wchar_t key, int code, std::optional<std::string> attr) {
+    std::string out = "#color ";
+    out.push_back(static_cast<char>(key));
+    out.push_back(' ');
+    out += std::to_string(code);
+    if (attr) { out.push_back(','); out += *attr; }
+    return out;
+}
+
 // --- Geometry primitives ---
 
 std::vector<Cell> terminal_cells(const Shape& s, int grid_w, int grid_h) {
