@@ -66,22 +66,13 @@ static std::vector<Piece> all_pieces() {
     };
 }
 
-// --- Geometry helpers built on genlib primitives ---
+// --- Geometry helpers ---
 
-// Set-style operations for cell collections.
-using CellSet = std::set<g::Cell>;
-
-static CellSet to_set(const std::vector<g::Cell>& v) { return CellSet(v.begin(), v.end()); }
-
-static CellSet diff(const CellSet& a, const CellSet& b) {
-    CellSet out;
-    for (auto& c : a) if (!b.count(c)) out.insert(c);
-    return out;
-}
+using g::CellSet;
 
 // Terminal-cells of an Orientation, using the tetris #grid 2 1 convention.
 static CellSet terminal_set(const Orientation& o) {
-    return to_set(g::terminal_cells(o.shape, /*grid_w=*/2, /*grid_h=*/1));
+    return g::as_set(g::terminal_cells(o.shape, /*grid_w=*/2, /*grid_h=*/1));
 }
 
 // One cell per piece-cell-pair directly below the piece (left terminal col).
@@ -142,11 +133,11 @@ static std::string emit_fall(const Piece& p, const Orientation& o) {
     CellSet new_cells;
     for (auto& c : old_cells) new_cells.emplace(c.first + 1, c.second);
 
-    auto erase_cells = diff(diff(old_cells, new_cells), {{0, 0}});
-    auto write_cells = diff(new_cells, old_cells);
+    auto erase_cells = g::difference(g::difference(old_cells, new_cells), {{0, 0}});
+    auto write_cells = g::difference(new_cells, old_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : diff(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
+    for (auto& c : g::difference(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
     for (auto& c : below_all(o)) lhs[c] = g::empty();
 
     g::RhsPattern rhs;
@@ -167,12 +158,12 @@ static std::vector<std::string> emit_freeze(const Piece& p, const Orientation& o
     for (auto& below_cell : below_2col_aligned(o)) {
         g::LhsPattern lhs;
         lhs[{-1, 0}] = g::empty();  // R needs space to be written
-        for (auto& c : diff(cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
+        for (auto& c : g::difference(cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
         lhs[below_cell] = g::ctx_or_rep();  // wall (field 6) OR frozen (field 7)
 
         g::RhsPattern rhs;
         rhs[{-1, 0}] = g::put(syms.walker);
-        for (auto& c : diff(cells, {{0, 0}})) rhs[c] = g::put(syms.frozen);
+        for (auto& c : g::difference(cells, {{0, 0}})) rhs[c] = g::put(syms.frozen);
 
         g::Header h;
         h.lhs = p.glyph;
@@ -191,15 +182,15 @@ static std::string emit_lateral(const Piece& p, const Orientation& o, int dc) {
     CellSet new_cells;
     for (auto& c : old_cells) new_cells.emplace(c.first, c.second + dc);
 
-    auto erase_cells = diff(old_cells, new_cells);
-    auto write_cells = diff(new_cells, old_cells);
+    auto erase_cells = g::difference(old_cells, new_cells);
+    auto write_cells = g::difference(new_cells, old_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : diff(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
+    for (auto& c : g::difference(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
     for (auto& c : write_cells) lhs[c] = g::empty();
 
     g::RhsPattern rhs;
-    for (auto& c : diff(erase_cells, {{0, 0}})) rhs[c] = g::erase();
+    for (auto& c : g::difference(erase_cells, {{0, 0}})) rhs[c] = g::erase();
     for (auto& c : write_cells) rhs[c] = g::put(p.glyph);
 
     g::Header h;
@@ -222,15 +213,15 @@ rotation_patterns(const Piece& p, const Orientation& from, const Orientation& to
     for (auto& c : terminal_set(to)) to_cells_in_from.emplace(c.first + sh.first,
                                                               c.second + sh.second);
 
-    auto erase_cells = diff(from_cells, to_cells_in_from);
-    auto write_cells = diff(to_cells_in_from, from_cells);
+    auto erase_cells = g::difference(from_cells, to_cells_in_from);
+    auto write_cells = g::difference(to_cells_in_from, from_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : diff(from_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
+    for (auto& c : g::difference(from_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
     for (auto& c : write_cells) lhs[c] = g::empty();
 
     g::RhsPattern rhs;
-    for (auto& c : diff(erase_cells, {{0, 0}})) rhs[c] = g::erase();
+    for (auto& c : g::difference(erase_cells, {{0, 0}})) rhs[c] = g::erase();
     for (auto& c : write_cells) rhs[c] = g::put(p.glyph);
 
     return {lhs, rhs};

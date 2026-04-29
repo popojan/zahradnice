@@ -191,6 +191,18 @@ std::vector<Cell> shifted(const std::vector<Cell>& cells, int dr, int dc) {
     return out;
 }
 
+CellSet shifted(const CellSet& cells, int dr, int dc) {
+    CellSet out;
+    for (auto& c : cells) out.emplace(c.first + dr, c.second + dc);
+    return out;
+}
+
+CellSet difference(const CellSet& a, const CellSet& b) {
+    CellSet out;
+    for (auto& c : a) if (!b.count(c)) out.insert(c);
+    return out;
+}
+
 Cell rotation_anchor_shift(Cell from_anchor, Cell from_pivot,
                            Cell to_anchor,   Cell to_pivot,
                            int grid_w, int grid_h) {

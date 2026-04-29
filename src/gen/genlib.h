@@ -6,6 +6,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,6 +14,7 @@
 namespace genlib {
 
 using Cell = std::pair<int, int>;  // (dr, dc) offset from rule anchor
+using CellSet = std::set<Cell>;
 
 // LHS cell predicate. The grammar's expressive power, named.
 struct Match {
@@ -114,6 +116,13 @@ std::vector<Cell> terminal_cells(const Shape&, int grid_w = 1, int grid_h = 1);
 
 // Translate every cell by (dr, dc). Used by lateral moves, falls, etc.
 std::vector<Cell> shifted(const std::vector<Cell>&, int dr, int dc);
+CellSet            shifted(const CellSet&,           int dr, int dc);
+
+// Convert vector of cells to a set (for spatial set-ops below).
+inline CellSet as_set(const std::vector<Cell>& v) { return CellSet(v.begin(), v.end()); }
+
+// Set difference: cells in `a` but not in `b`.
+CellSet difference(const CellSet& a, const CellSet& b);
 
 // When rotating with the screen pivot fixed, how the screen anchor must
 // shift. Inputs are piece-cell coords; output is terminal-cell coords.
