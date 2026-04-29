@@ -176,6 +176,171 @@ A bonus consequence: emitted bodies *visually contain the original art*
 because the diff's RHS occupies the same body-grid positions as the source
 ASCII. Generated `.cfg` files read like authored ones.
 
+## Pattern cookbook
+
+Recipes for the recurring shapes that have appeared across multiple generators
+or are worth reaching for as named idioms. Each entry: *use case → code →
+why it works → when not to use*. Cross-references to
+[`GRAMMAR-pitfalls.md`](../../GRAMMAR-pitfalls.md) where relevant.
+
+### 1. One-shot lowercase→uppercase converter
+
+**Use case.** Paint static scenery (walls, beacons, decorations) once without
+firing the rule every f-tick.
+
+```cpp
+// Seed places lowercase 'h' at every wall cell.
+// Converter fires once per cell, replacing 'h' with 'H' + bg=white.
+// After conversion, lowercase cells are gone — the rule never refires.
+auto h = g::header(L'h', L'f', g::put(L'H'));
+h.fore = '7';
+h.back = '7';                  // bg=white for the wall; or piece colour
+g::LhsPattern lhs;             // empty: no extra context
+g::RhsPattern rhs;             // empty: header.replace handles the write
+std::cout << g::emit_rule(h, g::emit_body_horizontal(lhs, rhs));
+// Emits:  ==hfH77 \n @@@
+```
+
+**Why it works.** A render rule that always matches always fires
+(see pitfalls §4). The lowercase glyph acts as a *single-use trigger*:
+once converted, the LHS no longer matches that cell. Any number of
+cells can be "primed" by the seed; each gets exactly one rule
+application.
+
+**Don't use.** When the rendered cell legitimately needs to change every
+frame (e.g. a blinking caret).
+
+### 2. Full-body atomic per-orientation render
+
+**Use case.** Rendering a multi-cell sprite (tetris piece, animated
+character) atomically — every body cell painted in **one** rule application
+to avoid the partial-piece flicker that comes from per-cell rules racing
+across multiple ticks.
+
+```cpp
+// Move / spawn rules write LOWERCASE body cells (the "dirty" / unrendered
+// state). The render rule matches all-lowercase and writes uppercase +
+// bg=alias.  Per orientation, one render rule.
+auto cells = terminal_set(orientation);
+auto seed  = std::tolower(piece.glyph);
+
+g::LhsPattern lhs;
+g::RhsPattern rhs;
+for (auto& c : g::difference(cells, {{0, 0}})) {
+    lhs[c] = g::lit(seed);          // expects lowercase (just-moved) state
+    rhs[c] = g::put(piece.glyph);   // writes uppercase + bg=alias
+}
+
+auto h = g::header(seed, L'f', g::put(piece.glyph));
+h.fore = static_cast<char>(piece.glyph);
+h.back = static_cast<char>(piece.glyph);   // bg=alias dictionary lookup
+
+std::cout << g::emit_rule(h, g::emit_body_horizontal(lhs, rhs));
+```
+
+**Why it works.** The match-once-then-vanish trick from Recipe 1, scaled
+to a multi-cell shape. After the render fires, lowercase cells are gone;
+the render rule cannot refire until another move re-introduces the seed.
+Every body cell is written in one rule application — visually atomic.
+
+**Don't use.** Single-cell sprites where flicker isn't observable — a
+plain idempotent painter is simpler. Or sprites whose colour changes
+every frame independent of position — a different mechanism is needed.
+
+### 3. X+colour 2-col-aligned pair encoding
+
+**Use case.** Pieces freeze and stack; line-clear gravity must shift frozen
+cells down preserving their piece colour.
+
+**Encoding.** Each frozen piece-cell occupies a 2-col-aligned terminal
+**pair**: `X` (universal frozen marker) at the even col, the piece glyph
+(`I`/`T`/`J`/`L`/`O`/`S`/`Z`) at the odd col. The piece glyph is what
+carries the colour; X is what the gravity rule pivots on.
+
+```cpp
+// Freeze writes lowercase x + lowercase piece-glyph (per Recipe 1, then
+// a converter promotes them).
+for (auto& c : g::difference(piece_cells, {{0, 0}})) {
+    rhs[c] = (c.second % 2 == 0)
+        ? g::put(L'x')                           // even col → x marker
+        : g::put(std::tolower(piece.glyph));     // odd col → colour glyph
+}
+```
+
+**Line-clear gravity rule** (one header per piece colour, all sharing
+one body):
+
+```cpp
+for (auto& p : pieces) {
+    auto h = g::header(syms.frozen, L'f', g::put(syms.gravity));
+    h.ctx    = p.glyph;                           // upper-case glyph at +1
+    h.ctxrep = std::tolower(p.glyph);             // lower-case after shift
+    h.back   = '0';                               // CRITICAL: clear trail bg
+    // shared body uses `&` (write_ctx) at (1, +1) to drop the colour
+    // glyph one row down.
+}
+```
+
+**Why it works.** `&` cells in RHS write `header.ctxrep`. Each stacked
+header sets ctx/ctxrep to its piece colour, so the same body-shape rule
+serves all 7 colours. The X marker uniformly anchors the gravity logic;
+the colour glyph rides along.
+
+**Don't use.** Single-colour stack mechanics — just one glyph suffices,
+no pair needed.
+
+**Pitfall reference.** §15 of `GRAMMAR-pitfalls.md`: every gravity-shift
+rule must set `back='0'` to reset memory bg of vacated cells, otherwise
+ghost-coloured trails appear above the new stack top.
+
+### 4. `^` memory-restore signal propagation
+
+**Use case.** A non-terminal needs to traverse the playfield **without
+disturbing** the cells it passes through. The motivating use is the
+post-freeze walker (Bug B fix in tetris2): R can't safely walk up
+through frozen X cells, but `^` can tunnel through them.
+
+```cpp
+// `^` rises through any cell of class C (e.g. empty, or X), one cell per
+// f-tick. Header replace=$ restores the LHS anchor cell from memory;
+// back=8 displays via saved bg. Body's `&` cell at (-1, 0) matches "above
+// must equal ctx (= the cell class to tunnel through)".
+auto h = g::header(L'^', L'f', g::write_memory());
+h.fore = '7';
+h.back = '8';                  // transparent: use saved bg
+h.ctx  = L'~';                 // tunnel through empty (use L'X' for stack)
+
+g::LhsPattern lhs;
+lhs[{-1, 0}] = g::ctx();       // above must equal ctx
+g::RhsPattern rhs;
+rhs[{-1, 0}] = g::put(L'^');   // write signal one cell up
+
+std::cout << g::emit_rule(h, g::emit_body_vertical(lhs, rhs));
+// Pair with a second rule (ctx=X) to also tunnel through frozen stack.
+// Pair with arrival rules (ctx=H/C, replace=R) for stop conditions.
+```
+
+**Why it works.** GRAMMAR.v2.md §Local memory: writing a non-terminal
+updates only the *background* of memory; the saved char + colours are
+preserved. When the rule's `replace=$` restores the LHS anchor, the
+cell reappears verbatim. The signal moves; the scenery is untouched.
+
+**Don't use.** When traversed cells *should* be erased (use
+`replace=erase()` and a normal walker). Or when the signal needs to
+react to scenery in flight (then it's a more complex state machine,
+not a tunnel).
+
+**Pitfall reference.** §5 of `GRAMMAR-pitfalls.md`. The original
+`programs/tetris/tetris.cfg` rule `==^T$78-` (line 958) is the
+canonical implementation; this recipe is the genlib-vocabulary form.
+
+---
+
+When a fifth recurring pattern appears in two or more generators, add it
+here. The recipe format is deliberate: if you can't fill in *use case →
+code → why → when not to use*, the pattern isn't crystallised yet — keep
+it inside the consuming generator until it is.
+
 ## What's NOT here yet
 
 Promoted only when a future use case confirms the abstraction:
