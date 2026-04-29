@@ -178,6 +178,32 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
                         g::emit_body_horizontal(lhs, rhs));
 }
 
+// Line clearing: a full playfield row of 20 # cells is erased, then
+// frozen cells above the empty row drop one row at a time (gravity).
+static std::string emit_line_clear() {
+    std::ostringstream out;
+    constexpr int ROW_W = 20;  // playfield interior width in terminal cols
+    out << "# === Line clear: 20 contiguous # cells in a row -> erase ===\n";
+    {
+        g::LhsPattern lhs;
+        for (int c = 1; c < ROW_W; ++c) lhs[{0, c}] = g::lit(syms.frozen);
+        g::RhsPattern rhs;
+        for (int c = 1; c < ROW_W; ++c) rhs[{0, c}] = g::erase();
+        out << g::emit_rule(g::header(syms.frozen, L'f', g::erase()),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
+    }
+    out << "# === Gravity: # with empty cell below drops one row ===\n";
+    {
+        g::LhsPattern lhs;
+        lhs[{1, 0}] = g::empty();
+        g::RhsPattern rhs;
+        rhs[{1, 0}] = g::put(syms.frozen);
+        out << g::emit_rule(g::header(syms.frozen, L'f', g::erase()),
+                            g::emit_body_vertical(lhs, rhs)) << "\n";
+    }
+    return out.str();
+}
+
 // Walker state machine: R walks up; at top row, walks left to wall, becomes Q,
 // walks right; arriving below the C beacon, Q becomes R so spawn fires.
 static std::string emit_walker_state_machine() {
@@ -423,6 +449,7 @@ int main() {
     std::cout << FRAMEWORK << "\n";
 
     std::cout << emit_walker_state_machine() << "\n";
+    std::cout << emit_line_clear() << "\n";
 
     std::cout << "# === Colour palette ===\n";
     for (auto& p : pieces) {
