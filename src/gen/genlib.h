@@ -148,4 +148,54 @@ Cell rotation_anchor_shift(Cell from_anchor, Cell from_pivot,
                            Cell to_anchor,   Cell to_pivot,
                            int grid_w = 1, int grid_h = 1);
 
+// --- Move-diff helpers ---
+//
+// "Rule that moves a shape" pattern: given old (matched) and new (target)
+// cell sets relative to the rule anchor, the minimum-RHS rule erases cells
+// in old\new and writes cells in new\old.
+
+struct MoveDiff {
+    CellSet erase;  // cells in old \ new (caller may want to drop {0,0})
+    CellSet write;  // cells in new \ old
+};
+inline MoveDiff move_diff(const CellSet& old_cells, const CellSet& new_cells) {
+    return { difference(old_cells, new_cells), difference(new_cells, old_cells) };
+}
+
+// Header.replace decision when the anchor is at (0, 0): if the new shape
+// covers the anchor, write the glyph; otherwise erase. (Tetris fall/lateral
+// /rotation all repeat this.)
+inline Write replace_for_move(const CellSet& new_cells, wchar_t glyph) {
+    return new_cells.count({0, 0}) ? put(glyph) : erase();
+}
+
+// --- ASCII art loader ---
+//
+// Parse multi-line ASCII art into cell maps relative to an anchor marker.
+// Spaces are treated as no-cell. The anchor marker (default '@') identifies
+// the cell that becomes (0, 0) in the output; it's excluded from the cells.
+//
+// Designed so generators emit big-body sprite/animation rules without
+// hand-listing every cell. Architectural reservation in earlier sessions
+// was: keep emit_body_* taking patterns directly so a future loader slots
+// in — that future is now.
+
+using ArtMap = std::map<Cell, wchar_t>;
+
+ArtMap parse_art(const std::string& art, char anchor_marker = '@');
+
+// Every cell in the art becomes a literal-char Match.
+LhsPattern art_lhs(const std::string& art, char anchor_marker = '@');
+
+// Every cell in the art becomes a put-char Write.
+RhsPattern art_rhs(const std::string& art, char anchor_marker = '@');
+
+// Diff two frames into a minimum-rule (LHS = full frame_a, RHS = changed cells).
+// Cells in (a \ b) are erased; cells in (b \ a) are written; cells where
+// position is in both but glyph differs become put(b's glyph). Cells unchanged
+// across frames are absent from RHS (preserve).
+struct DiffResult { LhsPattern lhs; RhsPattern rhs; };
+DiffResult art_frame_diff(const std::string& frame_a, const std::string& frame_b,
+                          char anchor_marker = '@');
+
 }  // namespace genlib

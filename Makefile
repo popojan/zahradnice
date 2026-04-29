@@ -54,6 +54,12 @@ build/animation_gen.o: src/gen/animation_gen.cpp src/gen/genlib.h | build
 build/animation_gen: build/animation_gen.o build/libgenlib.a
 	$(CXX) $(STD) -O2 $^ -o $@
 
+build/walker_gen.o: src/gen/walker_gen.cpp src/gen/genlib.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+build/walker_gen: build/walker_gen.o build/libgenlib.a
+	$(CXX) $(STD) -O2 $^ -o $@
+
 # --- engine ---
 
 zahradnice-speed: build/libgrammar-speed.a

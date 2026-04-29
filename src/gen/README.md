@@ -125,26 +125,77 @@ Used in every rule emission to avoid the `for (cell : cells) p[cell] = …`
 boilerplate. Accepts `std::vector<Cell>`, `CellSet`, or any iterable of
 `Cell`.
 
+## Move-diff helpers
+
+For any rule that moves a shape (tetris fall/lateral/rotation, animation
+frame transition, hypothetical sokoban box-push):
+
+```cpp
+struct MoveDiff { CellSet erase, write; };
+MoveDiff move_diff(const CellSet& old_cells, const CellSet& new_cells);
+
+// Header.replace decision: glyph if new shape covers anchor, else erase.
+Write replace_for_move(const CellSet& new_cells, wchar_t glyph);
+```
+
+`move_diff` returns the minimum-RHS sets — caller still drops `{0, 0}` from
+`erase` if the anchor is handled by `Header.replace` (typical for tetris).
+
+## ASCII art loader
+
+For sprite scenery and animation frames where cell-list construction is
+tedious:
+
+```cpp
+using ArtMap = std::map<Cell, wchar_t>;
+ArtMap parse_art(const std::string& art, char anchor_marker = '@');
+
+LhsPattern art_lhs(const std::string& art, char anchor_marker = '@');
+RhsPattern art_rhs(const std::string& art, char anchor_marker = '@');
+
+struct DiffResult { LhsPattern lhs; RhsPattern rhs; };
+DiffResult art_frame_diff(const std::string& a, const std::string& b,
+                          char anchor_marker = '@');
+```
+
+The marker char identifies the anchor cell (becomes `(0, 0)` in patterns).
+Spaces are no-cell. Every other char becomes a literal-glyph cell.
+
+`art_frame_diff` is the canonical animation builder: LHS = full frame_a;
+RHS = erase cells in `a \ b`, put cells in `b \ a`, put the new glyph where
+the position is in both but the glyph differs. Cells unchanged across
+frames produce no RHS entry (preserve).
+
+```cpp
+auto d = g::art_frame_diff(frame_a, frame_b);
+std::cout << g::emit_rule(g::header(L'Y', L'T', g::put(L'Z')),
+                          g::emit_body_vertical(d.lhs, d.rhs));
+```
+
+A bonus consequence: emitted bodies *visually contain the original art*
+because the diff's RHS occupies the same body-grid positions as the source
+ASCII. Generated `.cfg` files read like authored ones.
+
 ## What's NOT here yet
 
-Promoted only when 2nd or 3rd generator confirms the abstraction:
+Promoted only when a future use case confirms the abstraction:
 
-- **Move-diff helper** (`old_cells`, `new_cells` → `{erase, write}`). Tetris
-  fall/lateral/rotation all do this; will lift once snake's head-step
-  confirms the same shape generalises.
-- **Art loader**. Loading multi-line ASCII blocks as `LhsPattern`/`RhsPattern`
-  with substitution. Highnoon-scale sprites force this; today's animations
-  use tiny inline cell lists. Architectural reservation: `LhsPattern` is
-  externally constructible and `emit_body_*` accepts the pattern directly,
-  so a future `art_to_pattern(...)` slots in without breaking the API.
-- **Shared types with `libgrammar`**. The `ColorSpec` lift, the cell-predicate
-  vocabulary header — defer to when the linter lands and a `grammar_vocab.h`
-  contract becomes natural.
+- **Snake-step helpers** (head-direction-encoded glyphs, body trail). Triggers:
+  snake_gen.
+- **Multi-frame loop emission** (frame array → cyclic transition rule chain).
+  Today the user composes diffs themselves. Trigger: a 3+ frame walking
+  animation generator.
+- **Shared types with `libgrammar`** (`ColorSpec` lift, `grammar_vocab.h`
+  predicate enum). Trigger: linter lands.
+- **Linter / validation harness**. Stays a separate binary linking
+  `libgrammar.a`.
 
 ## Reference generators
 
-- `tetris_gen.cpp` — full I+T tetromino set (spawn, fall, freeze, lateral,
-  rotation). Byte-identical to `scripts/tetris_generator.py`.
-- `animation_gen.cpp` — minimal frame-flip-flop animation; demonstrates
-  Header.replace as state flip-flop and the indent-escape on `^`-leading
-  lines.
+- `tetris_gen.cpp` — full I+T tetromino set; byte-identical to the Python
+  POC. Demonstrates `move_diff`, `replace_for_move`, geometry primitives.
+- `animation_gen.cpp` — minimal frame-flip-flop using *programmatic cell
+  lists*. Useful when the shape is computed, not drawn.
+- `walker_gen.cpp` — same animation idiom using the *art loader*. The
+  frames are inline raw strings; emitted rule bodies match the original
+  art visually. The recommended pattern for sprite/scenery generators.

@@ -126,19 +126,16 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
 
 static std::string emit_fall(const Piece& p, const Orientation& o) {
     auto old_cells = terminal_set(o);
-    CellSet new_cells;
-    for (auto& c : old_cells) new_cells.emplace(c.first + 1, c.second);
-
-    auto erase_cells = g::difference(g::difference(old_cells, new_cells), {{0, 0}});
-    auto write_cells = g::difference(new_cells, old_cells);
+    auto new_cells = g::shifted(old_cells, 1, 0);
+    auto md = g::move_diff(old_cells, new_cells);
 
     g::LhsPattern lhs;
     g::mark_each(lhs, g::difference(old_cells, {{0, 0}}), g::lit(p.glyph));
     g::mark_each(lhs, below_all(o), g::empty());
 
     g::RhsPattern rhs;
-    g::mark_each(rhs, erase_cells, g::erase());
-    g::mark_each(rhs, write_cells, g::put(p.glyph));
+    g::mark_each(rhs, g::difference(md.erase, {{0, 0}}), g::erase());
+    g::mark_each(rhs, md.write, g::put(p.glyph));
 
     return g::emit_rule(g::header(p.glyph, L'g', g::erase()),
                         g::emit_body_vertical(lhs, rhs));
@@ -168,64 +165,52 @@ static std::vector<std::string> emit_freeze(const Piece& p, const Orientation& o
 
 static std::string emit_lateral(const Piece& p, const Orientation& o, int dc) {
     auto old_cells = terminal_set(o);
-    CellSet new_cells;
-    for (auto& c : old_cells) new_cells.emplace(c.first, c.second + dc);
-
-    auto erase_cells = g::difference(old_cells, new_cells);
-    auto write_cells = g::difference(new_cells, old_cells);
+    auto new_cells = g::shifted(old_cells, 0, dc);
+    auto md = g::move_diff(old_cells, new_cells);
 
     g::LhsPattern lhs;
     g::mark_each(lhs, g::difference(old_cells, {{0, 0}}), g::lit(p.glyph));
-    g::mark_each(lhs, write_cells, g::empty());
+    g::mark_each(lhs, md.write, g::empty());
 
     g::RhsPattern rhs;
-    g::mark_each(rhs, g::difference(erase_cells, {{0, 0}}), g::erase());
-    g::mark_each(rhs, write_cells, g::put(p.glyph));
+    g::mark_each(rhs, g::difference(md.erase, {{0, 0}}), g::erase());
+    g::mark_each(rhs, md.write, g::put(p.glyph));
 
     wchar_t trigger = (dc < 0) ? L'a' : L'd';
-    auto replace = new_cells.count({0, 0}) ? g::put(p.glyph) : g::erase();
-    return g::emit_rule(g::header(p.glyph, trigger, replace),
+    return g::emit_rule(g::header(p.glyph, trigger, g::replace_for_move(new_cells, p.glyph)),
                         g::emit_body_horizontal(lhs, rhs));
 }
 
-// Pre-shaped rotation move: from-cells stay relative to from-anchor, but
-// to-cells are shifted by rotation_anchor_shift so the screen pivot is fixed.
-static std::pair<g::LhsPattern, g::RhsPattern>
-rotation_patterns(const Piece& p, const Orientation& from, const Orientation& to) {
-    auto from_cells = terminal_set(from);
+// Pre-shaped rotation move: cells of `to` are shifted into `from`'s anchor
+// frame so the screen pivot stays put.
+static CellSet to_cells_in_from_frame(const Orientation& from, const Orientation& to) {
     auto sh = g::rotation_anchor_shift(from.shape.anchor, from.pivot,
                                        to.shape.anchor,   to.pivot,
                                        /*grid_w=*/2, /*grid_h=*/1);
-    CellSet to_cells_in_from;
-    for (auto& c : terminal_set(to)) to_cells_in_from.emplace(c.first + sh.first,
-                                                              c.second + sh.second);
+    return g::shifted(terminal_set(to), sh.first, sh.second);
+}
 
-    auto erase_cells = g::difference(from_cells, to_cells_in_from);
-    auto write_cells = g::difference(to_cells_in_from, from_cells);
+static std::pair<g::LhsPattern, g::RhsPattern>
+rotation_patterns(const Piece& p, const Orientation& from, const Orientation& to) {
+    auto from_cells = terminal_set(from);
+    auto to_cells   = to_cells_in_from_frame(from, to);
+    auto md = g::move_diff(from_cells, to_cells);
 
     g::LhsPattern lhs;
     g::mark_each(lhs, g::difference(from_cells, {{0, 0}}), g::lit(p.glyph));
-    g::mark_each(lhs, write_cells, g::empty());
+    g::mark_each(lhs, md.write, g::empty());
 
     g::RhsPattern rhs;
-    g::mark_each(rhs, g::difference(erase_cells, {{0, 0}}), g::erase());
-    g::mark_each(rhs, write_cells, g::put(p.glyph));
+    g::mark_each(rhs, g::difference(md.erase, {{0, 0}}), g::erase());
+    g::mark_each(rhs, md.write, g::put(p.glyph));
 
     return {lhs, rhs};
-}
-
-static bool anchor_in_to(const Piece& p, const Orientation& from, const Orientation& to) {
-    auto sh = g::rotation_anchor_shift(from.shape.anchor, from.pivot,
-                                       to.shape.anchor,   to.pivot, 2, 1);
-    for (auto& c : terminal_set(to))
-        if (g::Cell{c.first + sh.first, c.second + sh.second} == g::Cell{0, 0}) return true;
-    return false;
 }
 
 static std::string emit_rotation(const Piece& p, const Orientation& from,
                                  const Orientation& to, wchar_t trigger) {
     auto [lhs, rhs] = rotation_patterns(p, from, to);
-    auto replace = anchor_in_to(p, from, to) ? g::put(p.glyph) : g::erase();
+    auto replace = g::replace_for_move(to_cells_in_from_frame(from, to), p.glyph);
     return g::emit_rule(g::header(p.glyph, trigger, replace),
                         g::emit_body_horizontal(lhs, rhs));
 }
@@ -261,7 +246,7 @@ static std::string emit_piece(const Piece& p) {
                 // before the body so the parser stacks them.
                 const auto& to_o = p.orientations[cw_i];
                 auto [lhs, rhs] = rotation_patterns(p, from_o, to_o);
-                auto replace = anchor_in_to(p, from_o, to_o) ? g::put(p.glyph) : g::erase();
+                auto replace = g::replace_for_move(to_cells_in_from_frame(from_o, to_o), p.glyph);
 
                 out << "# " << from_o.name << " <-> " << to_o.name << " (CW & CCW share body)\n";
                 out << g::emit_header(g::header(p.glyph, L'w', replace)) << "\n";

@@ -213,4 +213,65 @@ Cell rotation_anchor_shift(Cell from_anchor, Cell from_pivot,
     return {fdr - tdr, fdc - tdc};
 }
 
+// --- ASCII art loader ---
+
+ArtMap parse_art(const std::string& art, char anchor_marker) {
+    int anchor_row = 0, anchor_col = 0;
+    bool found = false;
+
+    auto walk = [&](auto on_cell) {
+        int r = 0, c = 0;
+        for (char ch : art) {
+            if (ch == '\n') { ++r; c = 0; continue; }
+            on_cell(r, c, ch);
+            ++c;
+        }
+    };
+
+    walk([&](int r, int c, char ch) {
+        if (!found && ch == anchor_marker) {
+            anchor_row = r; anchor_col = c; found = true;
+        }
+    });
+    if (!found) {
+        throw std::invalid_argument("genlib::parse_art: anchor marker not found");
+    }
+
+    ArtMap out;
+    walk([&](int r, int c, char ch) {
+        if (ch == ' ' || ch == '\t' || ch == '\r') return;
+        if (ch == anchor_marker && r == anchor_row && c == anchor_col) return;
+        out[{r - anchor_row, c - anchor_col}] = static_cast<wchar_t>(ch);
+    });
+    return out;
+}
+
+LhsPattern art_lhs(const std::string& art, char anchor_marker) {
+    LhsPattern p;
+    for (auto& kv : parse_art(art, anchor_marker)) p[kv.first] = lit(kv.second);
+    return p;
+}
+
+RhsPattern art_rhs(const std::string& art, char anchor_marker) {
+    RhsPattern p;
+    for (auto& kv : parse_art(art, anchor_marker)) p[kv.first] = put(kv.second);
+    return p;
+}
+
+DiffResult art_frame_diff(const std::string& a, const std::string& b, char anchor_marker) {
+    auto ma = parse_art(a, anchor_marker);
+    auto mb = parse_art(b, anchor_marker);
+    DiffResult out;
+    for (auto& kv : ma) out.lhs[kv.first] = lit(kv.second);
+    for (auto& kv : ma) {
+        auto it = mb.find(kv.first);
+        if (it == mb.end())               out.rhs[kv.first] = erase();
+        else if (it->second != kv.second) out.rhs[kv.first] = put(it->second);
+    }
+    for (auto& kv : mb) {
+        if (!ma.count(kv.first))          out.rhs[kv.first] = put(kv.second);
+    }
+    return out;
+}
+
 }  // namespace genlib
