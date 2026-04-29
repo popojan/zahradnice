@@ -45,7 +45,7 @@ def detect_format(lines):
 
 def generate_sokoban_levels(input_file, start_level, end_level,
                            auto_detect_format=True, output_dir=None,
-                           total_levels=None):
+                           total_levels=None, help_template=None):
     """
     Generate Sokoban level configuration files from a source file.
 
@@ -54,7 +54,16 @@ def generate_sokoban_levels(input_file, start_level, end_level,
         start_level: Starting level number (inclusive)
         end_level: Ending level number (inclusive)
         auto_detect_format: Whether to auto-detect and convert classical format
+        help_template: Template string for help directive (default: "{Collection} | Level {Number}")
     """
+
+    # Set default help template if not provided
+    if help_template is None:
+        help_template = "{Collection} | Level {Number}"
+
+    # Extract collection name from input filename
+    import os
+    collection_name = os.path.splitext(os.path.basename(input_file))[0]
 
     # Read the source file
     with open(input_file, 'r') as f:
@@ -175,6 +184,7 @@ def generate_sokoban_levels(input_file, start_level, end_level,
         goal_rows = []
         margin_left = max_width
         max_goal_width = 0
+        buffer = []
         for row in formatted_maze:
             goal_row =      row.replace('@@', '  ')
             goal_row = goal_row.replace('@', trigger_char);
@@ -184,15 +194,18 @@ def generate_sokoban_levels(input_file, start_level, end_level,
             goal_row = goal_row.replace('##', '  ')
             goal_row = goal_row.replace('PP', '  ')
             goal_row = goal_row.replace('P:', '  ')
+            goal_row = goal_row.replace('~', ' ')
             goal_row = goal_row.rstrip()
             if goal_rows or goal_row:
                 max_goal_width = max(max_goal_width, len(goal_row))
+                buffer.append(goal_row)
                 if goal_row:
                     margin_left = min(
                         margin_left,
                         len(goal_row) - len(goal_row.lstrip())
                     )
-                goal_rows.append(goal_row)
+                    goal_rows.extend(buffer)
+                    buffer = []
 
         for i in range(len(goal_rows)):
             goal_rows[i] = goal_rows[i][margin_left:]
@@ -202,12 +215,16 @@ def generate_sokoban_levels(input_file, start_level, end_level,
         goal_rows[0] += '@@'
         gone_alignment = ' ' * (max_goal_width - margin_left + 1)
         idx = goal_rows[0].index('@')
-        gone_alignment = gone_alignment[:idx] + '~' + gone_alignment[idx+1:]
+        gone_alignment = gone_alignment[:idx] + '!' + gone_alignment[idx+1:]
+
+        # Generate help text using template
+        help_text = help_template.format(Collection=collection_name, Number=level_num)
 
         # Create the level file content
         next_level_num = level_num + 1 if level_num < end_level else level_num
         level_content = f'''#program N level-{next_level_num:0{digits}d}.cfg
 #include ../rules.cfg
+#help {help_text}
 
 # level architecture
 ==1T{trigger_char}
@@ -218,8 +235,8 @@ def generate_sokoban_levels(input_file, start_level, end_level,
 
         level_content += f'''
 # corresponding goal
-==ST 22   1
-{gone_alignment}gone!
+==ST 28DD 1
+{gone_alignment}Done
 
 '''
         # Join the goal pattern lines
@@ -237,13 +254,16 @@ if __name__ == '__main__':
     import sys
     import os
 
-    if len(sys.argv) != 3:
-        print("Usage: python3 sokoban_level_generator_goal.py <input_file> <target_directory>")
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: python3 sokoban_level_generator_goal.py <input_file> <target_directory> [help_template]")
         print("Example: python3 sokoban_level_generator_goal.py levels.txt output/")
+        print("Example: python3 sokoban_level_generator_goal.py levels.txt output/ \"{Collection} | Level {Number}\"")
+        print("Default help template: \"{Collection} | Level {Number}\"")
         sys.exit(1)
 
     input_file = sys.argv[1]
     target_dir = sys.argv[2]
+    help_template = sys.argv[3] if len(sys.argv) == 4 else None
 
     # Check if input file exists
     if not os.path.exists(input_file):
@@ -289,6 +309,7 @@ if __name__ == '__main__':
                            end_level=level_count,
                            auto_detect_format=True,
                            output_dir=target_dir,
-                           total_levels=level_count)
+                           total_levels=level_count,
+                           help_template=help_template)
 
     print(f"Successfully generated {level_count} level files")
