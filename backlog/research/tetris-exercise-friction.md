@@ -279,6 +279,33 @@ speculative.
 For now, the duplication is a known liability — journal it, keep the
 generator readable so a future port to a library is mechanical.
 
+**Update (post-phase-2 reflection, user-prompted)**: the right answer
+is **C++ generators**, not Python with a binding layer.
+
+- `#include "grammar.h"` and the generator shares the engine's exact
+  `Rule` / `Grammar2D` types. Zero duplication, no FFI.
+- Matches the project's "minimal dependencies" philosophy — engine is
+  C++ + ncurses + SDL2_mixer + zlib; adding Python as an author-time
+  dep is still a dep.
+- Linter, generator, and any future grammar-aware tool all link
+  `libgrammar.a` and share *the* grammar implementation.
+- Author compiles generator → emits cfg → distributes cfg only.
+  Generator source can stay private if the author wishes.
+
+Migration shape (future sessions):
+1. Makefile refactor: extract `grammar.{cpp,o}` into `libgrammar.a`.
+2. `genlib.{h,cpp}`: piece-spec types, body/header builders, indent-escape,
+   pivot-based rotation diff. Links `libgrammar.a`.
+3. `tetris_gen.cpp`: piece arrays + `main()` emitting cfg. Replaces the
+   Python prototype. ~200 lines, no external deps.
+4. Linter (`zahradnice-check`): same `libgrammar.a` link; reads cfg,
+   validates against the *real* parser.
+5. Snake / sokoban / life generators follow the same template.
+
+The Python prototype (`scripts/tetris_generator.py`) keeps value as
+proof-of-concept and as a source-of-truth comparison artifact when the
+C++ rewrite lands. Don't delete it.
+
 ### M1. Token budget is the dominant cost (meta-observation)
 *User-raised at end of slice 4b.*
 Even when the work proceeds without bugs, this exercise is **token-hungry**
