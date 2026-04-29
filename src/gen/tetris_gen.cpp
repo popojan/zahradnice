@@ -411,9 +411,10 @@ static const char* FRAMEWORK = R"(#!{help} score:{score}
 ^PcC
 # === Playfield seed: one-shot perimeter + R placement + C centre beacon ===
 # C replaces one wall H at the centre column; R-spawn fires when above is C.
+# C and R live at body col 12 (even) so spawn aligns with #grid 2 1.
 ==Pf~
-@@HHHHHHHHHHHCHHHHHHHHHHHH
-  HH         R          HH
+@@HHHHHHHHHHCHHHHHHHHHHHHH
+  HH        R           HH
   HH                    HH
   HH                    HH
   HH                    HH
