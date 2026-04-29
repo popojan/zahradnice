@@ -178,29 +178,93 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
                         g::emit_body_horizontal(lhs, rhs));
 }
 
-// Line clearing: a full playfield row of 20 # cells is erased, then
-// frozen cells above the empty row drop one row at a time (gravity).
+// Line clearing + shift-particle gravity.
+//
+// Mechanism (after the original programs/tetris/tetris.cfg):
+//   Clear:     row of 10 # at even offsets -> 10 v particles + 10 erases.
+//   v rise:    v + empty pair above + empty right -> v jumps up one row.
+//   v swap:    v + # pair above + empty right -> v moves up, # pair drops.
+//   v end:     v + wall/beacon above -> v dissipates.
+// Each cleared row spawns 10 rising v's; each v drags its column's blocks
+// down by one row as it ascends. Result: per-row tetris-correct gravity.
+//
+// Limitation: the swap rule writes # with default fg, so blocks lose their
+// piece colour after being shifted. Preserving colour needs an X+colour
+// pair encoding per piece-cell (as the original tetris does); follow-up.
 static std::string emit_line_clear() {
     std::ostringstream out;
-    constexpr int ROW_W = 20;  // playfield interior width in terminal cols
-    out << "# === Line clear: 20 contiguous # cells in a row -> erase ===\n";
+    constexpr int ROW_W = 20;
+
+    out << "# === Line clear: 10 # at even offsets -> 10 v particles ===\n";
     {
+        // Force anchor at the leftmost interior col (=4) by requiring left
+        // neighbour to be a wall H. Without this, the rule could anchor at
+        // either col 4 or col 5 (both inside a fully-frozen row) — odd-col
+        // anchoring places v's at cols 5..23 and the rightmost v ends up
+        // with the right wall H at its above-right, where no rule fires.
         g::LhsPattern lhs;
-        for (int c = 1; c < ROW_W; ++c) lhs[{0, c}] = g::lit(syms.frozen);
+        lhs[{0, -1}] = g::lit(syms.wall);
+        for (int c = 2; c < ROW_W; c += 2) lhs[{0, c}] = g::lit(syms.frozen);
         g::RhsPattern rhs;
-        for (int c = 1; c < ROW_W; ++c) rhs[{0, c}] = g::erase();
-        out << g::emit_rule(g::header(syms.frozen, L'f', g::erase()),
+        for (int c = 1; c < ROW_W; ++c)
+            rhs[{0, c}] = (c % 2 == 0) ? g::put(L'v') : g::erase();
+        out << g::emit_rule(g::header(syms.frozen, L'f', g::put(L'v')),
                             g::emit_body_horizontal(lhs, rhs)) << "\n";
     }
-    out << "# === Gravity: # with empty cell below drops one row ===\n";
+
+    out << "# === v rises through empty space ===\n";
     {
         g::LhsPattern lhs;
-        lhs[{1, 0}] = g::empty();
+        lhs[{-1, 0}] = g::empty();
+        lhs[{-1, 1}] = g::empty();
+        lhs[{ 0, 1}] = g::empty();
         g::RhsPattern rhs;
-        rhs[{1, 0}] = g::put(syms.frozen);
-        out << g::emit_rule(g::header(syms.frozen, L'f', g::erase()),
-                            g::emit_body_vertical(lhs, rhs)) << "\n";
+        rhs[{-1, 0}] = g::put(L'v');
+        out << g::emit_rule(g::header(L'v', L'f', g::erase()),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
     }
+
+    out << "# === v swaps with frozen block above (block drops one row) ===\n";
+    {
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::lit(syms.frozen);
+        lhs[{-1, 1}] = g::lit(syms.frozen);
+        lhs[{ 0, 1}] = g::empty();
+        g::RhsPattern rhs;
+        rhs[{-1, 0}] = g::put(L'v');
+        rhs[{-1, 1}] = g::erase();
+        rhs[{ 0, 1}] = g::put(syms.frozen);
+        out << g::emit_rule(g::header(L'v', L'f', g::put(syms.frozen)),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
+    }
+
+    out << "# === v dissipates when above is anything not ~ or # ===\n";
+    {
+        // ctx_or_rep matches ctx OR ctxrep — pair blockers two at a time
+        // and stack the headers on a single body. Covers: top wall, centre
+        // beacon, piece glyphs, walker states.
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::ctx_or_rep();
+        g::RhsPattern rhs;
+        auto body = g::emit_body_vertical(lhs, rhs);
+
+        const std::vector<std::pair<wchar_t, wchar_t>> pairs = {
+            {L'H', L'C'},  // top wall, centre beacon
+            {L'I', L'T'},  // piece glyphs (next piece in flight above)
+            {L'J', L'L'},
+            {L'O', L'S'},
+            {L'Z', L'R'},  // last piece + walker
+            {L'Q', L'Q'},  // walker (singleton, paired with self)
+        };
+        for (size_t i = 0; i < pairs.size(); ++i) {
+            auto h = g::header(L'v', L'f', g::erase());
+            h.ctx = pairs[i].first;
+            h.ctxrep = pairs[i].second;
+            if (i + 1 < pairs.size()) out << g::emit_header(h) << "\n";
+            else                       out << g::emit_rule(h, body) << "\n";
+        }
+    }
+
     return out.str();
 }
 
