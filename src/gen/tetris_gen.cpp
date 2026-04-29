@@ -168,7 +168,7 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
     for (auto& c : cells) if (c != g::Cell{0, 0}) siblings.insert(c);
 
     g::LhsPattern lhs;
-    lhs[{-1, 0}] = g::lit(syms.wall);
+    lhs[{-1, 0}] = g::lit(L'C');           // centre beacon above (was wall H)
     g::mark_each(lhs, siblings, g::empty());
 
     g::RhsPattern rhs;
@@ -176,6 +176,60 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
 
     return g::emit_rule(coloured(p, syms.walker, L'f', g::put(p.glyph)),
                         g::emit_body_horizontal(lhs, rhs));
+}
+
+// Walker state machine: R walks up; at top row, walks left to wall, becomes Q,
+// walks right; arriving below the C beacon, Q becomes R so spawn fires.
+static std::string emit_walker_state_machine() {
+    std::ostringstream out;
+    out << "# === Walker state machine: R-up, R-left-to-wall, Q-right-to-centre ===\n";
+
+    // R + above wall H + left empty -> R one cell left, erase anchor.
+    {
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::lit(syms.wall);
+        lhs[{ 0,-1}] = g::empty();
+        g::RhsPattern rhs;
+        rhs[{0, -1}] = g::put(syms.walker);
+        out << "# R walks left when at top row\n";
+        out << g::emit_rule(g::header(syms.walker, L'f', g::erase()),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
+    }
+
+    // R + above wall H + left wall H -> R becomes Q (turn around).
+    {
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::lit(syms.wall);
+        lhs[{ 0,-1}] = g::lit(syms.wall);
+        g::RhsPattern rhs;
+        out << "# R hits left wall -> becomes Q\n";
+        out << g::emit_rule(g::header(syms.walker, L'f', g::put(L'Q')),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
+    }
+
+    // Q + above wall H + right empty -> Q one cell right, erase anchor.
+    {
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::lit(syms.wall);
+        lhs[{ 0, 1}] = g::empty();
+        g::RhsPattern rhs;
+        rhs[{0, 1}] = g::put(L'Q');
+        out << "# Q walks right when at top row\n";
+        out << g::emit_rule(g::header(L'Q', L'f', g::erase()),
+                            g::emit_body_horizontal(lhs, rhs)) << "\n";
+    }
+
+    // Q + above C -> Q becomes R (so the per-piece R-spawn rule fires).
+    {
+        g::LhsPattern lhs;
+        lhs[{-1, 0}] = g::lit(L'C');
+        g::RhsPattern rhs;
+        out << "# Q reaches centre column -> becomes R (spawn-ready)\n";
+        out << g::emit_rule(g::header(L'Q', L'f', g::put(syms.walker)),
+                            g::emit_body_vertical(lhs, rhs)) << "\n";
+    }
+
+    return out.str();
 }
 
 static std::string emit_fall(const Piece& p, const Orientation& o) {
@@ -329,10 +383,11 @@ static const char* FRAMEWORK = R"(#!{help} score:{score}
 # ^-lines that follow a rule, leaking the line text into the previous
 # rule's body — see backlog/research/tetris-exercise-friction.md, B1).
 ^PcC
-# === Playfield seed: one-shot perimeter + R placement ===
+# === Playfield seed: one-shot perimeter + R placement + C centre beacon ===
+# C replaces one wall H at the centre column; R-spawn fires when above is C.
 ==Pf~
-@@HHHHHHHHHHHHHHHHHHHHHHHH
-  HH      R             HH
+@@HHHHHHHHHHHCHHHHHHHHHHHH
+  HH         R          HH
   HH                    HH
   HH                    HH
   HH                    HH
@@ -353,8 +408,7 @@ static const char* FRAMEWORK = R"(#!{help} score:{score}
   HH                    HH
   HH                    HH
   HHHHHHHHHHHHHHHHHHHHHHHH
-# === R-walk: R + empty cell above -> R moves up one row ===
-# Mutually exclusive with spawn (above is either ~ or H, not both).
+# === R-walk-up: R + empty cell above -> R moves up one row ===
 ==Rf~
 ~
 @
@@ -367,6 +421,8 @@ int main() {
     auto pieces = all_pieces();
 
     std::cout << FRAMEWORK << "\n";
+
+    std::cout << emit_walker_state_machine() << "\n";
 
     std::cout << "# === Colour palette ===\n";
     for (auto& p : pieces) {
