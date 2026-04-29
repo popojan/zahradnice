@@ -1,4 +1,5 @@
 zahradnice*
+build/
 callgrind.*
 cachegrind.*
 programs.wip

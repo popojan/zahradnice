@@ -1,15 +1,69 @@
+CXX = g++
+STD = -std=c++20
+ENGINE_SRCS = src/zahradnice.cpp src/sample.cpp
+ENGINE_LIBS = -lz -lncursesw -lSDL2_mixer
+
+SIZE_FLAGS = -Os -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto
+SIZE_LDFLAGS = -Wl,--gc-sections
+
 all: zahradnice-speed
 
-zahradnice-speed:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O3 -s
+# --- libgrammar.a: parser + rule engine, shared with future tools ---
+# One archive per build mode so LTO can fold across the boundary in size builds.
 
-zahradnice-debug:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -O2 -g
+build:
+	@mkdir -p build
 
-zahradnice-size:
-	g++ -std=c++20 -lz -lncursesw -lSDL2_mixer src/zahradnice.cpp src/grammar.cpp src/sample.cpp -o zahradnice -Os -s \
-   -ffunction-sections -fdata-sections -Wl,--gc-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto
+build/grammar-speed.o: src/grammar.cpp src/grammar.h | build
+	$(CXX) $(STD) -O3 -c $< -o $@
+build/grammar-debug.o: src/grammar.cpp src/grammar.h | build
+	$(CXX) $(STD) -O2 -g -c $< -o $@
+build/grammar-size.o: src/grammar.cpp src/grammar.h | build
+	$(CXX) $(STD) $(SIZE_FLAGS) -c $< -o $@
+
+build/libgrammar-speed.a: build/grammar-speed.o
+	ar rcs $@ $<
+build/libgrammar-debug.a: build/grammar-debug.o
+	ar rcs $@ $<
+build/libgrammar-size.a: build/grammar-size.o
+	ar rcs $@ $<
+
+# --- libgenlib.a: authoring-time helpers for generators (no engine deps) ---
+
+build/genlib.o: src/gen/genlib.cpp src/gen/genlib.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+build/libgenlib.a: build/genlib.o
+	ar rcs $@ $<
+
+# --- Generator binaries (separate from engine targets) ---
+
+build/tetris_gen.o: src/gen/tetris_gen.cpp src/gen/genlib.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+build/tetris_gen: build/tetris_gen.o build/libgenlib.a
+	$(CXX) $(STD) -O2 $^ -o $@
+
+# Regenerate tetris2 from source.
+gen-tetris: build/tetris_gen
+	./build/tetris_gen > programs/tetris2/tetris.cfg
+
+# --- engine ---
+
+zahradnice-speed: build/libgrammar-speed.a
+	$(CXX) $(STD) -O3 -s $(ENGINE_SRCS) $< -o zahradnice $(ENGINE_LIBS)
+
+zahradnice-debug: build/libgrammar-debug.a
+	$(CXX) $(STD) -O2 -g $(ENGINE_SRCS) $< -o zahradnice $(ENGINE_LIBS)
+
+zahradnice-size: build/libgrammar-size.a
+	$(CXX) $(STD) $(SIZE_FLAGS) $(SIZE_LDFLAGS) -s $(ENGINE_SRCS) $< -o zahradnice $(ENGINE_LIBS)
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
+
+clean:
+	rm -rf build zahradnice
+
+# --- release packaging (unchanged) ---
 
 RELEASE_DIR=release
 release:
@@ -25,6 +79,8 @@ release:
 	cd ${RELEASE_DIR}; \
 	tar -czf zahradnice-sounds.tar.gz zahradnice/sounds; \
 	rm -rf zahradnice
+
+# --- sokoban level scrape (unchanged) ---
 
 SOKOWEB=http://www.sneezingtiger.com/sokoban/levels
 SOKOFILES=picokosmosText.html #sasquatch5Text.html
@@ -55,4 +111,3 @@ soko:
       | sed 's/^\s*\(Level.*\)$$/==\/TP/g' >> programs/sokoban.cfg; \
   done;\
   rm -f numbers.txt sokoban.txt
-
