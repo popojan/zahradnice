@@ -20,6 +20,52 @@ Body-layout convention (matches the hand-written I-piece rules):
 import argparse
 
 
+FRAMEWORK = """\
+#!{help} score:{score}
+#help a/d move - w/e rotate - ESC quit
+#timing g 500
+#timing f 0
+#control ~ pause
+#grid 2 1
+# Initial symbol must precede any rule header (parser double-classifies
+# ^-lines that follow a rule, leaking the line text into the previous
+# rule's body — see backlog/research/tetris-exercise-friction.md, B1).
+^PcC
+# === Playfield seed: one-shot perimeter + R placement ===
+==Pf~
+@@HHHHHHHHHHHHHHHHHHHHHHHH
+  HH      R             HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH          @         HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HH                    HH
+  HHHHHHHHHHHHHHHHHHHHHHHH
+# === R-walk: R + empty cell above -> R moves up one row ===
+# Mutually exclusive with spawn (above is either ~ or H, not both).
+==Rf~
+~
+@
+@
+R
+@
+"""
+
+
 PIECES = {
     'I': {
         'glyph': 'I',
@@ -410,7 +456,8 @@ def main():
     if args.piece:
         print(emit_piece(args.piece))
         return
-    # default: emit all pieces
+    # default: emit full cfg = framework + all piece rules
+    print(FRAMEWORK)
     for letter in PIECES:
         print(emit_piece(letter))
         print()
