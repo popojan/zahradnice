@@ -238,6 +238,47 @@ between the vertical walk and spawn would resolve both cases. Architecture
 already supports adding it (the spawn rule's LHS predicate stays the same;
 the new horizontal-walk rule is mutually exclusive on context).
 
+### M2. Generator-as-grammar-library? (meta-observation, user-prompted)
+*Surfaced after phase-2 generator landed.*
+The current generator hard-codes grammar details: header field positions,
+body @-count and semantics, body cell tokens (`~`, `&`, `%`, `!`, `*`,
+`$`), piece-cell-to-terminal-cell translation, the `#`-line-at-col-0
+escape, vertical/horizontal body convention. Each of these is a place
+the generator can drift from the engine if the engine evolves.
+
+**Hypothesis**: a Python `zahradnice` library that exposes those as
+primitives would (a) collapse the generator from ~360 lines to ~50, (b)
+give future game generators (sokoban, life, snake) the same headstart,
+(c) reduce token cost on subsequent LLM-authoring sessions because the
+LLM-author would consult the library API rather than re-derive grammar
+details from `GRAMMAR.v2.md`.
+
+**Sharing the grammar between C++ and Python**: three paths, increasing
+cost:
+
+1. **Linter as bridge**: Python emits cfg text → C++ linter (sharing
+   `grammar.o`) parses and validates. Grammar definition stays in C++.
+   Cheapest. Python doesn't get introspection — only emit + validate.
+2. **`libgrammar.so` + Python bindings**: refactor `grammar.cpp` so the
+   parser/rule-model is in a shared library; engine links it; Python
+   uses ctypes/cffi for both emission and introspection. Requires
+   Makefile refactor (already listed in `backlog/pending/llm-authoring.md`
+   as a prerequisite). Biggest payoff: Python can ask the engine
+   "what offsets does this rule write to" — which is the same primitive
+   the linter's `--annotate` mode wants.
+3. **Schema-driven codegen**: grammar in a neutral DSL (YAML/EBNF),
+   codegen both C++ parser stubs and Python helpers. Architecturally
+   cleanest but heavy up-front investment.
+
+**Recommendation**: path 1 first (linter is on the roadmap anyway).
+Path 2 second, *only if* the Python generator's needs justify it (e.g.
+when implementing the coordinate-annotation pass or when adding a piece
+type whose rules want to be parameterised by engine quirks). Path 3 is
+speculative.
+
+For now, the duplication is a known liability — journal it, keep the
+generator readable so a future port to a library is mechanical.
+
 ### M1. Token budget is the dominant cost (meta-observation)
 *User-raised at end of slice 4b.*
 Even when the work proceeds without bugs, this exercise is **token-hungry**
