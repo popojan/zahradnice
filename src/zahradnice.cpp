@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
     if (argc > 2) seed = std::atoi(argv[2]);
     if (argc > 3) max_threads = std::atoi(argv[3]);
 
-    config = resolve_program_path(config, config);
+    config = resolve_program_path(config, "");
 
     // Initialize global thread pool with command-line specified max threads
     Derivation::initializeGlobalThreadPool(max_threads);
@@ -542,8 +542,8 @@ int main(int argc, char *argv[]) {
                     if (rule.engine_action && rule.sound != 0) {
                         std::string action = cfg.getEngineAction(rule.sound);
                         if (action == "pause") {
-                            paused = true;
-                            timeout(-1);
+                            paused = !paused;  // Toggle pause state
+                            timeout(paused ? -1 : 0);  // Set blocking or non-blocking mode
                         } else if (action == "reset") {
                             // Reset to top-level program from stack
                             if (!caller_stack.empty()) {
