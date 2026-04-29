@@ -48,6 +48,12 @@ build/tetris_gen: build/tetris_gen.o build/libgenlib.a
 gen-tetris: build/tetris_gen
 	./build/tetris_gen > programs/tetris2/tetris.cfg
 
+build/animation_gen.o: src/gen/animation_gen.cpp src/gen/genlib.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+build/animation_gen: build/animation_gen.o build/libgenlib.a
+	$(CXX) $(STD) -O2 $^ -o $@
+
 # --- engine ---
 
 zahradnice-speed: build/libgrammar-speed.a

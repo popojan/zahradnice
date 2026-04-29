@@ -115,17 +115,13 @@ static std::string emit_spawn(const Piece& p, const Orientation& o) {
 
     g::LhsPattern lhs;
     lhs[{-1, 0}] = g::lit(syms.wall);
-    for (auto& c : siblings) lhs[c] = g::empty();
+    g::mark_each(lhs, siblings, g::empty());
 
     g::RhsPattern rhs;
-    for (auto& c : siblings) rhs[c] = g::put(p.glyph);
+    g::mark_each(rhs, siblings, g::put(p.glyph));
 
-    g::Header h;
-    h.lhs = syms.walker;
-    h.trigger = L'f';
-    h.replace = g::put(p.glyph);
-
-    return g::emit_rule(h, g::emit_body_horizontal(lhs, rhs));
+    return g::emit_rule(g::header(syms.walker, L'f', g::put(p.glyph)),
+                        g::emit_body_horizontal(lhs, rhs));
 }
 
 static std::string emit_fall(const Piece& p, const Orientation& o) {
@@ -137,19 +133,15 @@ static std::string emit_fall(const Piece& p, const Orientation& o) {
     auto write_cells = g::difference(new_cells, old_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : g::difference(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
-    for (auto& c : below_all(o)) lhs[c] = g::empty();
+    g::mark_each(lhs, g::difference(old_cells, {{0, 0}}), g::lit(p.glyph));
+    g::mark_each(lhs, below_all(o), g::empty());
 
     g::RhsPattern rhs;
-    for (auto& c : erase_cells) rhs[c] = g::erase();
-    for (auto& c : write_cells) rhs[c] = g::put(p.glyph);
+    g::mark_each(rhs, erase_cells, g::erase());
+    g::mark_each(rhs, write_cells, g::put(p.glyph));
 
-    g::Header h;
-    h.lhs = p.glyph;
-    h.trigger = L'g';
-    h.replace = g::erase();
-
-    return g::emit_rule(h, g::emit_body_vertical(lhs, rhs));
+    return g::emit_rule(g::header(p.glyph, L'g', g::erase()),
+                        g::emit_body_vertical(lhs, rhs));
 }
 
 static std::vector<std::string> emit_freeze(const Piece& p, const Orientation& o) {
@@ -158,17 +150,14 @@ static std::vector<std::string> emit_freeze(const Piece& p, const Orientation& o
     for (auto& below_cell : below_2col_aligned(o)) {
         g::LhsPattern lhs;
         lhs[{-1, 0}] = g::empty();  // R needs space to be written
-        for (auto& c : g::difference(cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
+        g::mark_each(lhs, g::difference(cells, {{0, 0}}), g::lit(p.glyph));
         lhs[below_cell] = g::ctx_or_rep();  // wall (field 6) OR frozen (field 7)
 
         g::RhsPattern rhs;
         rhs[{-1, 0}] = g::put(syms.walker);
-        for (auto& c : g::difference(cells, {{0, 0}})) rhs[c] = g::put(syms.frozen);
+        g::mark_each(rhs, g::difference(cells, {{0, 0}}), g::put(syms.frozen));
 
-        g::Header h;
-        h.lhs = p.glyph;
-        h.trigger = L'g';
-        h.replace = g::put(syms.frozen);
+        auto h = g::header(p.glyph, L'g', g::put(syms.frozen));
         h.ctx = syms.wall;
         h.ctxrep = syms.frozen;
 
@@ -186,19 +175,17 @@ static std::string emit_lateral(const Piece& p, const Orientation& o, int dc) {
     auto write_cells = g::difference(new_cells, old_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : g::difference(old_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
-    for (auto& c : write_cells) lhs[c] = g::empty();
+    g::mark_each(lhs, g::difference(old_cells, {{0, 0}}), g::lit(p.glyph));
+    g::mark_each(lhs, write_cells, g::empty());
 
     g::RhsPattern rhs;
-    for (auto& c : g::difference(erase_cells, {{0, 0}})) rhs[c] = g::erase();
-    for (auto& c : write_cells) rhs[c] = g::put(p.glyph);
+    g::mark_each(rhs, g::difference(erase_cells, {{0, 0}}), g::erase());
+    g::mark_each(rhs, write_cells, g::put(p.glyph));
 
-    g::Header h;
-    h.lhs = p.glyph;
-    h.trigger = (dc < 0) ? L'a' : L'd';
-    h.replace = new_cells.count({0, 0}) ? g::put(p.glyph) : g::erase();
-
-    return g::emit_rule(h, g::emit_body_horizontal(lhs, rhs));
+    wchar_t trigger = (dc < 0) ? L'a' : L'd';
+    auto replace = new_cells.count({0, 0}) ? g::put(p.glyph) : g::erase();
+    return g::emit_rule(g::header(p.glyph, trigger, replace),
+                        g::emit_body_horizontal(lhs, rhs));
 }
 
 // Pre-shaped rotation move: from-cells stay relative to from-anchor, but
@@ -217,12 +204,12 @@ rotation_patterns(const Piece& p, const Orientation& from, const Orientation& to
     auto write_cells = g::difference(to_cells_in_from, from_cells);
 
     g::LhsPattern lhs;
-    for (auto& c : g::difference(from_cells, {{0, 0}})) lhs[c] = g::lit(p.glyph);
-    for (auto& c : write_cells) lhs[c] = g::empty();
+    g::mark_each(lhs, g::difference(from_cells, {{0, 0}}), g::lit(p.glyph));
+    g::mark_each(lhs, write_cells, g::empty());
 
     g::RhsPattern rhs;
-    for (auto& c : g::difference(erase_cells, {{0, 0}})) rhs[c] = g::erase();
-    for (auto& c : write_cells) rhs[c] = g::put(p.glyph);
+    g::mark_each(rhs, g::difference(erase_cells, {{0, 0}}), g::erase());
+    g::mark_each(rhs, write_cells, g::put(p.glyph));
 
     return {lhs, rhs};
 }
@@ -238,13 +225,9 @@ static bool anchor_in_to(const Piece& p, const Orientation& from, const Orientat
 static std::string emit_rotation(const Piece& p, const Orientation& from,
                                  const Orientation& to, wchar_t trigger) {
     auto [lhs, rhs] = rotation_patterns(p, from, to);
-
-    g::Header h;
-    h.lhs = p.glyph;
-    h.trigger = trigger;
-    h.replace = anchor_in_to(p, from, to) ? g::put(p.glyph) : g::erase();
-
-    return g::emit_rule(h, g::emit_body_horizontal(lhs, rhs));
+    auto replace = anchor_in_to(p, from, to) ? g::put(p.glyph) : g::erase();
+    return g::emit_rule(g::header(p.glyph, trigger, replace),
+                        g::emit_body_horizontal(lhs, rhs));
 }
 
 static std::string emit_piece(const Piece& p) {
@@ -280,12 +263,10 @@ static std::string emit_piece(const Piece& p) {
                 auto [lhs, rhs] = rotation_patterns(p, from_o, to_o);
                 auto replace = anchor_in_to(p, from_o, to_o) ? g::put(p.glyph) : g::erase();
 
-                g::Header h_cw;  h_cw.lhs = p.glyph; h_cw.trigger = L'w'; h_cw.replace = replace;
-                g::Header h_ccw; h_ccw.lhs = p.glyph; h_ccw.trigger = L'e'; h_ccw.replace = replace;
-
                 out << "# " << from_o.name << " <-> " << to_o.name << " (CW & CCW share body)\n";
-                out << g::emit_header(h_cw) << "\n";
-                out << g::emit_rule(h_ccw, g::emit_body_horizontal(lhs, rhs)) << "\n";
+                out << g::emit_header(g::header(p.glyph, L'w', replace)) << "\n";
+                out << g::emit_rule(g::header(p.glyph, L'e', replace),
+                                    g::emit_body_horizontal(lhs, rhs)) << "\n";
             } else {
                 out << "# " << from_o.name << " -> " << p.orientations[cw_i].name << " (CW)\n";
                 out << emit_rotation(p, from_o, p.orientations[cw_i], L'w') << "\n";

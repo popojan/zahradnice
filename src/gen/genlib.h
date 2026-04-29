@@ -60,6 +60,17 @@ inline Write preserve()            { return {Write::Kind::Preserve, 0}; }
 using LhsPattern = std::map<Cell, Match>;
 using RhsPattern = std::map<Cell, Write>;
 
+// Set every cell in `cells` to the same Match/Write. Saves the inner-loop
+// boilerplate that otherwise appears in every rule emission.
+template <class CellRange>
+inline void mark_each(LhsPattern& p, const CellRange& cells, Match m) {
+    for (auto& c : cells) p[c] = m;
+}
+template <class CellRange>
+inline void mark_each(RhsPattern& p, const CellRange& cells, Write w) {
+    for (auto& c : cells) p[c] = w;
+}
+
 // Rule header (positional fields per GRAMMAR.v2.md).
 //   sound:    field S — sound key char; '=' = no sound (default)
 //   lhs:      field 1 — non-terminal char being matched
@@ -77,6 +88,11 @@ struct Header {
     std::optional<wchar_t> ctx;
     std::optional<wchar_t> ctxrep;
 };
+
+// Concise factory for the common case (lhs + trigger + replace, no colours / ctx).
+inline Header header(wchar_t lhs, wchar_t trigger, Write replace = preserve()) {
+    Header h; h.lhs = lhs; h.trigger = trigger; h.replace = replace; return h;
+}
 
 // --- Emission ---
 
