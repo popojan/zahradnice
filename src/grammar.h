@@ -231,6 +231,13 @@ public:
     uint64_t get_event_step() const { return event_step; }
     // Trajectory replay: force-execute a previously-recorded apply.
     bool apply_recorded(wchar_t lhs, size_t idx, int ro, int co);
+    // Render offset: shift all engine drawing by (dr, dc) on the host terminal.
+    // Engine coords (rows/cols passed to reset()) stay 0-indexed internally.
+    void set_render_offset(int dr, int dc) { offset_row = dr; offset_col = dc; }
+    int get_offset_row() const { return offset_row; }
+    int get_offset_col() const { return offset_col; }
+    int get_viewport_rows() const { return row; }
+    int get_viewport_cols() const { return col; }
 
     std::pair<int, int> getThreadingStats();
 
@@ -280,4 +287,7 @@ private:
         return (static_cast<uint64_t>(static_cast<uint32_t>(lhs)) << 32) | static_cast<uint32_t>(idx);
     }
     void log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_t idx, int ro, int co);
+
+    int offset_row = 0;
+    int offset_col = 0;
 };

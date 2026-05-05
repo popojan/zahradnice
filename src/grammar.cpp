@@ -641,7 +641,7 @@ void Derivation::start() {
         cchar_t cchar;
         wchar_t wch[2] = {s.s, 0};
         setcchar(&cchar, wch, 0, 0, NULL);
-        mvadd_wch(r, c, &cchar);
+        mvadd_wch(r + offset_row, c + offset_col, &cchar);
         // Update redundant character storage
         screen_chars[r * col + c] = s.s;
     }
@@ -806,7 +806,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                     // Critical section: screen and memory updates
                     {
                         std::lock_guard<std::mutex> lock(screen_mutex);
-                        mvadd_wch(wrapped_r, wrapped_c, &cchar);
+                        mvadd_wch(wrapped_r + offset_row, wrapped_c + offset_col, &cchar);
                         screen_chars[wrapped_r * col + wrapped_c] = d.c;
 
                         if (!isNonTerminal) {

@@ -72,21 +72,27 @@ static std::wstring render_statusline(int score, int steps, int moves, int paral
     return tmpl;
 }
 
-// Take a screenshot of the current terminal content to a text file
+// Take a screenshot of the current terminal content to a text file.
 // capture_colors: if true, output ANSI escape sequences for colors
-static bool take_screenshot(const std::string& filename, bool capture_colors = false) {
+// rect_top/left/rows/cols: clip to a rectangle; if rect_rows<=0 capture full terminal.
+static bool take_screenshot(const std::string& filename, bool capture_colors = false,
+                             int rect_top = 0, int rect_left = 0,
+                             int rect_rows = -1, int rect_cols = -1) {
     int max_row, max_col;
     getmaxyx(stdscr, max_row, max_col);
+    int top = (rect_rows > 0) ? rect_top : 0;
+    int left = (rect_cols > 0) ? rect_left : 0;
+    int height = (rect_rows > 0) ? std::min(rect_rows, max_row - top) : max_row;
+    int width = (rect_cols > 0) ? std::min(rect_cols, max_col - left) : max_col;
 
     std::wofstream file(filename);
     if (!file.is_open()) {
         return false;
     }
 
-    // Read each position from the screen (including status line at row 0)
-    for (int r = 0; r < max_row; ++r) {
+    for (int r = top; r < top + height; ++r) {
         std::wstring line;
-        for (int c = 0; c < max_col; ++c) {
+        for (int c = left; c < left + width; ++c) {
             cchar_t ch;
             if (mvin_wch(r, c, &ch) == OK) {
                 // Extract the wide character(s) and attributes
@@ -302,21 +308,40 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
     std::string div_rec_head, div_live_head;
     int div_rec_score = 0, div_live_score = 0;
     bool aborted = false;
+    bool paused = false;
+
+    // Compute viewport offset for replay (centers the recorded viewport in host terminal)
+    int rep_off_row = (host_row - rec_rows) / 2;
+    int rep_off_col = (host_col - rec_cols) / 2;
+    w.set_render_offset(rep_off_row, rep_off_col);
+
+    auto take_replay_screenshot = [&]() {
+        char ts[64];
+        std::time_t t = std::time(nullptr);
+        std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", std::localtime(&t));
+        char fn[256];
+        std::snprintf(fn, sizeof(fn), "replay_step%llu_%s",
+                      (unsigned long long)events_processed, ts);
+        std::string base(fn);
+        take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
+        take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
+    };
 
     auto render_status = [&](const char *phase) {
         char buf[512];
+        const char *pp = paused ? "PAUSED" : phase;
         if (diverged_at) {
             std::snprintf(buf, sizeof(buf),
-                "REPLAY %s: ev=%llu | DIV@%llu rec='%s'/%d live='%s'/%d (ESC)",
-                phase, (unsigned long long)events_processed,
+                "REPLAY %s: ev=%llu d=%dms | DIV@%llu rec='%s'/%d live='%s'/%d (SPACE n F12 +- ESC)",
+                pp, (unsigned long long)events_processed, delay_ms,
                 (unsigned long long)diverged_at,
                 div_rec_head.c_str(), div_rec_score,
                 div_live_head.c_str(), div_live_score);
         } else {
             std::snprintf(buf, sizeof(buf),
-                "REPLAY %s: %s | ev=%llu score=%d (ESC quits)",
-                phase, cur_path.c_str(),
-                (unsigned long long)events_processed, score_live);
+                "REPLAY %s: %s | ev=%llu score=%d d=%dms (SPACE pause, n step, F12 shot, +- speed, ESC)",
+                pp, cur_path.c_str(),
+                (unsigned long long)events_processed, score_live, delay_ms);
         }
         std::string s(buf);
         if (static_cast<int>(s.size()) > rec_cols) s.resize(rec_cols);
@@ -326,16 +351,37 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
         refresh();
     };
 
+    auto handle_key = [&](wint_t k) {
+        if (k == 27) { aborted = true; }
+        else if (k == L' ') { paused = !paused; }
+        else if (k == KEY_F(12)) { take_replay_screenshot(); }
+        else if (k == L'+') { delay_ms = (delay_ms <= 1) ? 0 : delay_ms / 2; }
+        else if (k == L'-') { delay_ms = (delay_ms == 0) ? 1 : std::min(5000, delay_ms * 2); }
+    };
+
     while (std::fgets(line, sizeof(line), f)) {
         size_t n = std::strlen(line);
         while (n > 0 && (line[n-1] == '\n' || line[n-1] == '\r')) line[--n] = 0;
         if (n == 0 || line[0] == '#') continue;
 
-        // Non-blocking ESC poll
+        // Pause loop: when paused, block until SPACE (resume) or n/RIGHT (step) or ESC
+        while (paused && !aborted) {
+            render_status("PAUSED");
+            timeout(-1);
+            wint_t k;
+            int r = wget_wch(stdscr, &k);
+            timeout(0);
+            if (r == ERR) continue;
+            if (k == L'n' || k == KEY_RIGHT) break;  // single-step
+            handle_key(k);
+        }
+        if (aborted) break;
+
+        // Non-blocking input poll while running
         wint_t kch;
-        if (wget_wch(stdscr, &kch) == OK && kch == 27) {
-            aborted = true;
-            break;
+        if (wget_wch(stdscr, &kch) != ERR) {
+            handle_key(kch);
+            if (aborted) break;
         }
 
         if (std::strncmp(line, "program_load\t", 13) == 0) {
@@ -381,8 +427,10 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
             if (base && *base) {
                 refresh();  // ensure any pending engine writes are visible
                 std::string b(base);
-                take_screenshot(b + "_replay.txt", false);
-                take_screenshot(b + "_replay.ansi", true);
+                take_screenshot(b + "_replay.txt", false,
+                                rep_off_row, rep_off_col, rec_rows, rec_cols);
+                take_screenshot(b + "_replay.ansi", true,
+                                rep_off_row, rep_off_col, rec_rows, rec_cols);
             }
         } else if (std::strncmp(line, "apply\t", 6) == 0 && cur_cfg) {
             // Input replay: feed the recorded trigger to the engine; let normal
@@ -473,6 +521,7 @@ int main(int argc, char *argv[]) {
     int seed = 0;
     int max_threads = 0;
     int replay_delay = 0;
+    int screen_rows = 0, screen_cols = 0;
 
     auto needs_value = [&](int i) -> bool {
         if (i + 1 >= argc) {
@@ -494,7 +543,8 @@ int main(int argc, char *argv[]) {
                 "  --trace PATH         Write event trace (forces single-thread)\n"
                 "  --stats PATH         Write per-rule stats summary\n"
                 "  --replay PATH        Replay a recorded trace; ignores other options\n"
-                "  --replay-delay MS    Delay between replay events (default 0)\n";
+                "  --replay-delay MS    Delay between replay events (default 0)\n"
+                "  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)\n";
             return 0;
         } else if (a == "--seed") { if (!needs_value(i)) return 1; seed = std::atoi(argv[++i]); }
         else if (a == "--max-threads") { if (!needs_value(i)) return 1; max_threads = std::atoi(argv[++i]); }
@@ -502,6 +552,14 @@ int main(int argc, char *argv[]) {
         else if (a == "--stats") { if (!needs_value(i)) return 1; stats_path = argv[++i]; }
         else if (a == "--replay") { if (!needs_value(i)) return 1; replay_path = argv[++i]; }
         else if (a == "--replay-delay") { if (!needs_value(i)) return 1; replay_delay = std::atoi(argv[++i]); }
+        else if (a == "--screen") {
+            if (!needs_value(i)) return 1;
+            if (std::sscanf(argv[++i], "%d,%d", &screen_rows, &screen_cols) != 2
+                || screen_rows < 2 || screen_cols < 2) {
+                std::cerr << "bad --screen value, expected R,C with R,C >= 2\n";
+                return 1;
+            }
+        }
         else if (!a.empty() && a[0] == '-') {
             std::cerr << "unknown option: " << a << std::endl;
             return 1;
@@ -564,13 +622,27 @@ int main(int argc, char *argv[]) {
     w.set_trace_file(trace_fp);
     w.set_stats_file(stats_fp);
 
-    // Trace header: tool version, seed, screen dimensions
+    // Compute viewport size + centering offset from --screen vs actual terminal
+    int actual_row, actual_col;
+    getmaxyx(stdscr, actual_row, actual_col);
+    int eff_row = (screen_rows > 0) ? screen_rows : actual_row;
+    int eff_col = (screen_cols > 0) ? screen_cols : actual_col;
+    if (eff_row > actual_row || eff_col > actual_col) {
+        endwin();
+        std::cerr << "--screen " << screen_rows << "," << screen_cols
+                  << " exceeds actual terminal "
+                  << actual_row << "x" << actual_col << "; resize and retry\n";
+        return 1;
+    }
+    int off_row = (actual_row - eff_row) / 2;
+    int off_col = (actual_col - eff_col) / 2;
+    w.set_render_offset(off_row, off_col);
+
+    // Trace header: tool version, seed, viewport dimensions (constrained or actual)
     if (trace_fp) {
-        int hdr_row, hdr_col;
-        getmaxyx(stdscr, hdr_row, hdr_col);
         fprintf(trace_fp, "# zahradnice-trace v1\n");
         fprintf(trace_fp, "# seed=%d\n", actual_seed);
-        fprintf(trace_fp, "# screen=%d,%d\n", hdr_row, hdr_col);
+        fprintf(trace_fp, "# screen=%d,%d\n", eff_row, eff_col);
     }
 
     std::string prev_config;  // For program_unload markers
@@ -658,7 +730,8 @@ int main(int argc, char *argv[]) {
 
         // Control key translation handled by reverse dictionary mappings
 
-        getmaxyx(stdscr, row, col);
+        row = eff_row;
+        col = eff_col;
 
         //top row reserved as status line
         w.reset(cfg, row, col);
@@ -804,8 +877,10 @@ int main(int argc, char *argv[]) {
                 std::string txt_filename = std::string(timestamp_base) + ".txt";
                 std::string ansi_filename = std::string(timestamp_base) + ".ansi";
 
-                bool txt_success = take_screenshot(txt_filename, false);   // Plain text screenshot
-                bool ansi_success = take_screenshot(ansi_filename, true);  // Colored screenshot with ANSI codes
+                bool txt_success = take_screenshot(txt_filename, false,
+                                                   off_row, off_col, eff_row, eff_col);
+                bool ansi_success = take_screenshot(ansi_filename, true,
+                                                    off_row, off_col, eff_row, eff_col);
 
                 if (txt_success || ansi_success) {
                     // Set feedback message to be displayed in next loop iteration
