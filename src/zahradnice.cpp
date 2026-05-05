@@ -15,6 +15,7 @@
 #include <memory>
 #include <fstream>
 #include <ctime>
+#include <cstring>
 
 // Global state for statusline template inheritance
 static std::wstring active_statusline_template = L"";
@@ -237,37 +238,302 @@ void clear_status(size_t len) {
     mvaddwstr(0, 0, empty.c_str());
 }
 
-int main(int argc, char *argv[]) {
-    setlocale(LC_ALL, "");
+// Input replay: read a previously-recorded trace and re-feed its triggers to
+// the engine, letting normal rule selection decide what fires. Renders into
+// a virtual viewport of the recorded screen size, requiring the host terminal
+// to be at least that big. Detects divergence (different rule fired or score
+// drift) automatically.
+static int run_replay(const std::string &replay_path, int delay_ms) {
+    FILE *f = std::fopen(replay_path.c_str(), "r");
+    if (!f) {
+        std::cerr << "Cannot open replay file: " << replay_path << std::endl;
+        return 1;
+    }
 
-    if (argc > 1) {
-        auto param = std::string(argv[1]);
-        if (param == "-h" || param == "--help") {
-            std::cout
-                    << "Usage: ./zahradnice [<program.cfg>] [seed] [max-threads]"
-                    << std::endl
-                    << "  program.cfg  - Program to run (default: current directory)"
-                    << std::endl
-                    << "  seed         - Random seed (default: time-based)"
-                    << std::endl
-                    << "  max-threads  - Maximum worker threads (default: hardware cores)"
-                    << std::endl;
-            return 0;
+    // Parse header: "# seed=N" and "# screen=R,C"
+    int rec_seed = 1, rec_rows = 24, rec_cols = 80;
+    char line[8192];
+    long after_header = 0;
+    while (std::fgets(line, sizeof(line), f)) {
+        if (line[0] != '#') {
+            std::fseek(f, after_header, SEEK_SET);
+            break;
+        }
+        int v, r, c;
+        if (std::sscanf(line, "# seed=%d", &v) == 1) rec_seed = v;
+        else if (std::sscanf(line, "# screen=%d,%d", &r, &c) == 2) {
+            rec_rows = r; rec_cols = c;
+        }
+        after_header = std::ftell(f);
+    }
+
+    initscr();
+    start_color();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    timeout(0);
+    curs_set(0);
+
+    int host_row, host_col;
+    getmaxyx(stdscr, host_row, host_col);
+    if (host_row < rec_rows || host_col < rec_cols) {
+        endwin();
+        std::cerr << "Terminal too small for replay: have "
+                  << host_row << "x" << host_col
+                  << ", need at least " << rec_rows << "x" << rec_cols
+                  << " (resize and retry)" << std::endl;
+        std::fclose(f);
+        return 2;
+    }
+
+    srand(rec_seed);
+    srandom(rec_seed);
+
+    Derivation w;
+    std::unordered_map<std::string, Grammar2D> program_cache;
+    Grammar2D *cur_cfg = nullptr;
+    std::string cur_path;
+    bool first_load = true;
+    uint64_t events_processed = 0;
+    int score_seen = 0;   // score from recording (last seen in trace)
+    int score_live = 0;   // score this replay has accumulated
+    uint64_t diverged_at = 0;       // event_step of first divergence (0 = none)
+    std::string div_rec_head, div_live_head;
+    int div_rec_score = 0, div_live_score = 0;
+    bool aborted = false;
+
+    auto render_status = [&](const char *phase) {
+        char buf[512];
+        if (diverged_at) {
+            std::snprintf(buf, sizeof(buf),
+                "REPLAY %s: ev=%llu | DIV@%llu rec='%s'/%d live='%s'/%d (ESC)",
+                phase, (unsigned long long)events_processed,
+                (unsigned long long)diverged_at,
+                div_rec_head.c_str(), div_rec_score,
+                div_live_head.c_str(), div_live_score);
+        } else {
+            std::snprintf(buf, sizeof(buf),
+                "REPLAY %s: %s | ev=%llu score=%d (ESC quits)",
+                phase, cur_path.c_str(),
+                (unsigned long long)events_processed, score_live);
+        }
+        std::string s(buf);
+        if (static_cast<int>(s.size()) > rec_cols) s.resize(rec_cols);
+        std::wstring blank(rec_cols, L' ');
+        mvaddwstr(0, 0, blank.c_str());
+        mvaddstr(0, 0, s.c_str());
+        refresh();
+    };
+
+    while (std::fgets(line, sizeof(line), f)) {
+        size_t n = std::strlen(line);
+        while (n > 0 && (line[n-1] == '\n' || line[n-1] == '\r')) line[--n] = 0;
+        if (n == 0 || line[0] == '#') continue;
+
+        // Non-blocking ESC poll
+        wint_t kch;
+        if (wget_wch(stdscr, &kch) == OK && kch == 27) {
+            aborted = true;
+            break;
+        }
+
+        if (std::strncmp(line, "program_load\t", 13) == 0) {
+            char *saveptr = nullptr;
+            strtok_r(line, "\t", &saveptr);             // "program_load"
+            strtok_r(nullptr, "\t", &saveptr);          // step
+            char *sc = strtok_r(nullptr, "\t", &saveptr);  // score
+            char *pp = strtok_r(nullptr, "\t", &saveptr);  // path
+            if (!pp) continue;
+            if (sc) score_seen = std::atoi(sc);
+            std::string p(pp);
+            cur_path = p;
+
+            auto it = program_cache.find(p);
+            if (it == program_cache.end()) {
+                Grammar2D cfg;
+                if (!cfg.loadFromFile(p)) continue;
+                if (cfg.thread_count == 0) cfg.thread_count = 1;  // replay is force-execute
+                program_cache.emplace(p, std::move(cfg));
+            }
+            cur_cfg = &program_cache.at(p);
+
+            w.reset(*cur_cfg, rec_rows, rec_cols);
+            w.init(first_load);
+            first_load = false;
+            w.start();
+            render_status("LOAD");
+        } else if (std::strncmp(line, "program_unload\t", 15) == 0
+                || std::strncmp(line, "program_reload\t", 15) == 0) {
+            // No-op: next program_load handles state
+        } else if (std::strncmp(line, "program_exit\t", 13) == 0) {
+            break;
+        } else if (std::strncmp(line, "screenshot\t", 11) == 0) {
+            // Reproduce screenshot at this checkpoint with _replay suffix.
+            // Recording: 'screenshot_YYYYMMDD_HHMMSS.{txt,ansi}'
+            // Replay:    'screenshot_YYYYMMDD_HHMMSS_replay.{txt,ansi}'
+            // External diff compares them. Ad-hoc lines (manually added to
+            // trace before replay) work the same way.
+            char *saveptr = nullptr;
+            strtok_r(line, "\t", &saveptr);          // "screenshot"
+            strtok_r(nullptr, "\t", &saveptr);       // step
+            char *base = strtok_r(nullptr, "\t", &saveptr);
+            if (base && *base) {
+                refresh();  // ensure any pending engine writes are visible
+                std::string b(base);
+                take_screenshot(b + "_replay.txt", false);
+                take_screenshot(b + "_replay.ansi", true);
+            }
+        } else if (std::strncmp(line, "apply\t", 6) == 0 && cur_cfg) {
+            // Input replay: feed the recorded trigger to the engine; let normal
+            // rule selection determine what fires. With seeded RNG and gating
+            // (1 rule per keypress / non-zero-interval timing), the same input
+            // sequence produces the same outcome until engine logic changes.
+            char *saveptr = nullptr;
+            strtok_r(line, "\t", &saveptr);             // "apply"
+            strtok_r(nullptr, "\t", &saveptr);          // step
+            char *sc = strtok_r(nullptr, "\t", &saveptr);   // score
+            char *src_s = strtok_r(nullptr, "\t", &saveptr); // src
+            char *trig_s = strtok_r(nullptr, "\t", &saveptr); // trig
+            strtok_r(nullptr, "\t", &saveptr);          // lhs
+            strtok_r(nullptr, "\t", &saveptr);          // idx
+            strtok_r(nullptr, "\t", &saveptr);          // ro
+            strtok_r(nullptr, "\t", &saveptr);          // co
+            char *head_s = strtok_r(nullptr, "\t", &saveptr); // head (rest of line)
+            if (!trig_s) continue;
+            int rec_score = sc ? std::atoi(sc) : score_seen;
+            score_seen = rec_score;
+
+            char src_ch = (src_s && src_s[0] && src_s[0] != '-') ? src_s[0] : 0;
+            wchar_t trig = 0;
+            int got = std::mbtowc(&trig, trig_s, MB_CUR_MAX);
+            if (got < 1) trig = static_cast<unsigned char>(trig_s[0]);
+
+            Grammar2D::Rule rule_dummy = {};
+            std::vector<wchar_t> sounds_dummy;
+            w.stepMultithreaded(trig, score_live, &rule_dummy, &sounds_dummy, src_ch);
+            ++events_processed;
+
+            // Internal divergence test: compare live rule head + score to recording.
+            // First divergence is sticky — captured for status display.
+            if (!diverged_at && head_s) {
+                std::string rec_head = head_s;
+                // wstring → string for comparison (assume ASCII rule heads;
+                // non-ASCII chars compared by raw mbstowcs roundtrip would also work)
+                std::string live_head;
+                live_head.reserve(rule_dummy.lhsa.size());
+                char mb[MB_CUR_MAX + 1];
+                for (wchar_t wc : rule_dummy.lhsa) {
+                    int n = std::wctomb(mb, wc);
+                    if (n > 0) live_head.append(mb, n);
+                }
+                if (rec_head != live_head || rec_score != score_live) {
+                    diverged_at = events_processed;
+                    div_rec_head = rec_head;
+                    div_live_head = live_head;
+                    div_rec_score = rec_score;
+                    div_live_score = score_live;
+                    render_status("DIV");
+                }
+            }
+
+            if ((events_processed & 63) == 0) render_status(diverged_at ? "DIV" : "RUN");
+            if (delay_ms > 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+            }
         }
     }
 
-    std::string config(".");
-    int seed = 0;
-    int max_threads = 0; // 0 = auto-detect
+    render_status(aborted ? "ABORTED" : "DONE");
+    timeout(2000);  // brief pause so user sees final state
+    wint_t k;
+    wget_wch(stdscr, &k);
 
-    if (argc > 1) config = argv[1];
-    if (argc > 2) seed = std::atoi(argv[2]);
-    if (argc > 3) max_threads = std::atoi(argv[3]);
+    endwin();
+    std::fclose(f);
+
+    if (diverged_at) {
+        std::cerr << "Replay diverged at event " << diverged_at
+                  << ": recorded rule '" << div_rec_head << "' score=" << div_rec_score
+                  << "; live rule '" << div_live_head << "' score=" << div_live_score
+                  << std::endl;
+        return 3;
+    }
+    if (aborted) std::cerr << "Replay aborted by user." << std::endl;
+    else std::cerr << "Replay completed: " << events_processed
+                   << " events, final score=" << score_live << std::endl;
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+    setlocale(LC_ALL, "");
+
+    std::string config(".");
+    std::string trace_path, stats_path, replay_path;
+    int seed = 0;
+    int max_threads = 0;
+    int replay_delay = 0;
+
+    auto needs_value = [&](int i) -> bool {
+        if (i + 1 >= argc) {
+            std::cerr << "missing value for " << argv[i] << std::endl;
+            return false;
+        }
+        return true;
+    };
+
+    bool seen_positional = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "-h" || a == "--help") {
+            std::cout <<
+                "Usage: ./zahradnice [program] [options]\n"
+                "  program              Program path (default: current directory)\n"
+                "  --seed N             Random seed (default: time-based)\n"
+                "  --max-threads N      Worker threads (default: hardware cores)\n"
+                "  --trace PATH         Write event trace (forces single-thread)\n"
+                "  --stats PATH         Write per-rule stats summary\n"
+                "  --replay PATH        Replay a recorded trace; ignores other options\n"
+                "  --replay-delay MS    Delay between replay events (default 0)\n";
+            return 0;
+        } else if (a == "--seed") { if (!needs_value(i)) return 1; seed = std::atoi(argv[++i]); }
+        else if (a == "--max-threads") { if (!needs_value(i)) return 1; max_threads = std::atoi(argv[++i]); }
+        else if (a == "--trace") { if (!needs_value(i)) return 1; trace_path = argv[++i]; }
+        else if (a == "--stats") { if (!needs_value(i)) return 1; stats_path = argv[++i]; }
+        else if (a == "--replay") { if (!needs_value(i)) return 1; replay_path = argv[++i]; }
+        else if (a == "--replay-delay") { if (!needs_value(i)) return 1; replay_delay = std::atoi(argv[++i]); }
+        else if (!a.empty() && a[0] == '-') {
+            std::cerr << "unknown option: " << a << std::endl;
+            return 1;
+        } else if (!seen_positional) {
+            config = a;
+            seen_positional = true;
+        } else {
+            std::cerr << "extra positional argument: " << a << std::endl;
+            return 1;
+        }
+    }
+
+    if (!replay_path.empty()) {
+        return run_replay(replay_path, replay_delay);
+    }
 
     config = resolve_program_path(config, "");
 
     // Initialize global thread pool with command-line specified max threads
     Derivation::initializeGlobalThreadPool(max_threads);
+
+    // Open instrumentation log files (no-op if flags unset)
+    FILE* trace_fp = nullptr;
+    FILE* stats_fp = nullptr;
+    if (!trace_path.empty()) {
+        trace_fp = std::fopen(trace_path.c_str(), "w");
+        if (trace_fp) std::setvbuf(trace_fp, nullptr, _IOLBF, 0);
+    }
+    if (!stats_path.empty()) {
+        stats_fp = std::fopen(stats_path.c_str(), "w");
+    }
+    bool trace_active = (trace_fp != nullptr);
 
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) < 0) {
         //cannot initialize sounds
@@ -280,12 +546,9 @@ int main(int argc, char *argv[]) {
     int moves = 0;
     bool started = false;
 
-    if (seed == 0) {
-        srand(time(0));
-    }
-    else {
-        srand(seed);
-    }
+    int actual_seed = (seed == 0) ? static_cast<int>(time(0)) : seed;
+    srand(actual_seed);
+    srandom(actual_seed);  // POSIX random() has separate state from rand()
 
     int row, col;
 
@@ -298,6 +561,19 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     Derivation w;
+    w.set_trace_file(trace_fp);
+    w.set_stats_file(stats_fp);
+
+    // Trace header: tool version, seed, screen dimensions
+    if (trace_fp) {
+        int hdr_row, hdr_col;
+        getmaxyx(stdscr, hdr_row, hdr_col);
+        fprintf(trace_fp, "# zahradnice-trace v1\n");
+        fprintf(trace_fp, "# seed=%d\n", actual_seed);
+        fprintf(trace_fp, "# screen=%d,%d\n", hdr_row, hdr_col);
+    }
+
+    std::string prev_config;  // For program_unload markers
     std::vector<std::string> caller_stack;  // Stack of calling programs
 
     // Program caching
@@ -312,6 +588,14 @@ int main(int argc, char *argv[]) {
     std::wstring preserved_rule_lhsa;  // Preserve only display info across switches
 
     while (config != "quit") {
+        // Mark program transition: unload previous, load new
+        if (!prev_config.empty()) {
+            w.log_program_unload(prev_config, score);
+            w.dump_stats_for_program(prev_config);
+        }
+        w.log_program_load(config, score);
+        prev_config = config;
+
         std::unordered_map<wchar_t, int> elapsed_counts;  // Track elapsed counts per timing char
         bool success = true;
 
@@ -332,10 +616,15 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
-            // Auto-detect thread count if not set
+            // Auto-detect thread count if not set.
+            // When recording a trace, force single-thread for replay determinism.
             if (cfg.thread_count == 0) {
-                cfg.thread_count = std::thread::hardware_concurrency();
-                if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
+                if (trace_active) {
+                    cfg.thread_count = 1;
+                } else {
+                    cfg.thread_count = std::thread::hardware_concurrency();
+                    if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
+                }
             }
 
             // Get program directory for sound path resolution
@@ -521,6 +810,12 @@ int main(int argc, char *argv[]) {
                 if (txt_success || ansi_success) {
                     // Set feedback message to be displayed in next loop iteration
                     rule.lhsa = L"Screenshot saved";
+                    // Log as event for replay parity
+                    if (trace_fp) {
+                        std::fprintf(trace_fp, "screenshot\t%llu\t%s\n",
+                                     (unsigned long long)w.get_event_step(),
+                                     timestamp_base);
+                    }
                 }
             }
 
@@ -528,7 +823,8 @@ int main(int argc, char *argv[]) {
             {
                 rule.sound = 0;
                 std::vector<wchar_t> applied_sounds;
-                success = w.stepMultithreaded(wch, score, &rule, &applied_sounds);
+                success = w.stepMultithreaded(wch, score, &rule, &applied_sounds,
+                                              user_input ? 'k' : 't');
                 if (success) {
                     ++steps;
                     // Increment moves counter only for successful user input
@@ -554,6 +850,10 @@ int main(int argc, char *argv[]) {
                             break;
                         } else if (action == "clear") {
                             // Clear screen and restart current program with its starting symbols
+                            // Treat as unload+load of same path so stats reset cleanly
+                            w.log_program_unload(config, score);
+                            w.dump_stats_for_program(config);
+                            w.log_program_load(config, score);
                             w.init(true);  // Clear the screen
                             w.reset(cfg, row, col);  // Re-apply starting symbols
                             w.start();  // Start the derivation
@@ -591,6 +891,15 @@ int main(int argc, char *argv[]) {
 
     Mix_CloseAudio();
     Mix_Quit();
+
+    // Final instrumentation: unload last program, dump its stats, log exit
+    if (!prev_config.empty()) {
+        w.log_program_unload(prev_config, score);
+        w.dump_stats_for_program(prev_config);
+    }
+    w.log_program_exit(score);
+    if (trace_fp) std::fclose(trace_fp);
+    if (stats_fp) std::fclose(stats_fp);
 
     return err;
 }
