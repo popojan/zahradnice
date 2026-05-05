@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <set>
+#include <cstdio>
 
 struct hash_pair final {
     template<class TFirst, class TSecond>
@@ -84,6 +85,7 @@ public:
         wchar_t sound;
         bool load;
         bool engine_action;
+        int source_line = 0;
     };
 
     typedef std::vector<Rule> Rules;
@@ -117,7 +119,9 @@ public:
         thread_count = 0;
     }
 
-    bool _process(const std::vector<std::wstring> &lhs, const std::wstring &rule);
+    bool _process(const std::vector<std::wstring> &lhs,
+                  const std::vector<int> &lhs_lines,
+                  const std::wstring &rule);
 
     bool loadFromFile(const std::string &fname);
 
@@ -127,7 +131,7 @@ private:
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 
-    void addRule(const std::wstring &lhs, const std::wstring &rhs);
+    void addRule(const std::wstring &lhs, const std::wstring &rhs, int source_line = 0);
 
     // UTF-8 to wide character conversion helper
     static wchar_t utf8_to_wchar(const std::string& utf8_char);
@@ -175,6 +179,12 @@ struct ScreenArea {
     }
 };
 
+struct RuleStats {
+    uint32_t considered = 0;
+    uint32_t applicable_locs = 0;
+    uint32_t applied = 0;
+};
+
 class Derivation {
 public:
     std::unordered_map<std::pair<int, int>, wchar_t, hash_pair> x;
@@ -202,13 +212,25 @@ public:
 
     void start();
 
-    bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule);
+    bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char src = 0);
 
     ScreenArea calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule);
 
     std::vector<RuleApplication> gatherApplicableRules(wchar_t key);
 
-    bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule, std::vector<wchar_t> *sounds = nullptr);
+    bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule,
+                           std::vector<wchar_t> *sounds = nullptr, char src = 0);
+
+    // Instrumentation — only active when files are set; zero cost when off.
+    void set_trace_file(FILE* fp) { trace_fp = fp; }
+    void set_stats_file(FILE* fp) { stats_fp = fp; }
+    void log_program_load(const std::string &path, int score);
+    void log_program_unload(const std::string &path, int score);
+    void log_program_exit(int score);
+    void dump_stats_for_program(const std::string &path);
+    uint64_t get_event_step() const { return event_step; }
+    // Trajectory replay: force-execute a previously-recorded apply.
+    bool apply_recorded(wchar_t lhs, size_t idx, int ro, int co);
 
     std::pair<int, int> getThreadingStats();
 
@@ -247,4 +269,15 @@ private:
 
     // Global thread pool for rule application (shared across all programs)
     static std::unique_ptr<ThreadPool> global_thread_pool;
+
+    // Instrumentation state
+    FILE* trace_fp = nullptr;
+    FILE* stats_fp = nullptr;
+    std::unordered_map<uint64_t, RuleStats> stats;
+    uint64_t event_step = 0;
+
+    inline uint64_t stats_key(wchar_t lhs, size_t idx) const {
+        return (static_cast<uint64_t>(static_cast<uint32_t>(lhs)) << 32) | static_cast<uint32_t>(idx);
+    }
+    void log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_t idx, int ro, int co);
 };

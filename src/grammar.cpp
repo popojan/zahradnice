@@ -85,9 +85,12 @@ static std::string decompress_gzip_file(const std::string& filename) {
     return result;
 }
 
-bool Grammar2D::_process(const std::vector<std::wstring> &lhs, const std::wstring &rule) {
-    for (const auto &x : lhs) {
-        addRule(x, rule);
+bool Grammar2D::_process(const std::vector<std::wstring> &lhs,
+                         const std::vector<int> &lhs_lines,
+                         const std::wstring &rule) {
+    for (size_t i = 0; i < lhs.size(); ++i) {
+        int line = (i < lhs_lines.size()) ? lhs_lines[i] : 0;
+        addRule(lhs[i], rule, line);
     }
     return true;
 }
@@ -182,11 +185,14 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
     if (content.empty()) return false;
 
     std::vector<std::wstring> lhs;
+    std::vector<int> lhs_lines;
     std::wstring rule;
 
     bool first = true;
     size_t start = 0;
+    int cur_line = 0;
     while (start < content.length()) {
+        ++cur_line;
         size_t end = content.find('\n', start);
         if (end == std::string::npos) end = content.length();
         std::string line_utf8 = content.substr(start, end - start);
@@ -288,11 +294,13 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         }
         if (!line.empty() && line[0] == L'=') //new rule LHSs
         {
-            if (!rule.empty() && _process(lhs, rule)) {
+            if (!rule.empty() && _process(lhs, lhs_lines, rule)) {
                 rule.clear();
                 lhs.clear();
+                lhs_lines.clear();
             }
             lhs.push_back(line);
+            lhs_lines.push_back(cur_line);
         } else if (!lhs.empty()) {
             if (!rule.empty()) rule += L'\n';
             rule += line;
@@ -301,7 +309,7 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
         first = false;
     }
     if (!rule.empty()) {
-        _process(lhs, rule);
+        _process(lhs, lhs_lines, rule);
     }
     // No default starting symbol - programs control their own initialization
 
@@ -420,7 +428,7 @@ std::wstring Grammar2D::string_to_wstring(const std::string& str) {
     return result;
 }
 
-void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
+void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs, int source_line) {
     wchar_t s = lhs.length() > 2 ? lhs[2] : L's';
     if (R.find(s) == R.end()) {
         R[s] = Rules();
@@ -451,6 +459,7 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs) {
     auto q = origin(s, rhs, L'@', 2);
     rule.lhsa = lhs;
     rule.lhs = s;
+    rule.source_line = source_line;
     rule.ro = o.first;
     rule.co = o.second;
     rule.rm = m.first;
@@ -638,7 +647,7 @@ void Derivation::start() {
     }
 }
 
-bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
+bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char src) {
     //random nonterminal instance
 
     //nonterminal alterable by rules from group key
@@ -674,8 +683,10 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
             auto &rs = res->second;
             for (auto rit = rs.begin(); rit != rs.end(); ++rit) {
                 if (rit->key == key || rit->key == L'?') {
+                    if (stats_fp) ++stats[stats_key(n, rit - rs.begin())].considered;
                     bool app = apply_impl<true>(nit->first - rit->ro, nit->second - rit->co, *rit);
                     if (app) {
+                        if (stats_fp) ++stats[stats_key(n, rit - rs.begin())].applicable_locs;
                         sumw += rit->weight;
                         nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
                     }
@@ -683,7 +694,9 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
             }
         }
     }
-    //select a random applicable rule
+    if (nr.empty()) return false;
+    //select a random applicable rule (random() advances only when a rule will be selected,
+    //so RNG state evolves only with successful steps — required for deterministic replay)
     prob = static_cast<double>(random()) / RAND_MAX * sumw;
     sumw = 0.0;
     for (auto nit = nr.begin(); nit != nr.end(); ++nit) {
@@ -695,6 +708,9 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule) {
             if (applied) {
                 *dbgrule = rule;
                 score += rule.reward;
+                if (stats_fp) ++stats[stats_key(nit->a, nit->c)].applied;
+                ++event_step;
+                if (trace_fp) log_apply(score, src, key, nit->a, nit->c, rc.first, rc.second);
                 return true;
             }
         }
@@ -891,8 +907,10 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
             for (size_t i = 0; i < rs.size(); ++i) {
                 const auto &rule = rs[i];
                 if (rule.key == key || rule.key == L'?') {
+                    if (stats_fp) ++stats[stats_key(n, i)].considered;
                     bool app = apply_impl<true>(nit->first - rule.ro, nit->second - rule.co, rule);
                     if (app) {
+                        if (stats_fp) ++stats[stats_key(n, i)].applicable_locs;
                         applicable_rules.push_back({*nit, rule, i, rule.weight});
                     }
                 }
@@ -903,9 +921,18 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
     return applicable_rules;
 }
 
-bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule, std::vector<wchar_t> *sounds) {
-    if (g.thread_count <= 1) {
-        bool result = step(key, score, dbgrule);
+bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule,
+                                   std::vector<wchar_t> *sounds, char src) {
+    // Discrete-event semantics: keypresses and non-zero-interval timings fire
+    // exactly one rule per event. Parallel firing only allowed for continuous
+    // (interval==0) timings, where many cells naturally update per tick.
+    auto tit = g.timing_chars.find(key);
+    bool parallel_allowed = (g.thread_count > 1)
+                         && (src != 'k')
+                         && (tit != g.timing_chars.end())
+                         && (tit->second == 0);
+    if (!parallel_allowed) {
+        bool result = step(key, score, dbgrule, src);
         // Collect sound from the applied rule if successful
         if (result && sounds && dbgrule && dbgrule->sound != 0) {
             sounds->push_back(dbgrule->sound);
@@ -988,6 +1015,11 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         );
         if (applied) {
             score += selected_rules[0].rule.reward;
+            if (stats_fp) ++stats[stats_key(selected_rules[0].rule.lhs, selected_rules[0].rule_index)].applied;
+            ++event_step;
+            if (trace_fp) log_apply(score, src, key,
+                                    selected_rules[0].rule.lhs, selected_rules[0].rule_index,
+                                    selected_rules[0].position.first, selected_rules[0].position.second);
             // Collect sound from successfully applied rule
             if (sounds && selected_rules[0].rule.sound != 0) {
                 sounds->push_back(selected_rules[0].rule.sound);
@@ -1032,6 +1064,11 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
         if (futures[i].get()) {
             score += rewards[i];
             any_applied = true;
+            if (stats_fp) ++stats[stats_key(selected_rules[i].rule.lhs, selected_rules[i].rule_index)].applied;
+            ++event_step;
+            if (trace_fp) log_apply(score, src, key,
+                                    selected_rules[i].rule.lhs, selected_rules[i].rule_index,
+                                    selected_rules[i].position.first, selected_rules[i].position.second);
             // Collect sound from successfully applied rule
             if (sounds && rule_sounds[i] != 0) {
                 sounds->push_back(rule_sounds[i]);
@@ -1058,4 +1095,107 @@ void Derivation::initializeGlobalThreadPool(int max_threads) {
         }
         global_thread_pool = std::make_unique<ThreadPool>(thread_count);
     }
+}
+
+// --- Instrumentation ---
+
+bool Derivation::apply_recorded(wchar_t lhs, size_t idx, int ro, int co) {
+    auto it = g.R.find(lhs);
+    if (it == g.R.end() || idx >= it->second.size()) return false;
+    const auto &rule = it->second[idx];
+    return apply_impl<false>(ro - rule.rq, co - rule.cq, rule);
+}
+
+void Derivation::log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_t idx, int ro, int co) {
+    if (!trace_fp) return;
+    const wchar_t *head = L"";
+    auto it = g.R.find(lhs);
+    if (it != g.R.end() && idx < it->second.size()) {
+        head = it->second[idx].lhsa.c_str();
+    }
+    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%ls\n",
+            (unsigned long long)event_step, score,
+            src ? src : '-',
+            (wint_t)trig, (wint_t)lhs, idx, ro, co, head);
+}
+
+void Derivation::log_program_load(const std::string &path, int score) {
+    if (trace_fp) {
+        fprintf(trace_fp, "program_load\t%llu\t%d\t%s\n",
+                (unsigned long long)event_step, score, path.c_str());
+    }
+}
+
+void Derivation::log_program_unload(const std::string &path, int score) {
+    if (trace_fp) {
+        fprintf(trace_fp, "program_unload\t%llu\t%d\t%s\n",
+                (unsigned long long)event_step, score, path.c_str());
+    }
+}
+
+void Derivation::log_program_exit(int score) {
+    if (trace_fp) {
+        fprintf(trace_fp, "program_exit\t%llu\t%d\n",
+                (unsigned long long)event_step, score);
+    }
+}
+
+void Derivation::dump_stats_for_program(const std::string &path) {
+    if (!stats_fp || stats.empty()) {
+        stats.clear();
+        return;
+    }
+    // Build sorted view
+    struct Row {
+        wchar_t lhs;
+        size_t idx;
+        RuleStats s;
+        const Grammar2D::Rule *rule;
+    };
+    std::vector<Row> rows;
+    rows.reserve(stats.size());
+    for (const auto &kv : stats) {
+        wchar_t lhs = static_cast<wchar_t>(kv.first >> 32);
+        size_t idx = static_cast<size_t>(kv.first & 0xFFFFFFFFu);
+        const Grammar2D::Rule *rp = nullptr;
+        auto it = g.R.find(lhs);
+        if (it != g.R.end() && idx < it->second.size()) rp = &it->second[idx];
+        rows.push_back({lhs, idx, kv.second, rp});
+    }
+    std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+        if (a.s.applied != b.s.applied) return a.s.applied > b.s.applied;
+        // tie-break: wasted-applicability ratio (applicable_locs / max(applied,1)) desc
+        double ra = (double)a.s.applicable_locs / (double)(a.s.applied ? a.s.applied : 1);
+        double rb = (double)b.s.applicable_locs / (double)(b.s.applied ? b.s.applied : 1);
+        if (ra != rb) return ra > rb;
+        if (a.s.applicable_locs != b.s.applicable_locs) return a.s.applicable_locs > b.s.applicable_locs;
+        return a.s.considered > b.s.considered;
+    });
+
+    fprintf(stats_fp, "# program\t%s\n", path.c_str());
+    fprintf(stats_fp, "# applied\tapplicable\tconsidered\treward\trule_key\tlhs\tidx\tsrc_line\tctx\tctxrep\thead\trhs_preview\n");
+    for (const auto &r : rows) {
+        if (r.rule) {
+            // Build RHS preview: first ~24 chars, replace newlines/tabs with spaces
+            std::wstring preview = r.rule->rhs.substr(0, 24);
+            for (auto &c : preview) {
+                if (c == L'\n' || c == L'\t') c = L' ';
+            }
+            fprintf(stats_fp, "%u\t%u\t%u\t%d\t%lc\t%lc\t%zu\t%d\t%lc\t%lc\t%ls\t%ls\n",
+                    r.s.applied, r.s.applicable_locs, r.s.considered,
+                    r.rule->reward,
+                    (wint_t)r.rule->key, (wint_t)r.lhs, r.idx, r.rule->source_line,
+                    (wint_t)(r.rule->ctx == (wchar_t)-1 ? L'?' : r.rule->ctx),
+                    (wint_t)r.rule->ctxrep,
+                    r.rule->lhsa.c_str(),
+                    preview.c_str());
+        } else {
+            fprintf(stats_fp, "%u\t%u\t%u\t-\t-\t%lc\t%zu\t-\t-\t-\t-\t-\n",
+                    r.s.applied, r.s.applicable_locs, r.s.considered,
+                    (wint_t)r.lhs, r.idx);
+        }
+    }
+    fprintf(stats_fp, "\n");
+    fflush(stats_fp);
+    stats.clear();
 }
