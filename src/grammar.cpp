@@ -271,6 +271,12 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                             // #threads N - set thread count (0 = auto-detect)
                             thread_count = std::wcstol(args.c_str(), nullptr, 10);
                             if (thread_count < 0) thread_count = 0;
+                        } else if (keyword == L"transient") {
+                            // #transient <chars> - chars that don't update memory.c on write
+                            // (overlay semantic; required by moving-particle / cursor patterns).
+                            for (wchar_t c : args) {
+                                if (c != L' ' && c != L'\t') transient_chars.insert(c);
+                            }
                         }
                     }
                 }
@@ -783,7 +789,11 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
             wchar_t rep = ch;
             if (rep == L'@') rep = rule.rep;
             if (rep == L'&') rep = rule.ctxrep;
-            bool isNonTerminal = g.V.find(rep) != g.V.end();
+            // memory.c is preserved (overlay) only for chars explicitly declared
+            // transient via #transient. Default: every write updates memory.c —
+            // including non-terminals, fixing bugs where stacked structural
+            // markers (e.g. tetris X) couldn't be restored by `$`.
+            bool isTransient = g.transient_chars.find(rep) != g.transient_chars.end();
             if (rep != L' ') {
                 if (rep == L'~') rep = L' ';
                 char back = rule.back;
@@ -806,10 +816,16 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                     // Critical section: screen and memory updates
                     {
                         std::lock_guard<std::mutex> lock(screen_mutex);
+                        // Capture pre-write state for watch logging (only if needed).
+                        bool watched = trace_fp && !watch_cells.empty()
+                                     && watch_cells.count({wrapped_r, wrapped_c}) > 0;
+                        wchar_t old_screen = watched ? screen_chars[wrapped_r * col + wrapped_c] : 0;
+                        wchar_t old_memc   = watched ? memory[col * wrapped_r + wrapped_c].c : 0;
+
                         mvadd_wch(wrapped_r + offset_row, wrapped_c + offset_col, &cchar);
                         screen_chars[wrapped_r * col + wrapped_c] = d.c;
 
-                        if (!isNonTerminal) {
+                        if (!isTransient) {
                             saved = d;
                         } else {
                             saved = memory[col * wrapped_r + wrapped_c];
@@ -817,13 +833,25 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                             saved.back_attrs = d.back_attrs;
                         }
                         memory[col * wrapped_r + wrapped_c] = saved;
+
+                        if (watched) {
+                            log_cellwrite(event_step + 1, wrapped_r, wrapped_c,
+                                          old_screen, d.c, isTransient,
+                                          old_memc, saved.c, rule.lhsa.c_str());
+                        }
                     }
                 }
-                // Critical section: x map update
+                // Critical section: x map update.
+                // Use d.c (resolved char) not rep so that $ memory-restore puts
+                // the restored char in x — otherwise '$' lingers and the cell
+                // becomes invisible to lhs-based rule scheduling, breaking any
+                // rule whose lhs is the restored char (e.g. ==XTv... after a
+                // ==^T$78- walk in tetris). Pre-existing engine bug, masked
+                // historically by the old non-sticky memory.c semantics.
                 {
                     std::lock_guard<std::mutex> lock(screen_mutex);
                     auto loc = std::pair{wrapped_r, wrapped_c};
-                    x[loc] = rep;
+                    x[loc] = d.c;
                 }
             }
         }
@@ -1119,6 +1147,43 @@ void Derivation::log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_
             (unsigned long long)event_step, score,
             src ? src : '-',
             (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head);
+}
+
+void Derivation::log_cellwrite(uint64_t step, int r, int c,
+                               wchar_t old_char, wchar_t new_char,
+                               bool is_transient,
+                               wchar_t memc_old, wchar_t memc_new,
+                               const wchar_t *head) {
+    if (!trace_fp) return;
+    auto safe = [](wchar_t w) -> wint_t {
+        // null-byte slot for "unknown / off-screen" sentinel; render as '?'
+        return w == 0 ? (wint_t)L'?' : (wint_t)w;
+    };
+    fprintf(trace_fp, "cellwrite\t%llu\t%d\t%d\t%lc\t%lc\t%d\t%lc\t%lc\t%ls\n",
+            (unsigned long long)step, r, c,
+            safe(old_char), safe(new_char),
+            is_transient ? 1 : 0,
+            safe(memc_old), safe(memc_new),
+            head ? head : L"");
+}
+
+void Derivation::dump_memory(FILE *fp, uint64_t step) const {
+    if (!fp || !memory) return;
+    fprintf(fp, "# memsnap\tstep=%llu\trows=%d\tcols=%d\n",
+            (unsigned long long)step, row, col);
+    fprintf(fp, "# r\tc\tchar\tfore\tback\tfore_attrs\tback_attrs\n");
+    for (int r = 0; r < row; ++r) {
+        for (int c = 0; c < col; ++c) {
+            const G &g = memory[r * col + c];
+            // Skip default cells (matches restart() initial values) to keep dump small.
+            if (g.c == L' ' && g.fore == 7 && g.back == 0
+                && g.fore_attrs == 0 && g.back_attrs == 0) continue;
+            fprintf(fp, "%d\t%d\t%lc\t%d\t%d\t%d\t%d\n",
+                    r, c, (wint_t)g.c,
+                    (int)g.fore, (int)g.back,
+                    g.fore_attrs, g.back_attrs);
+        }
+    }
 }
 
 void Derivation::log_program_load(const std::string &path, int score) {

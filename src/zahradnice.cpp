@@ -279,7 +279,10 @@ static void clear_outside_viewport(int off_row, int off_col, int eff_row, int ef
 // to be at least that big. Detects divergence (different rule fired or score
 // drift) automatically.
 static int run_replay(const std::string &replay_path, int delay_ms,
-                      const std::vector<uint64_t> &snapshot_steps) {
+                      const std::vector<uint64_t> &snapshot_steps,
+                      const std::vector<uint64_t> &mem_snapshot_steps,
+                      const std::unordered_set<std::pair<int,int>, hash_pair> &watch_cells,
+                      const std::string &trace_out_path) {
     FILE *f = std::fopen(replay_path.c_str(), "r");
     if (!f) {
         std::cerr << "Cannot open replay file: " << replay_path << std::endl;
@@ -335,6 +338,22 @@ static int run_replay(const std::string &replay_path, int delay_ms,
     srandom(rec_seed);
 
     Derivation w;
+    // --trace PATH alongside --replay: write a fresh trace from the replay
+    // session (forwards `cellwrite` events when --trace-cell is set).
+    FILE *trace_out_fp = nullptr;
+    if (!trace_out_path.empty()) {
+        trace_out_fp = std::fopen(trace_out_path.c_str(), "w");
+        if (trace_out_fp) {
+            std::setvbuf(trace_out_fp, nullptr, _IOLBF, 0);
+            fprintf(trace_out_fp, "# zahradnice-trace v2\n");
+            fprintf(trace_out_fp, "# seed=%d\n", rec_seed);
+            fprintf(trace_out_fp, "# screen=%d,%d\n", rec_rows, rec_cols);
+            w.set_trace_file(trace_out_fp);
+        }
+    }
+    if (!watch_cells.empty()) {
+        w.set_watch_cells(watch_cells);
+    }
     std::unordered_map<std::string, Grammar2D> program_cache;
     Grammar2D *cur_cfg = nullptr;
     std::string cur_path;
@@ -373,7 +392,16 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
         take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
     };
+    auto take_memsnap_at = [&](uint64_t step) {
+        char fn[64];
+        std::snprintf(fn, sizeof(fn), "memsnap_step%llu.txt", (unsigned long long)step);
+        FILE *mfp = std::fopen(fn, "w");
+        if (!mfp) return;
+        w.dump_memory(mfp, step);
+        std::fclose(mfp);
+    };
     std::set<uint64_t> snapshot_pending(snapshot_steps.begin(), snapshot_steps.end());
+    std::set<uint64_t> memsnap_pending(mem_snapshot_steps.begin(), mem_snapshot_steps.end());
 
     auto render_status = [&](const char *phase) {
         char buf[512];
@@ -514,13 +542,18 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             // --replay-snapshot: capture a screenshot when the recorded step
             // matches a requested step. Uses the trace's step column directly,
             // which equals events_processed under deterministic replay.
-            if (!snapshot_pending.empty() && step_s) {
+            if ((!snapshot_pending.empty() || !memsnap_pending.empty()) && step_s) {
                 uint64_t step_v = std::strtoull(step_s, nullptr, 10);
-                auto it = snapshot_pending.find(step_v);
-                if (it != snapshot_pending.end()) {
+                auto sit = snapshot_pending.find(step_v);
+                if (sit != snapshot_pending.end()) {
                     render_status(diverged_at ? "DIV" : "RUN");
                     take_snapshot_at(step_v);
-                    snapshot_pending.erase(it);
+                    snapshot_pending.erase(sit);
+                }
+                auto mit = memsnap_pending.find(step_v);
+                if (mit != memsnap_pending.end()) {
+                    take_memsnap_at(step_v);
+                    memsnap_pending.erase(mit);
                 }
             }
 
@@ -561,6 +594,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
     endwin();
     std::fclose(f);
+    if (trace_out_fp) std::fclose(trace_out_fp);
 
     if (diverged_at) {
         std::cerr << "Replay diverged at event " << diverged_at
@@ -585,6 +619,8 @@ int main(int argc, char *argv[]) {
     int replay_delay = 0;
     int screen_rows = 0, screen_cols = 0;
     std::vector<uint64_t> snapshot_steps;
+    std::vector<uint64_t> mem_snapshot_steps;
+    std::unordered_set<std::pair<int,int>, hash_pair> watch_cells;
 
     auto needs_value = [&](int i) -> bool {
         if (i + 1 >= argc) {
@@ -608,6 +644,8 @@ int main(int argc, char *argv[]) {
                 "  --replay PATH        Replay a recorded trace; ignores other options\n"
                 "  --replay-delay MS    Delay between replay events (default 0)\n"
                 "  --replay-snapshot S  Comma-separated trace steps to screenshot during replay\n"
+                "  --mem-snapshot S     Comma-separated steps to dump memory[] to memsnap_step<N>.txt\n"
+                "  --trace-cell R,C[,R,C...]  Watched cells; emit `cellwrite` events into the trace\n"
                 "  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)\n";
             return 0;
         } else if (a == "--seed") { if (!needs_value(i)) return 1; seed = std::atoi(argv[++i]); }
@@ -632,6 +670,47 @@ int main(int argc, char *argv[]) {
                 p = endp;
             }
         }
+        else if (a == "--mem-snapshot") {
+            if (!needs_value(i)) return 1;
+            const char *p = argv[++i];
+            char *endp;
+            while (*p) {
+                while (*p == ',' || *p == ' ') ++p;
+                if (!*p) break;
+                unsigned long long v = std::strtoull(p, &endp, 10);
+                if (endp == p) {
+                    std::cerr << "bad --mem-snapshot value, expected comma-separated step numbers\n";
+                    return 1;
+                }
+                mem_snapshot_steps.push_back(static_cast<uint64_t>(v));
+                p = endp;
+            }
+        }
+        else if (a == "--trace-cell") {
+            if (!needs_value(i)) return 1;
+            // Flat comma/space-separated ints, paired as (r, c). Odd count = error.
+            const char *p = argv[++i];
+            char *endp;
+            std::vector<int> ints;
+            while (*p) {
+                while (*p == ',' || *p == ' ') ++p;
+                if (!*p) break;
+                long v = std::strtol(p, &endp, 10);
+                if (endp == p) {
+                    std::cerr << "bad --trace-cell value, expected comma-separated integers (r,c,r,c,...)\n";
+                    return 1;
+                }
+                ints.push_back(static_cast<int>(v));
+                p = endp;
+            }
+            if (ints.size() % 2 != 0) {
+                std::cerr << "--trace-cell needs an even number of integers (r,c pairs)\n";
+                return 1;
+            }
+            for (size_t k = 0; k + 1 < ints.size(); k += 2) {
+                watch_cells.insert({ints[k], ints[k+1]});
+            }
+        }
         else if (a == "--screen") {
             if (!needs_value(i)) return 1;
             if (std::sscanf(argv[++i], "%d,%d", &screen_rows, &screen_cols) != 2
@@ -653,7 +732,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (!replay_path.empty()) {
-        return run_replay(replay_path, replay_delay, snapshot_steps);
+        return run_replay(replay_path, replay_delay, snapshot_steps,
+                          mem_snapshot_steps, watch_cells, trace_path);
     }
 
     config = resolve_program_path(config, "");
@@ -701,6 +781,15 @@ int main(int argc, char *argv[]) {
     Derivation w;
     w.set_trace_file(trace_fp);
     w.set_stats_file(stats_fp);
+    if (!watch_cells.empty()) {
+        if (!trace_fp) {
+            std::cerr << "warning: --trace-cell requires --trace; cellwrite events will not be emitted\n";
+        }
+        w.set_watch_cells(watch_cells);
+    }
+    if (!mem_snapshot_steps.empty()) {
+        std::cerr << "warning: --mem-snapshot only fires during --replay; ignored in record mode\n";
+    }
 
     // Compute viewport size + centering offset from --screen vs actual terminal
     int actual_row, actual_col;

@@ -96,9 +96,10 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 - `dict` - Dictionary for sound paths, colors, and timing definitions
 
 **Derivation class (`grammar.h:90-129`):**
-- `x` - Map from (row,col) coordinates to characters representing current screen state
+- `x` - Map from (row,col) coordinates to characters representing current screen state (non-terminals only)
 - `memory` - Array for local state storage used by advanced programs
-- Grid-based 2D transformation system with color and z-order support
+- `screen_chars` - Flat `wchar_t` array indexed by `r*col + c`, redundantly mirroring the displayed character at every cell. Read in `apply_impl` for every context-match. Introduced to avoid mutex contention on curses reads from worker threads, but is also the architectural reason single-threaded rule matching is fast: every dry-run match becomes an O(1) array index instead of a curses round-trip or `x` map lookup. Adding more threads on top of this provides only marginal speedup because the post-match hot paths (mvadd_wch into curses, `screen_mutex` for `x`/`memory` updates) are already serialised and memory-bandwidth-bound.
+- Grid-based 2D transformation system with color support
 
 ## Special Files
 

@@ -104,6 +104,12 @@ public:
     // Timing configuration - map from character to interval (ms)
     std::unordered_map<wchar_t, int> timing_chars;
 
+    // Transient characters: writes to memory.c are suppressed (overlay semantic).
+    // Default = empty (every write updates memory.c, including non-terminals).
+    // Programs that need moving-particle / transparent-overlay behaviour declare
+    // these via the #transient directive.
+    std::unordered_set<wchar_t> transient_chars;
+
     // Sound paths (parsed from dictionary)
     std::unordered_map<wchar_t, std::string> sound_paths;
 
@@ -224,10 +230,19 @@ public:
     // Instrumentation — only active when files are set; zero cost when off.
     void set_trace_file(FILE* fp) { trace_fp = fp; }
     void set_stats_file(FILE* fp) { stats_fp = fp; }
+    // Watched cells: every write to (r,c) in this set emits a `cellwrite`
+    // trace event (requires trace_fp). Empty = no per-cell tracing (default).
+    void set_watch_cells(const std::unordered_set<std::pair<int,int>, hash_pair>& cells) {
+        watch_cells = cells;
+    }
     void log_program_load(const std::string &path, int score);
     void log_program_unload(const std::string &path, int score);
     void log_program_exit(int score);
     void dump_stats_for_program(const std::string &path);
+    // Dump memory[r,c] (char + colour + attrs) for non-default cells only.
+    // One line per cell: `r c char fore back fore_attrs back_attrs`.
+    // Header comment carries the step for the snapshot.
+    void dump_memory(FILE *fp, uint64_t step) const;
     uint64_t get_event_step() const { return event_step; }
     // Trajectory replay: force-execute a previously-recorded apply.
     bool apply_recorded(wchar_t lhs, size_t idx, int ro, int co);
@@ -287,6 +302,14 @@ private:
         return (static_cast<uint64_t>(static_cast<uint32_t>(lhs)) << 32) | static_cast<uint32_t>(idx);
     }
     void log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_t idx, int ro, int co);
+    // Emit `cellwrite` event for a watched (r,c). Called from apply_impl<false>
+    // immediately after the screen + memory write completes (under screen_mutex).
+    void log_cellwrite(uint64_t step, int r, int c,
+                       wchar_t old_char, wchar_t new_char,
+                       bool is_transient,
+                       wchar_t memc_old, wchar_t memc_new,
+                       const wchar_t *head);
+    std::unordered_set<std::pair<int,int>, hash_pair> watch_cells;
 
     int offset_row = 0;
     int offset_col = 0;

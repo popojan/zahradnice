@@ -234,6 +234,65 @@ Each gravity rule must set `back='0'` to reset memory.bg of cells the v vacates;
 
 ---
 
+## 17. `#control X clear` alone does nothing — engine actions need a *rule* to fire them
+
+**Symptom.** A program declares `#control x clear` (intending the `x` key to restart the level). Pressing `x` does nothing.
+
+**Cause.** `#control <char> <action>` only registers the binding in `engine_actions[char] = action`. The action fires **only when a rule whose `sound` field equals `char` is applied**. A keypress on its own — even one matching the control char — does not fire the action; it only triggers rules whose `trigger` field matches.
+
+**Avoid.** Pair the directive with at least one always-applicable rule. Convention: uppercase = control char (sound), lowercase = trigger key. Body is `@@@` (anchor only, no-op).
+
+```
+#control X clear
+=XJxJ
+=XKxK
+=XUxU
+=XHxH
+@@@
+```
+
+For each non-terminal that's reliably on screen during the program (here, the four snake-head glyphs J/K/U/H), one rule with `sound=X, lhs=<NT>, trigger=x, replace=<NT>` (idempotent — replace = lhs). Pressing `x` matches one of them; the engine action fires once.
+
+**See also.** `programs/sokoban/rules.cfg` lines 3-4 + the `=XPxP` rule on line 21 for the canonical sokoban pattern.
+
+---
+
+## 18. `memory.c` is sticky by default; opt out with `#transient`
+
+**Symptom 1.** A non-terminal moves across a frozen cell (e.g. tetris's `^` rising through an X+letter pile). After the non-terminal passes, the original frozen char reappears via `$` rep — but only if the engine treated the moving char as transient. If it didn't, the frozen cell is permanently overwritten and gravity / restore breaks.
+
+**Symptom 2 (less obvious).** A `$` memory-restore writes the *correct* char to screen and memory, but the cell silently fails to be eligible for any later rule whose lhs is that char. (E.g. `==XTv...` never fires on cells that the `^`-walk previously traversed, even though they display as X.) This was a separate engine bug — `apply_impl` was writing `rep` (`$`) to the `x` map instead of the resolved char `d.c`. Fixed in 2026-05-06; pair with the symmetric memory.c semantics below.
+
+**Engine semantics (post-2026-05-06).**
+
+- Every non-empty body write updates `memory[r,c]` to the full struct `{c, fore, back, fore_attrs, back_attrs}` of the written cell. This is the **default**.
+- Chars listed in `#transient <chars>` are exceptions: writes of those chars only update `memory[r,c].back` (for transparent-overlay support); `memory[r,c].c` and other fields are preserved.
+- `$` rep reads `memory[r,c]` and writes the saved struct verbatim. With sticky memory, `$` always restores the most recent terminal write at that cell.
+- The `x` map (engine's NT scheduler) is kept in sync with `screen_chars` and `memory.c`; rules whose lhs matches the resolved char will see the cell.
+
+**When to declare `#transient`.**
+
+- *Moving particles*: tetris's `^` (signal-rise marker) and `v` (gravity-fall marker) need to traverse frozen scenery without overwriting it. Declare `#transient ^v`.
+- *Rendering cursors* / *transparent overlays*: chars that draw on top of stable scenery and disappear without trace.
+- *Anything that should not be remembered*: if you'd be confused by `$` restoring this char somewhere later, mark it transient.
+
+**When NOT to declare `#transient`.**
+
+- Frozen / structural markers (tetris `X`, walls `#`, status glyphs): these *are* the scenery. They must be sticky so `$` can restore them.
+- Piece glyphs that get re-rendered every tick (J, L, O, …): they're written non-transiently; the next render cycle naturally overwrites them.
+
+**Concrete worked example (tetris).**
+
+`programs/tetris/index.cfg` declares `#transient ^v`. Frozen cells are stored as X+letter pairs. The `^` rise rule (`==^T$78-`) moves `^` upward through a column of X cells; each step:
+1. Writes `^` at the new position (transient → memory unchanged).
+2. Writes `$` rep at the old position → engine reads memory, restores X with the original colour. Both `screen_chars` and `x` map agree the cell is X.
+
+If `^` were *not* transient, step 1 would overwrite the X in memory; step 2's `$` restore would then read whatever was last terminally written (often a piece glyph or empty), and the column would corrupt.
+
+**Note on the deprecated asymmetry.** Pre-2026-05-06, the engine had a different rule: non-terminal writes left `memory.c` unchanged automatically; only terminals updated it. That was the source of multiple subtle bugs (naked-X corruption being the canonical one) because it conflated "this char is structural / persistable" with "this char is a non-terminal". `#transient` makes the distinction explicit.
+
+---
+
 ## Adding new entries
 
 When a future session discovers a new gotcha:
