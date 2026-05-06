@@ -293,6 +293,40 @@ If `^` were *not* transient, step 1 would overwrite the X in memory; step 2's `$
 
 ---
 
+## 19. `^` seeds (and any non-`=` line) after a rule are appended to that rule's body
+
+**Symptom.** A wrapper file does `#include rules.cfg` followed by `^` seed lines for the level layout. The last rule of `rules.cfg` silently stops matching — its dependents (e.g. the head-move rule that needs `vv` above) never fire and the program stalls. No parse error, no warning.
+
+**Cause.** The parser's main loop (`grammar.cpp:200-313`) checks line-type in this order: `#` comment (with `continue`), `^` seed (record-and-fall-through), `=` new rule, **else** append to current rule body. The `^` handler does *not* `continue` — it just pushes to the seed vector and falls through. The next branch (`else if (!lhs.empty())`) then appends the line to the rule currently being built. After `#include rules.cfg` is expanded, the wrapper's seed lines fall just past the included file's *last* rule, so they get glommed onto its body. Dry-run match then iterates body cells that look for non-existent characters on screen → match always fails.
+
+**Symptom is direction-of-flow:** the corruption only hits the *last* rule because every previous rule is closed by the next `=` line. Move a single `=...` rule between the include and the seeds and the bug vanishes (the seeds now corrupt that rule, which may or may not matter).
+
+**Avoid.** Place all `^` seed lines *before* `#include`, or before any rules. The wrapper pattern that works:
+
+```
+#help …
+#control X clear
+
+^
+^zxX
+^zxX
+…
+^QCC
+
+#include rules.cfg
+
+# wrapper-only rules (e.g. restart) come after the include
+=XJxJ
+…
+@@@
+```
+
+The same rule applies to any non-`=` content (comments after the first column, blank lines with whitespace) appearing after rules — they too get appended. Strict file hygiene (only `=` lines and rule-body cells in the rule-section) is the safe convention.
+
+**Static-check candidate.** A linter could warn when a `#include` is followed by `^` / non-blank-non-`=` lines without an intervening `=`-rule. See `backlog/research/zahradnice-check.md`.
+
+---
+
 ## Adding new entries
 
 When a future session discovers a new gotcha:
