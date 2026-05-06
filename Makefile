@@ -1,6 +1,6 @@
 CXX = g++
 STD = -std=c++20
-ENGINE_SRCS = src/zahradnice.cpp src/sample.cpp
+ENGINE_SRCS = src/zahradnice.cpp src/sample.cpp src/display_curses.cpp
 ENGINE_LIBS = -lz -lncursesw -lSDL2_mixer
 
 SIZE_FLAGS = -Os -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fmerge-all-constants -flto
@@ -14,19 +14,40 @@ all: zahradnice-speed
 build:
 	@mkdir -p build
 
-build/grammar-speed.o: src/grammar.cpp src/grammar.h | build
+build/grammar-speed.o: src/grammar.cpp src/grammar.h src/display.h | build
 	$(CXX) $(STD) -O3 -c $< -o $@
-build/grammar-debug.o: src/grammar.cpp src/grammar.h | build
+build/grammar-debug.o: src/grammar.cpp src/grammar.h src/display.h | build
 	$(CXX) $(STD) -O2 -g -c $< -o $@
-build/grammar-size.o: src/grammar.cpp src/grammar.h | build
+build/grammar-size.o: src/grammar.cpp src/grammar.h src/display.h | build
 	$(CXX) $(STD) $(SIZE_FLAGS) -c $< -o $@
 
-build/libgrammar-speed.a: build/grammar-speed.o
-	ar rcs $@ $<
-build/libgrammar-debug.a: build/grammar-debug.o
-	ar rcs $@ $<
-build/libgrammar-size.a: build/grammar-size.o
-	ar rcs $@ $<
+build/display_headless-speed.o: src/display_headless.cpp src/display_headless.h src/display.h | build
+	$(CXX) $(STD) -O3 -c $< -o $@
+build/display_headless-debug.o: src/display_headless.cpp src/display_headless.h src/display.h | build
+	$(CXX) $(STD) -O2 -g -c $< -o $@
+build/display_headless-size.o: src/display_headless.cpp src/display_headless.h src/display.h | build
+	$(CXX) $(STD) $(SIZE_FLAGS) -c $< -o $@
+
+build/status-speed.o: src/status.cpp src/status.h src/grammar.h | build
+	$(CXX) $(STD) -O3 -c $< -o $@
+build/status-debug.o: src/status.cpp src/status.h src/grammar.h | build
+	$(CXX) $(STD) -O2 -g -c $< -o $@
+build/status-size.o: src/status.cpp src/status.h src/grammar.h | build
+	$(CXX) $(STD) $(SIZE_FLAGS) -c $< -o $@
+
+build/headless_runner-speed.o: src/headless_runner.cpp src/headless_runner.h src/display_headless.h src/grammar.h src/status.h | build
+	$(CXX) $(STD) -O3 -c $< -o $@
+build/headless_runner-debug.o: src/headless_runner.cpp src/headless_runner.h src/display_headless.h src/grammar.h src/status.h | build
+	$(CXX) $(STD) -O2 -g -c $< -o $@
+build/headless_runner-size.o: src/headless_runner.cpp src/headless_runner.h src/display_headless.h src/grammar.h src/status.h | build
+	$(CXX) $(STD) $(SIZE_FLAGS) -c $< -o $@
+
+build/libgrammar-speed.a: build/grammar-speed.o build/display_headless-speed.o build/status-speed.o build/headless_runner-speed.o
+	ar rcs $@ $^
+build/libgrammar-debug.a: build/grammar-debug.o build/display_headless-debug.o build/status-debug.o build/headless_runner-debug.o
+	ar rcs $@ $^
+build/libgrammar-size.a: build/grammar-size.o build/display_headless-size.o build/status-size.o build/headless_runner-size.o
+	ar rcs $@ $^
 
 # --- libgenlib.a: authoring-time helpers for generators (no engine deps) ---
 
@@ -81,6 +102,14 @@ zahradnice-debug: build/libgrammar-debug.a
 zahradnice-size: build/libgrammar-size.a
 	$(CXX) $(STD) $(SIZE_FLAGS) $(SIZE_LDFLAGS) -s $(ENGINE_SRCS) $< -o zahradnice $(ENGINE_LIBS)
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
+
+# --- zahradnice-headless: curses-free build, validates the seam ---
+# Links libgrammar + headless main only; no ncurses, no SDL2_mixer, no
+# zahradnice.cpp. Not in `make install` — architectural validation only.
+
+zahradnice-headless: build/libgrammar-size.a src/headless_main.cpp
+	$(CXX) $(STD) $(SIZE_FLAGS) $(SIZE_LDFLAGS) -s src/headless_main.cpp build/libgrammar-size.a -o zahradnice-headless -lz
+	strip ./zahradnice-headless -R .comment -R .gnu.version --strip-unneeded
 
 # --- zahradnice-check: validation/inspection tool, links libgrammar.a ---
 

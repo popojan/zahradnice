@@ -2,6 +2,10 @@
 #include <clocale>
 #include <iostream>
 #include "grammar.h"
+#include "display_curses.h"
+#include "display_headless.h"
+#include "headless_runner.h"
+#include "status.h"
 #include <thread>
 #include <chrono>
 #include <SDL2/SDL_mixer.h>
@@ -14,6 +18,7 @@
 #include <unordered_map>
 #include <memory>
 #include <fstream>
+#include <sstream>
 #include <ctime>
 #include <cstring>
 #include <vector>
@@ -282,7 +287,10 @@ static int run_replay(const std::string &replay_path, int delay_ms,
                       const std::vector<uint64_t> &snapshot_steps,
                       const std::vector<uint64_t> &mem_snapshot_steps,
                       const std::unordered_set<std::pair<int,int>, hash_pair> &watch_cells,
-                      const std::string &trace_out_path) {
+                      const std::string &trace_out_path,
+                      bool headless,
+                      uint64_t max_steps,
+                      const std::string &dump_screen_path) {
     FILE *f = std::fopen(replay_path.c_str(), "r");
     if (!f) {
         std::cerr << "Cannot open replay file: " << replay_path << std::endl;
@@ -314,30 +322,43 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         return 1;
     }
 
-    initscr();
-    start_color();
-    raw();
-    noecho();
-    keypad(stdscr, TRUE);
-    timeout(0);
-    curs_set(0);
+    int host_row = 0, host_col = 0;
+    if (!headless) {
+        initscr();
+        start_color();
+        raw();
+        noecho();
+        keypad(stdscr, TRUE);
+        timeout(0);
+        curs_set(0);
 
-    int host_row, host_col;
-    getmaxyx(stdscr, host_row, host_col);
-    if (host_row < rec_rows || host_col < rec_cols) {
-        endwin();
-        std::cerr << "Terminal too small for replay: have "
-                  << host_row << "x" << host_col
-                  << ", need at least " << rec_rows << "x" << rec_cols
-                  << " (resize and retry)" << std::endl;
-        std::fclose(f);
-        return 2;
+        getmaxyx(stdscr, host_row, host_col);
+        if (host_row < rec_rows || host_col < rec_cols) {
+            endwin();
+            std::cerr << "Terminal too small for replay: have "
+                      << host_row << "x" << host_col
+                      << ", need at least " << rec_rows << "x" << rec_cols
+                      << " (resize and retry)" << std::endl;
+            std::fclose(f);
+            return 2;
+        }
+    } else {
+        host_row = rec_rows;
+        host_col = rec_cols;
     }
 
     srand(rec_seed);
     srandom(rec_seed);
 
     Derivation w;
+    CursesDisplay curses_display;
+    HeadlessDisplay headless_display;
+    if (headless) {
+        headless_display.resize(rec_rows, rec_cols);
+        w.set_display(&headless_display);
+    } else {
+        w.set_display(&curses_display);
+    }
     // --trace PATH alongside --replay: write a fresh trace from the replay
     // session (forwards `cellwrite` events when --trace-cell is set).
     FILE *trace_out_fp = nullptr;
@@ -366,14 +387,16 @@ static int run_replay(const std::string &replay_path, int delay_ms,
     int div_rec_score = 0, div_live_score = 0;
     bool aborted = false;
     bool paused = false;
+    std::wstring last_lhsa;
 
     // Compute viewport offset for replay (centers the recorded viewport in host terminal)
     int rep_off_row = (host_row - rec_rows) / 2;
     int rep_off_col = (host_col - rec_cols) / 2;
     w.set_render_offset(rep_off_row, rep_off_col);
-    clear_outside_viewport(rep_off_row, rep_off_col, rec_rows, rec_cols);
+    if (!headless) clear_outside_viewport(rep_off_row, rep_off_col, rec_rows, rec_cols);
 
     auto take_replay_screenshot = [&]() {
+        if (headless) return;  // step 6 will route to display->dump_*
         char ts[64];
         std::time_t t = std::time(nullptr);
         std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", std::localtime(&t));
@@ -389,8 +412,21 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         char fn[64];
         std::snprintf(fn, sizeof(fn), "snapshot_step%llu", (unsigned long long)step);
         std::string base(fn);
-        take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
-        take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
+        if (headless) {
+            auto [par, tot] = w.getThreadingStats();
+            int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
+            std::wstring line = cur_cfg
+                ? zg::format_status_line(*cur_cfg, score_live,
+                                         static_cast<int>(events_processed),
+                                         0, parallel_pct, last_lhsa, rec_cols)
+                : std::wstring();
+            headless_display.set_status(line);
+            headless_display.dump_text(base + ".txt");
+            headless_display.dump_ansi(base + ".ansi");
+        } else {
+            take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
+            take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
+        }
     };
     auto take_memsnap_at = [&](uint64_t step) {
         char fn[64];
@@ -403,27 +439,34 @@ static int run_replay(const std::string &replay_path, int delay_ms,
     std::set<uint64_t> snapshot_pending(snapshot_steps.begin(), snapshot_steps.end());
     std::set<uint64_t> memsnap_pending(mem_snapshot_steps.begin(), mem_snapshot_steps.end());
 
+    // Unified status: cfg's #! template (left) + last-rule lhsa (right).
+    // Interactive prepends a tag (PAUSED/DIV/phase) to the lhsa side so
+    // state is still visible. Headless never calls this — uses the same
+    // format_status_line via the headless dump path.
     auto render_status = [&](const char *phase) {
-        char buf[512];
-        const char *pp = paused ? "PAUSED" : phase;
-        if (diverged_at) {
-            std::snprintf(buf, sizeof(buf),
-                "REPLAY %s: ev=%llu d=%dms | DIV@%llu rec='%s'/%d live='%s'/%d (SPACE n F12 +- ESC)",
-                pp, (unsigned long long)events_processed, delay_ms,
-                (unsigned long long)diverged_at,
-                div_rec_head.c_str(), div_rec_score,
-                div_live_head.c_str(), div_live_score);
-        } else {
-            std::snprintf(buf, sizeof(buf),
-                "REPLAY %s: %s | ev=%llu score=%d d=%dms (SPACE pause, n step, F12 shot, +- speed, ESC)",
-                pp, cur_path.c_str(),
-                (unsigned long long)events_processed, score_live, delay_ms);
+        if (headless || !cur_cfg) return;
+        auto [par, tot] = w.getThreadingStats();
+        int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
+
+        std::wstring tag;
+        if (paused) tag = L"[PAUSED] ";
+        else if (diverged_at) {
+            wchar_t b[48];
+            std::swprintf(b, 48, L"[DIV@%llu] ", (unsigned long long)diverged_at);
+            tag = b;
+        } else if (phase && phase[0] && std::strcmp(phase, "RUN") != 0) {
+            tag = L"[";
+            for (const char* c = phase; *c; ++c) tag.push_back(*c);
+            tag += L"] ";
         }
-        std::string s(buf);
-        if (static_cast<int>(s.size()) > rec_cols) s.resize(rec_cols);
+        std::wstring rhs = tag + last_lhsa;
+
+        std::wstring line = zg::format_status_line(*cur_cfg, score_live,
+                                                   static_cast<int>(events_processed),
+                                                   0, parallel_pct, rhs, rec_cols);
         std::wstring blank(rec_cols, L' ');
         mvaddwstr(rep_off_row, rep_off_col, blank.c_str());
-        mvaddstr(rep_off_row, rep_off_col, s.c_str());
+        mvaddwstr(rep_off_row, rep_off_col, line.c_str());
         refresh();
     };
 
@@ -441,7 +484,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         if (n == 0 || line[0] == '#') continue;
 
         // Pause loop: when paused, block until SPACE (resume) or n/RIGHT (step) or ESC
-        while (paused && !aborted) {
+        while (!headless && paused && !aborted) {
             render_status("PAUSED");
             timeout(-1);
             wint_t k;
@@ -454,10 +497,12 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         if (aborted) break;
 
         // Non-blocking input poll while running
-        wint_t kch;
-        if (wget_wch(stdscr, &kch) != ERR) {
-            handle_key(kch);
-            if (aborted) break;
+        if (!headless) {
+            wint_t kch;
+            if (wget_wch(stdscr, &kch) != ERR) {
+                handle_key(kch);
+                if (aborted) break;
+            }
         }
 
         if (std::strncmp(line, "program_load\t", 13) == 0) {
@@ -500,7 +545,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             strtok_r(line, "\t", &saveptr);          // "screenshot"
             strtok_r(nullptr, "\t", &saveptr);       // step
             char *base = strtok_r(nullptr, "\t", &saveptr);
-            if (base && *base) {
+            if (base && *base && !headless) {
                 refresh();  // ensure any pending engine writes are visible
                 std::string b(base);
                 take_screenshot(b + "_replay.txt", false,
@@ -538,6 +583,10 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             std::vector<wchar_t> sounds_dummy;
             w.stepMultithreaded(trig, score_live, &rule_dummy, &sounds_dummy, src_ch);
             ++events_processed;
+            last_lhsa = rule_dummy.lhsa;
+            if (max_steps > 0 && events_processed >= max_steps) {
+                aborted = true;
+            }
 
             // --replay-snapshot: capture a screenshot when the recorded step
             // matches a requested step. Uses the trace's step column directly,
@@ -588,11 +637,12 @@ static int run_replay(const std::string &replay_path, int delay_ms,
     }
 
     render_status(aborted ? "ABORTED" : "DONE");
-    timeout(2000);  // brief pause so user sees final state
-    wint_t k;
-    wget_wch(stdscr, &k);
-
-    endwin();
+    if (!headless) {
+        timeout(2000);  // brief pause so user sees final state
+        wint_t k;
+        wget_wch(stdscr, &k);
+        endwin();
+    }
     std::fclose(f);
     if (trace_out_fp) std::fclose(trace_out_fp);
 
@@ -603,9 +653,27 @@ static int run_replay(const std::string &replay_path, int delay_ms,
                   << std::endl;
         return 3;
     }
-    if (aborted) std::cerr << "Replay aborted by user." << std::endl;
-    else std::cerr << "Replay completed: " << events_processed
-                   << " events, final score=" << score_live << std::endl;
+    if (aborted && max_steps > 0 && events_processed >= max_steps) {
+        std::cerr << "Replay stopped at --max-steps " << max_steps
+                  << ", final score=" << score_live << std::endl;
+    } else if (aborted) {
+        std::cerr << "Replay aborted by user." << std::endl;
+    } else {
+        std::cerr << "Replay completed: " << events_processed
+                  << " events, final score=" << score_live << std::endl;
+    }
+
+    if (headless && !dump_screen_path.empty()) {
+        auto [par, tot] = w.getThreadingStats();
+        int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
+        std::wstring line = cur_cfg
+            ? zg::format_status_line(*cur_cfg, score_live,
+                                     static_cast<int>(events_processed),
+                                     0, parallel_pct, last_lhsa, rec_cols)
+            : std::wstring();
+        headless_display.set_status(line);
+        zg::dump_screen_by_ext(headless_display, dump_screen_path);
+    }
     return 0;
 }
 
@@ -621,6 +689,10 @@ int main(int argc, char *argv[]) {
     std::vector<uint64_t> snapshot_steps;
     std::vector<uint64_t> mem_snapshot_steps;
     std::unordered_set<std::pair<int,int>, hash_pair> watch_cells;
+    bool headless = false;
+    std::string input_arg;
+    uint64_t max_steps = 0;
+    std::string dump_screen_path;
 
     auto needs_value = [&](int i) -> bool {
         if (i + 1 >= argc) {
@@ -646,7 +718,15 @@ int main(int argc, char *argv[]) {
                 "  --replay-snapshot S  Comma-separated trace steps to screenshot during replay\n"
                 "  --mem-snapshot S     Comma-separated steps to dump memory[] to memsnap_step<N>.txt\n"
                 "  --trace-cell R,C[,R,C...]  Watched cells; emit `cellwrite` events into the trace\n"
-                "  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)\n";
+                "  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)\n"
+                "  --headless           Skip ncurses init/render (engine still runs)\n"
+                "  --input STR          Headless: drive engine with STR (one trigger char per byte)\n"
+                "  --input @PATH        Headless: read trigger string from PATH (whitespace stripped)\n"
+                "                       Use `~` for SPACE (raw spaces are stripped for readability).\n"
+                "  --max-steps N        Stop after N applied rules (matches trace step column)\n"
+                "  --dump-screen PATH   On exit, write final screen. PATH=`-` is stdout\n"
+                "                       (auto-detect ANSI vs plain via isatty); `-.ansi`/`-.txt`\n"
+                "                       force the format. Default in --headless mode is `-`.\n";
             return 0;
         } else if (a == "--seed") { if (!needs_value(i)) return 1; seed = std::atoi(argv[++i]); }
         else if (a == "--max-threads") { if (!needs_value(i)) return 1; max_threads = std::atoi(argv[++i]); }
@@ -711,6 +791,10 @@ int main(int argc, char *argv[]) {
                 watch_cells.insert({ints[k], ints[k+1]});
             }
         }
+        else if (a == "--headless") { headless = true; }
+        else if (a == "--input") { if (!needs_value(i)) return 1; input_arg = argv[++i]; }
+        else if (a == "--max-steps") { if (!needs_value(i)) return 1; max_steps = std::strtoull(argv[++i], nullptr, 10); }
+        else if (a == "--dump-screen") { if (!needs_value(i)) return 1; dump_screen_path = argv[++i]; }
         else if (a == "--screen") {
             if (!needs_value(i)) return 1;
             if (std::sscanf(argv[++i], "%d,%d", &screen_rows, &screen_cols) != 2
@@ -731,9 +815,45 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Headless defaults: stdin → triggers, stdout → screen dump. Both
+    // gated by isatty so an interactive TTY doesn't accidentally hang
+    // (input) or get garbage-painted (output gets ANSI).
+    if (headless && input_arg.empty() && replay_path.empty()
+        && !isatty(STDIN_FILENO)) {
+        input_arg = "@-";
+    }
+    if (headless && dump_screen_path.empty()) dump_screen_path = "-";
+
     if (!replay_path.empty()) {
         return run_replay(replay_path, replay_delay, snapshot_steps,
-                          mem_snapshot_steps, watch_cells, trace_path);
+                          mem_snapshot_steps, watch_cells, trace_path, headless, max_steps,
+                          dump_screen_path);
+    }
+
+    if (headless && !input_arg.empty()) {
+        zg::HeadlessOptions opts;
+        opts.config_path = resolve_program_path(config, "");
+        opts.input_arg   = input_arg;
+        opts.trace_path  = trace_path;
+        opts.stats_path  = stats_path;
+        opts.dump_path   = dump_screen_path;
+        opts.seed        = seed;
+        opts.rows        = (screen_rows > 0) ? screen_rows : 24;
+        opts.cols        = (screen_cols > 0) ? screen_cols : 80;
+        opts.max_steps   = max_steps;
+        opts.watch_cells = watch_cells;
+        return zg::run_headless_input(opts);
+    }
+
+    if (headless) {
+        std::cerr << "--headless requires --replay, --input, or piped stdin "
+                  << "(for tick-driven programs, e.g. `printf 'B%.0s' {1..100} | ./zahradnice --headless prog`)\n";
+        return 1;
+    }
+
+    if (!input_arg.empty() && !headless) {
+        std::cerr << "--input requires --headless (live keyboard mode is the default)\n";
+        return 1;
     }
 
     config = resolve_program_path(config, "");
@@ -779,6 +899,8 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     Derivation w;
+    CursesDisplay display;
+    w.set_display(&display);
     w.set_trace_file(trace_fp);
     w.set_stats_file(stats_fp);
     if (!watch_cells.empty()) {

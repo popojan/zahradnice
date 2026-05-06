@@ -17,7 +17,15 @@ behaviour, or study which rules dominate a program's runtime cost.
   --replay PATH        Replay a recorded trace; ignores other options
   --replay-delay MS    Delay between replay events (default 0)
   --replay-snapshot S  Comma-separated trace steps to screenshot during replay
+  --mem-snapshot S     Comma-separated steps to dump memory[] to memsnap_step<N>.txt
+  --trace-cell R,C[,...]  Watched cells; emit `cellwrite` events into the trace
   --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)
+  --headless           Skip ncurses init/render. See HEADLESS.md.
+  --input STR | @PATH  Headless: trigger sequence (one byte per event; `~`=SPACE)
+  --max-steps N        Stop after N applied rules (matches trace step column)
+  --dump-screen PATH   On exit, write final screen. PATH=`-` is stdout
+                       (auto-detect ANSI vs plain via isatty); `-.ansi`/`-.txt`
+                       force the format. Default in --headless mode is `-`.
 ```
 
 Trace and stats files are line-buffered, safe to `tail -f` while a session

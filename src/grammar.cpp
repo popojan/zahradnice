@@ -1,5 +1,4 @@
 #include "grammar.h"
-#include <ncursesw/ncurses.h>
 #include <cwchar>
 #include <cstring>
 #include <sys/stat.h>
@@ -376,9 +375,9 @@ std::pair<char, int> Grammar2D::getColorAndAttrs(wchar_t c, const char def_color
     if (comma_pos != std::wstring::npos && comma_pos + 1 < value.length()) {
         std::wstring attr_str = value.substr(comma_pos + 1);
         if (attr_str == L"BOLD") {
-            attrs |= A_BOLD;
+            attrs |= zg::ATTR_BOLD;
         } else if (attr_str == L"DIM") {
-            attrs |= A_DIM;
+            attrs |= zg::ATTR_DIM;
         }
     }
 
@@ -562,28 +561,24 @@ void Derivation::init(bool clear) {
 }
 
 void Derivation::initColors() {
-    char cols[8] = {
-        COLOR_BLACK,
-        COLOR_RED,
-        COLOR_GREEN,
-        COLOR_YELLOW,
-        COLOR_BLUE,
-        COLOR_MAGENTA,
-        COLOR_CYAN,
-        COLOR_WHITE
-    };
-
-    int N = sizeof(cols) / sizeof(char);
-
+    // Standard 16-colour indices: 0=black, 1=red, …, 7=white. These
+    // match both ncurses COLOR_* and ANSI SGR 30+/40+ — backends pick
+    // their own translation if they need one.
+    const char N = 8;
     int colidx = 1;
-
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            colors[{cols[i], cols[j]}] = colidx;
-            init_pair(colidx, cols[i], cols[j]);
+    for (char i = 0; i < N; ++i) {
+        for (char j = 0; j < N; ++j) {
+            colors[{i, j}] = colidx;
+            if (display_) display_->register_pair(colidx, i, j);
             ++colidx;
         }
     }
+}
+
+void Derivation::set_render_offset(int dr, int dc) {
+    offset_row = dr;
+    offset_col = dc;
+    if (display_) display_->set_offset(dr, dc);
 }
 
 Derivation::~Derivation() {
@@ -644,10 +639,7 @@ void Derivation::start() {
             r = rand() % (row - 1) + 1;
         }
         x[{r, c}] = s.s;
-        cchar_t cchar;
-        wchar_t wch[2] = {s.s, 0};
-        setcchar(&cchar, wch, 0, 0, NULL);
-        mvadd_wch(r + offset_row, c + offset_col, &cchar);
+        if (display_) display_->put(r, c, s.s, 0, 0);
         // Update redundant character storage
         screen_chars[r * col + c] = s.s;
     }
@@ -726,7 +718,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char sr
 
 void Derivation::restart() {
     x.clear();
-    clear();
+    if (display_) display_->clear();
     for (int r = 0; r < row; ++r) {
         for (int c = 0; c < col; ++c) {
             memory[r * col + c] = {L' ', 7, 0, 0, 0};
@@ -807,11 +799,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                 if (d.c == -1) d = {L' ', rule.fore, back, rule.fore_attrs, back_attrs};
                 int cidx = getColor(d.fore, d.back);
                 {
-                    // Apply color and attributes (parallel work)
                     int combined_attrs = d.fore_attrs | d.back_attrs;
-                    cchar_t cchar;
-                    wchar_t wch[2] = {d.c, 0};
-                    setcchar(&cchar, wch, combined_attrs, cidx, NULL);
 
                     // Critical section: screen and memory updates
                     {
@@ -822,7 +810,7 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
                         wchar_t old_screen = watched ? screen_chars[wrapped_r * col + wrapped_c] : 0;
                         wchar_t old_memc   = watched ? memory[col * wrapped_r + wrapped_c].c : 0;
 
-                        mvadd_wch(wrapped_r + offset_row, wrapped_c + offset_col, &cchar);
+                        if (display_) display_->put(wrapped_r, wrapped_c, d.c, cidx, combined_attrs);
                         screen_chars[wrapped_r * col + wrapped_c] = d.c;
 
                         if (!isTransient) {

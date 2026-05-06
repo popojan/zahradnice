@@ -16,6 +16,8 @@
 #include <set>
 #include <cstdio>
 
+#include "display.h"
+
 struct hash_pair final {
     template<class TFirst, class TSecond>
     size_t operator()(const std::pair<TFirst, TSecond> &p) const noexcept {
@@ -246,9 +248,14 @@ public:
     uint64_t get_event_step() const { return event_step; }
     // Trajectory replay: force-execute a previously-recorded apply.
     bool apply_recorded(wchar_t lhs, size_t idx, int ro, int co);
+    // Set the output backend. nullptr = no rendering (engine state still
+    // lives in screen_chars[] + memory[], so headless dumps work).
+    void set_display(Display* d) { display_ = d; }
+
     // Render offset: shift all engine drawing by (dr, dc) on the host terminal.
     // Engine coords (rows/cols passed to reset()) stay 0-indexed internally.
-    void set_render_offset(int dr, int dc) { offset_row = dr; offset_col = dc; }
+    // Forwarded to the display backend; engine itself only stores for callers.
+    void set_render_offset(int dr, int dc);
     int get_offset_row() const { return offset_row; }
     int get_offset_col() const { return offset_col; }
     int get_viewport_rows() const { return row; }
@@ -313,4 +320,6 @@ private:
 
     int offset_row = 0;
     int offset_col = 0;
+
+    Display* display_ = nullptr;
 };
