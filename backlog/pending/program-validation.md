@@ -40,6 +40,35 @@ Create a dedicated program validation tool (`zahradnice-validate` or `zahradnice
 - **Program flow analysis**: Trace possible execution paths
 - **Dependency analysis**: Map symbol relationships and transformations
 
+### Dynamic match diagnostics ("why fire / why not fire")
+
+Static lint answers "could this rule ever fire?" Dynamic match
+diagnostics answer "why did rule N (not) fire at this concrete
+screen state with this trigger?" — the question every authoring
+session actually asks. Designed in detail in
+[`pending/check-why.md`](check-why.md);
+summary here.
+
+One subcommand `zahradnice-check why CFG --screen FILE --trigger K
+[--rule N]`. Inputs are exactly the artefacts the test harness
+already produces (`--dump-screen -.txt`). Output partitions rules
+into:
+
+- **Matched**: rules whose LHS matched at which positions (the
+  rules the engine *would* pick from, before weighted sampling).
+- **Near-miss**: rules whose head + trigger matched but whose
+  context was off by ≤ K cells. First failing cell + what was
+  there vs. what was expected.
+- **Excluded**: rules dropped earlier in the pipeline (trigger
+  mismatch, anchor not on screen) — one brief reason per rule.
+
+Implementation reuses the engine matcher (`apply_impl<true>`) via
+a small refactor that threads an optional per-cell probe callback —
+zero drift risk vs. a parallel re-implementation.
+
+This subsumes the "Trace introspection / near-miss diagnostics"
+entry in `pending/llm-authoring.md`.
+
 ### Development Workflow Integration
 - **File watching**: Automatically validate on save
 - **IDE integration**: Provide LSP or plugin for real-time validation

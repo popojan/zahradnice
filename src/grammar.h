@@ -178,6 +178,22 @@ struct RuleApplication {
     int weight;
 };
 
+// Per-cell match outcome reported during an "explain mode" dry-run
+// (apply_impl<true> with a non-null probe sink). One probe per LHS-
+// region body cell evaluated, in body order.
+struct CellProbe {
+    int body_r, body_c;       // body coords (0-indexed within rule.rhs)
+    int screen_r, screen_c;   // wrapped screen coords
+    wchar_t body_ch;          // raw body char ('@', '&', '!', '%', or literal)
+    wchar_t expected;         // resolved required char (anchor/ctx expanded)
+    wchar_t actual;           // screen_chars[screen_r * col + screen_c], '~' if SPACE
+    bool matched;
+};
+
+// Sink invoked once per probed cell. Engine ignores when null
+// (default behaviour: early-exit on first mismatch).
+using ProbeSink = void (*)(const CellProbe&, void*);
+
 struct ScreenArea {
     int min_row, max_row, min_col, max_col;
 
@@ -278,9 +294,21 @@ public:
         return (c + effective_max_col) % effective_max_col;
     }
 
+public:
+    // Explain-mode dry run: same as apply_impl<true> but does not
+    // short-circuit on first mismatch. Reports every probed LHS cell
+    // to `sink` (called with `ctx` as its second arg). Returns true
+    // iff every cell matched. Hot path is unaffected — engine call
+    // sites continue to use apply_impl<true> with the default sink
+    // (nullptr) and early-exit on first miss.
+    bool dry_run_explain(int ro, int co, const Grammar2D::Rule &rule,
+                         ProbeSink sink, void* ctx);
+
 private:
     template<bool DryRun>
-    bool apply_impl(int ro, int co, const Grammar2D::Rule &rule);
+    bool apply_impl(int ro, int co, const Grammar2D::Rule &rule,
+                    ProbeSink probe_sink = nullptr,
+                    void* probe_ctx = nullptr);
 
 
     int getColor(char fore, char back);

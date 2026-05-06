@@ -728,18 +728,23 @@ void Derivation::restart() {
 }
 
 template<bool DryRun>
-bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
+bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule,
+                            ProbeSink probe_sink, void* probe_ctx) {
     int r = ro;
     int c = co;
 
     bool horiz = rule.cq > rule.co;
     const size_t rhs_length = rule.rhs.length();
+    bool all_matched = true;
+    int body_r = 0, body_c = 0;
 
-    for (size_t i = 0; i < rhs_length; ++i, ++c) {
+    for (size_t i = 0; i < rhs_length; ++i, ++c, ++body_c) {
         wchar_t ch = rule.rhs[i];
         if (ch == L'\n') {
             ++r;
             c = co - 1;
+            ++body_r;
+            body_c = -1;
             continue;
         }
         if (ch == L' ')
@@ -771,11 +776,18 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
             if (req == L'@') req = rule.lhs;
             if (ch == L'&') req = rule.ctx;
             if (req == L' ') req = L'~';
-            if ((req != L'!' && req != L'%' && req != ctx)
+            bool mismatch =
+                (req != L'!' && req != L'%' && req != ctx)
                 || (req == L'!' && ctx == rule.ctx)
-                || (ch == L'%' && ctx != rule.ctxrep && ctx != rule.ctx)) {
-                return false;
+                || (ch == L'%' && ctx != rule.ctxrep && ctx != rule.ctx);
+            if (probe_sink) {
+                CellProbe p{body_r, body_c, wrapped_r, wrapped_c,
+                            ch, req, ctx, !mismatch};
+                probe_sink(p, probe_ctx);
+                if (mismatch) all_matched = false;
+                continue;
             }
+            if (mismatch) return false;
         } else {
             G saved = {L' ', 7, 8, 0, 0};
             wchar_t rep = ch;
@@ -844,7 +856,12 @@ bool Derivation::apply_impl(int ro, int co, const Grammar2D::Rule &rule) {
             }
         }
     }
-    return true;
+    return all_matched;
+}
+
+bool Derivation::dry_run_explain(int ro, int co, const Grammar2D::Rule &rule,
+                                 ProbeSink sink, void* ctx) {
+    return apply_impl<true>(ro, co, rule, sink, ctx);
 }
 
 int Derivation::getColor(char fore, char back) {

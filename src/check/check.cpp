@@ -1,16 +1,22 @@
 // zahradnice-check: validation and inspection tool for .cfg programs.
-// Currently provides one subcommand:
-//   explain CFG --line N
-//     Print the resolved geometry of the rule whose head is on line N
-//     (or, if N falls inside a body, the closest preceding head).
+// Subcommands:
+//   explain CFG --line N | --head 'HEAD'
+//     Print the resolved geometry of one rule (static).
+//   why CFG --screen FILE --trigger K [--rule N]
+//     Dynamic rule-match diagnostics: which rules fire / are near-miss
+//     / are excluded for the given (screen, trigger).
 
 #include "../grammar.h"
+#include <algorithm>
 #include <clocale>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -318,11 +324,365 @@ int cmd_explain(int argc, char *argv[]) {
     return 0;
 }
 
+// ---------- why subcommand ----------
+
+struct LoadedScreen {
+    int rows;
+    int cols;
+    std::vector<wchar_t> buf;  // row-major rows*cols
+};
+
+bool load_screen_dump(const std::string &path, LoadedScreen &out) {
+    std::wifstream f(path);
+    if (!f) {
+        std::cerr << "cannot open --screen file: " << path << "\n";
+        return false;
+    }
+    std::vector<std::wstring> lines;
+    std::wstring line;
+    while (std::getline(f, line)) lines.push_back(line);
+    if (lines.empty()) {
+        std::cerr << "--screen file is empty\n";
+        return false;
+    }
+    int cols = 0;
+    for (const auto &l : lines) cols = std::max(cols, (int)l.size());
+    if (cols == 0) {
+        std::cerr << "--screen file has no content\n";
+        return false;
+    }
+    out.rows = (int)lines.size();
+    out.cols = cols;
+    out.buf.assign((size_t)out.rows * out.cols, L' ');
+    for (int r = 0; r < out.rows; ++r) {
+        const std::wstring &l = lines[r];
+        for (int c = 0; c < (int)l.size() && c < out.cols; ++c) {
+            out.buf[(size_t)r * out.cols + c] = l[c];
+        }
+    }
+    return true;
+}
+
+// Outcome bucket for one (rule, anchor position) probe.
+struct WhyResult {
+    const Grammar2D::Rule *rule;
+    int anchor_r, anchor_c;       // wrapped screen coords of the anchor
+    std::vector<CellProbe> probes;
+    int miss_count;               // # of failing context cells
+};
+
+// Sink used by dry_run_explain: appends to a vector<CellProbe>.
+void why_probe_sink(const CellProbe &p, void *ctx) {
+    auto *v = static_cast<std::vector<CellProbe>*>(ctx);
+    v->push_back(p);
+}
+
+const char *body_token_role(wchar_t body_ch) {
+    switch (body_ch) {
+        case L'@': return "anchor";
+        case L'&': return "ctx";
+        case L'!': return "not-ctx";
+        case L'%': return "ctx-or-ctxrep";
+        default:   return "literal";
+    }
+}
+
+void print_probe_table(const std::vector<CellProbe> &probes) {
+    std::printf("    body    screen   body-ch  expected  actual   outcome\n");
+    for (const auto &p : probes) {
+        char outcome = p.matched ? '*' : 'X';
+        std::printf("    (%2d,%2d) (%2d,%2d)  '%s' (%s)  '%s'       '%s'      %s\n",
+                    p.body_r, p.body_c,
+                    p.screen_r, p.screen_c,
+                    display_char(p.body_ch).c_str(),
+                    body_token_role(p.body_ch),
+                    display_char(p.expected).c_str(),
+                    display_char(p.actual).c_str(),
+                    p.matched ? "match" : "MISS");
+        if (!p.matched) std::printf("                                   ^^^ first miss is decisive\n");
+        if (!p.matched) break;  // engine semantics: first miss decides; show it then stop
+    }
+}
+
+bool rule_uses_memory(const Grammar2D::Rule &rule) {
+    return rule.rhs.find(L'$') != std::wstring::npos;
+}
+
+int cmd_why(int argc, char *argv[]) {
+    std::string cfg_path, screen_path;
+    std::string trigger_str;
+    int focus_line = -1;
+    int near_miss_cap = 3;
+    bool verbose = false;
+
+    for (int i = 0; i < argc; ++i) {
+        std::string a = argv[i];
+        auto need = [&](const char *flag) -> bool {
+            if (i + 1 >= argc) {
+                std::cerr << "missing value for " << flag << "\n";
+                return false;
+            }
+            return true;
+        };
+        if (a == "--screen")          { if (!need("--screen")) return 1; screen_path = argv[++i]; }
+        else if (a == "--trigger")    { if (!need("--trigger")) return 1; trigger_str = argv[++i]; }
+        else if (a == "--rule")       { if (!need("--rule")) return 1; focus_line = std::atoi(argv[++i]); }
+        else if (a == "--near-miss")  { if (!need("--near-miss")) return 1; near_miss_cap = std::atoi(argv[++i]); }
+        else if (a == "--verbose" || a == "-v") { verbose = true; }
+        else if (!a.empty() && a[0] == '-') {
+            std::cerr << "unknown option: " << a << "\n"; return 1;
+        } else if (cfg_path.empty()) { cfg_path = a; }
+        else { std::cerr << "extra positional arg: " << a << "\n"; return 1; }
+    }
+    if (cfg_path.empty() || screen_path.empty() || trigger_str.empty()) {
+        std::cerr <<
+            "Usage: zahradnice-check why CFG --screen FILE --trigger K [opts]\n"
+            "  CFG            path to .cfg program\n"
+            "  --screen FILE  screen state (from `--dump-screen -.txt`); `-` = stdin\n"
+            "  --trigger K    single trigger char; `~` means SPACE\n"
+            "  --rule N       focus on the rule whose head is on cfg line N\n"
+            "  --near-miss N  show rules off by ≤N context cells (default 3)\n"
+            "  --verbose      list every excluded rule (default: summary)\n";
+        return 2;
+    }
+
+    // Resolve trigger.
+    std::wstring trig_ws = utf8_to_wstr(trigger_str);
+    if (trig_ws.size() != 1) {
+        std::cerr << "--trigger must be a single character (got "
+                  << trig_ws.size() << " wchars)\n";
+        return 1;
+    }
+    wchar_t trigger = trig_ws[0];
+    if (trigger == L'~') trigger = L' ';
+
+    // Load grammar.
+    Grammar2D g;
+    if (!g.loadFromFile(cfg_path)) {
+        std::cerr << "Failed to load: " << cfg_path << "\n";
+        return 1;
+    }
+
+    // Load screen.
+    LoadedScreen scr;
+    if (screen_path == "-") {
+        // Slurp stdin into a temp file path workaround: read directly here.
+        std::vector<std::wstring> lines;
+        std::wstring line;
+        while (std::getline(std::wcin, line)) lines.push_back(line);
+        int cols = 0;
+        for (const auto &l : lines) cols = std::max(cols, (int)l.size());
+        if (lines.empty() || cols == 0) {
+            std::cerr << "stdin: no screen content\n"; return 1;
+        }
+        scr.rows = (int)lines.size();
+        scr.cols = cols;
+        scr.buf.assign((size_t)scr.rows * scr.cols, L' ');
+        for (int r = 0; r < scr.rows; ++r) {
+            const std::wstring &l = lines[r];
+            for (int c = 0; c < (int)l.size() && c < scr.cols; ++c) {
+                scr.buf[(size_t)r * scr.cols + c] = l[c];
+            }
+        }
+    } else {
+        if (!load_screen_dump(screen_path, scr)) return 1;
+    }
+
+    // Build a Derivation against the loaded screen.
+    Derivation w;
+    w.reset(g, scr.rows, scr.cols);
+    w.init(true);
+    // The engine reserves row 0 for the status line; the dump's row 0
+    // is the rendered status. Engine state lives in rows 1..rows-1.
+    // SPACE in the dump represents an empty cell; copy as-is — the
+    // matcher normalises SPACE↔'~' itself.
+    for (int r = 1; r < scr.rows; ++r) {
+        for (int c = 0; c < scr.cols; ++c) {
+            wchar_t ch = scr.buf[(size_t)r * scr.cols + c];
+            w.screen_chars[r * scr.cols + c] = ch;
+        }
+    }
+    // Build x map: every cell whose char is some rule's lhs counts.
+    std::unordered_set<wchar_t> all_lhs;
+    for (const auto &kv : g.R) all_lhs.insert(kv.first);
+    for (int r = 1; r < scr.rows; ++r) {
+        for (int c = 0; c < scr.cols; ++c) {
+            wchar_t ch = w.screen_chars[r * scr.cols + c];
+            if (all_lhs.count(ch)) w.x[{r, c}] = ch;
+        }
+    }
+
+    // Iterate rules, classify each.
+    struct Excluded {
+        const Grammar2D::Rule *rule;
+        std::string reason;
+    };
+    std::vector<WhyResult> matched;
+    std::vector<WhyResult> near_miss;
+    std::vector<Excluded> excluded;
+
+    for (const auto &kv : g.R) {
+        wchar_t lhs = kv.first;
+        for (const auto &rule : kv.second) {
+            // Trigger filter.
+            if (rule.key != trigger && rule.key != L'?') {
+                excluded.push_back({&rule, "trigger mismatch (rule key '"
+                                    + display_char(rule.key) + "')"});
+                continue;
+            }
+            // Anchor present?
+            bool any_anchor = false;
+            for (const auto &it : w.x) {
+                if (it.second == lhs) { any_anchor = true; break; }
+            }
+            if (!any_anchor) {
+                excluded.push_back({&rule, "anchor '"
+                                    + display_char(lhs) + "' not on screen"});
+                continue;
+            }
+            // Probe at every anchor position.
+            for (const auto &it : w.x) {
+                if (it.second != lhs) continue;
+                int R = it.first.first;
+                int C = it.first.second;
+                std::vector<CellProbe> probes;
+                bool all_match = w.dry_run_explain(R - rule.ro, C - rule.co,
+                                                   rule, why_probe_sink, &probes);
+                int misses = 0;
+                for (const auto &p : probes) if (!p.matched) ++misses;
+                WhyResult res{&rule, R, C, std::move(probes), misses};
+                if (all_match)         matched.push_back(std::move(res));
+                else if (misses <= near_miss_cap) near_miss.push_back(std::move(res));
+                // else drop (miss); --rule mode below still finds it.
+            }
+        }
+    }
+
+    // Focused output mode.
+    if (focus_line >= 0) {
+        int closest = -1;
+        const Grammar2D::Rule *focus = find_by_line(g, focus_line, &closest);
+        if (!focus) {
+            std::cerr << "No rule at or before line " << focus_line << "\n";
+            return 3;
+        }
+        if (focus->source_line != focus_line) {
+            std::cerr << "Note: line " << focus_line
+                      << " is not a rule head; using closest preceding head at line "
+                      << focus->source_line << ".\n\n";
+        }
+        std::printf("=== %s:%d  %s ===\n",
+                    cfg_path.c_str(), focus->source_line,
+                    wstr_to_utf8(focus->lhsa).c_str());
+        std::printf("  trigger  = '%s' %s\n",
+                    display_char(focus->key).c_str(),
+                    (focus->key == trigger || focus->key == L'?')
+                      ? "(matches)" : "(MISMATCH — rule key)");
+        if (rule_uses_memory(*focus)) {
+            std::printf("  WARNING: rule body contains '$' — match outcome may depend\n"
+                        "           on memory[r,c] state, which is not represented in the\n"
+                        "           screen dump. Result below treats memory cells as ' '.\n");
+        }
+        std::printf("  lhs      = '%s'\n", display_char(focus->lhs).c_str());
+        std::printf("\n");
+        // Re-probe just this rule at every anchor position so we get
+        // full output even for rules that didn't make it into matched/
+        // near_miss (i.e. rules off by more than near_miss_cap cells).
+        bool any = false;
+        for (const auto &it : w.x) {
+            if (it.second != focus->lhs) continue;
+            any = true;
+            int R = it.first.first;
+            int C = it.first.second;
+            std::vector<CellProbe> probes;
+            bool ok = w.dry_run_explain(R - focus->ro, C - focus->co,
+                                        *focus, why_probe_sink, &probes);
+            std::printf("  Anchor '%s' at (%d, %d): %s\n",
+                        display_char(focus->lhs).c_str(), R, C,
+                        ok ? "WOULD FIRE" : "would not fire");
+            print_probe_table(probes);
+            int misses = 0;
+            for (const auto &p : probes) if (!p.matched) ++misses;
+            if (!ok) std::printf("  → %d context cell%s mismatch.\n",
+                                 misses, misses == 1 ? "" : "s");
+            std::printf("\n");
+        }
+        if (!any) {
+            std::printf("  Anchor '%s' not present on screen — rule cannot fire here.\n",
+                        display_char(focus->lhs).c_str());
+        }
+        return 0;
+    }
+
+    // Default summary output.
+    auto print_pos = [](const WhyResult &r) {
+        std::printf("(%d, %d)", r.anchor_r, r.anchor_c);
+    };
+
+    std::printf("Trigger '%s' against %s:\n\n",
+                display_char(trigger).c_str(), screen_path.c_str());
+
+    std::printf("Matching rules (%zu would fire):\n", matched.size());
+    if (matched.empty()) std::printf("  (none)\n");
+    for (const auto &r : matched) {
+        std::printf("  %s:%d  %s   anchor at ",
+                    cfg_path.c_str(), r.rule->source_line,
+                    wstr_to_utf8(r.rule->lhsa).c_str());
+        print_pos(r);
+        if (rule_uses_memory(*r.rule))
+            std::printf("   [uses '$', match may depend on memory]");
+        std::printf("\n");
+    }
+
+    std::printf("\nNear-miss rules (≤%d cell%s off):\n",
+                near_miss_cap, near_miss_cap == 1 ? "" : "s");
+    if (near_miss.empty()) std::printf("  (none)\n");
+    for (const auto &r : near_miss) {
+        std::printf("  %s:%d  %s   %d cell%s off at ",
+                    cfg_path.c_str(), r.rule->source_line,
+                    wstr_to_utf8(r.rule->lhsa).c_str(),
+                    r.miss_count, r.miss_count == 1 ? "" : "s");
+        print_pos(r);
+        std::printf(":\n");
+        for (const auto &p : r.probes) {
+            if (p.matched) continue;
+            std::printf("                       (%d, %d) expected '%s' (%s), got '%s'\n",
+                        p.screen_r, p.screen_c,
+                        display_char(p.expected).c_str(),
+                        body_token_role(p.body_ch),
+                        display_char(p.actual).c_str());
+            break;  // engine semantics: first miss is decisive
+        }
+    }
+
+    std::printf("\nExcluded (%zu rule%s):\n",
+                excluded.size(), excluded.size() == 1 ? "" : "s");
+    if (verbose) {
+        for (const auto &e : excluded) {
+            std::printf("  %s:%d  %s   %s\n",
+                        cfg_path.c_str(), e.rule->source_line,
+                        wstr_to_utf8(e.rule->lhsa).c_str(),
+                        e.reason.c_str());
+        }
+    } else {
+        // Group by reason for compactness.
+        std::unordered_map<std::string, int> by_reason;
+        for (const auto &e : excluded) by_reason[e.reason]++;
+        for (const auto &kv : by_reason) {
+            std::printf("  %d × %s\n", kv.second, kv.first.c_str());
+        }
+        if (!excluded.empty()) std::printf("  (use --verbose to list)\n");
+    }
+    return 0;
+}
+
 void usage() {
     std::cerr <<
         "Usage: zahradnice-check <subcommand> [args]\n"
         "Subcommands:\n"
-        "  explain CFG --line N    print the resolved geometry of one rule\n";
+        "  explain CFG --line N           resolved geometry of one rule\n"
+        "  why CFG --screen FILE --trigger K [--rule N]\n"
+        "                                 dynamic rule-match diagnostics\n";
 }
 
 }  // namespace
@@ -332,6 +692,7 @@ int main(int argc, char *argv[]) {
     if (argc < 2) { usage(); return 2; }
     std::string sub = argv[1];
     if (sub == "explain") return cmd_explain(argc - 2, argv + 2);
+    if (sub == "why")     return cmd_why(argc - 2, argv + 2);
     if (sub == "-h" || sub == "--help") { usage(); return 0; }
     std::cerr << "unknown subcommand: " << sub << "\n";
     usage();
