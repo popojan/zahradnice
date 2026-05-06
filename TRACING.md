@@ -156,10 +156,43 @@ Output:
     (+0,+1) '~' — writes space
 ```
 
-`--line N` selects by `=...` head line. If N falls inside a body, the
-tool falls back to the closest preceding head and prints a `Note:`
-explaining the redirect. Use the `src_line` column from the trace's
-`apply` rows directly — no cross-reference needed.
+### Selectors: `--line` vs `--head`
+
+- `--line N` — select by `=...` head line. If N falls inside a body
+  the tool falls back to the closest preceding head with a `Note:`
+  line. Fragile under file edits: any insertion above the target
+  line shifts the mapping.
+- `--head 'STR'` — select by the literal head string (the trace's
+  `head` column). Robust to line edits. If multiple rules share the
+  head string (rare; happens when a generator stacks `=HEAD` lines
+  above a single body) the tool prints all matches.
+
+Use `--head` whenever you've edited the cfg between recording and
+inspection. Copy the head string straight from the trace `apply` row.
+
+### Discipline: keep traces aligned with their source
+
+Trace `src_line` and `(lhs, idx)` are anchored to the **file as it
+existed at recording time**. Edits between recording and inspection
+break the mapping in subtle ways:
+
+- **Appending rules at the end** of a cfg preserves all existing
+  line numbers and indices. Always safe.
+- **Inserting a rule of a new lhs** preserves indices for all other
+  lhs's (idx is per-lhs in `R[lhs]`), but shifts line numbers below
+  the insertion.
+- **Inserting a rule of an existing lhs** shifts that lhs's
+  subsequent indices *and* line numbers below.
+- **Deleting a rule** likewise shifts.
+
+Two safe patterns when a hunt requires file edits:
+
+1. Append your changes; re-record after edits land.
+2. Snapshot the cfg before editing: `cp tetris.cfg tetris.cfg.recording`.
+   `--explain` against the snapshot continues to match the trace.
+
+When the file has shifted but you don't want to re-record, fall back
+to `--head 'STR'` lookup.
 
 The decoded `(dr, dc)` offsets are relative to the anchor cell on
 screen, which lives at `(ro, co)` per the trace. So a write at offset

@@ -200,8 +200,49 @@ const Grammar2D::Rule *find_by_line(const Grammar2D &g, int line, int *closest_l
     return best;
 }
 
+std::vector<const Grammar2D::Rule *> find_by_head(const Grammar2D &g,
+                                                  const std::wstring &head) {
+    std::vector<const Grammar2D::Rule *> out;
+    for (const auto &kv : g.R) {
+        for (const auto &r : kv.second) {
+            if (r.lhsa == head) out.push_back(&r);
+        }
+    }
+    return out;
+}
+
+std::wstring utf8_to_wstr(const std::string &s) {
+    std::wstring out;
+    out.reserve(s.size());
+    std::mbstate_t st = {};
+    const char *p = s.c_str();
+    size_t left = s.size();
+    while (left > 0) {
+        wchar_t wc;
+        size_t n = std::mbrtowc(&wc, p, left, &st);
+        if (n == 0 || n == (size_t)-1 || n == (size_t)-2) {
+            out.push_back((wchar_t)(unsigned char)*p);
+            ++p; --left;
+        } else {
+            out.push_back(wc);
+            p += n; left -= n;
+        }
+    }
+    return out;
+}
+
+void emit_rule(const std::string &cfg_path, const Grammar2D::Rule &r) {
+    print_header(cfg_path, r);
+    auto cells = walk_body(r.rhs);
+    std::cout << "\n  body grid:\n";
+    print_body_grid(cells, r);
+    std::cout << "\n";
+    print_offset_tables(cells, r);
+}
+
 int cmd_explain(int argc, char *argv[]) {
     std::string cfg_path;
+    std::string head_str;
     int line = -1;
     for (int i = 0; i < argc; ++i) {
         std::string a = argv[i];
@@ -210,6 +251,11 @@ int cmd_explain(int argc, char *argv[]) {
                 std::cerr << "missing value for --line\n"; return 1;
             }
             line = std::atoi(argv[++i]);
+        } else if (a == "--head") {
+            if (i + 1 >= argc) {
+                std::cerr << "missing value for --head\n"; return 1;
+            }
+            head_str = argv[++i];
         } else if (!a.empty() && a[0] == '-') {
             std::cerr << "unknown option: " << a << "\n"; return 1;
         } else if (cfg_path.empty()) {
@@ -218,18 +264,42 @@ int cmd_explain(int argc, char *argv[]) {
             std::cerr << "extra positional arg: " << a << "\n"; return 1;
         }
     }
-    if (cfg_path.empty() || line < 0) {
+    if (cfg_path.empty() || (line < 0 && head_str.empty())) {
         std::cerr <<
-            "Usage: zahradnice-check explain CFG --line N\n"
+            "Usage: zahradnice-check explain CFG (--line N | --head 'HEAD')\n"
             "  CFG     path to .cfg program\n"
-            "  --line  source line of the rule head (=HEAD line)\n";
+            "  --line  source line of the rule head (=HEAD line)\n"
+            "  --head  literal head string from the trace's head column\n"
+            "          (line-edit robust; copy-paste straight from trace)\n";
         return 2;
+    }
+    if (line >= 0 && !head_str.empty()) {
+        std::cerr << "--line and --head are mutually exclusive\n"; return 1;
     }
 
     Grammar2D g;
     if (!g.loadFromFile(cfg_path)) {
         std::cerr << "Failed to load: " << cfg_path << "\n";
         return 1;
+    }
+
+    if (!head_str.empty()) {
+        std::wstring whead = utf8_to_wstr(head_str);
+        auto matches = find_by_head(g, whead);
+        if (matches.empty()) {
+            std::cerr << "No rule with head '" << head_str
+                      << "' in " << cfg_path << ".\n";
+            return 3;
+        }
+        if (matches.size() > 1) {
+            std::cerr << "Note: " << matches.size()
+                      << " rules share this head; printing all.\n\n";
+        }
+        for (size_t i = 0; i < matches.size(); ++i) {
+            if (i) std::cout << "\n";
+            emit_rule(cfg_path, *matches[i]);
+        }
+        return 0;
     }
 
     int closest = -1;
@@ -244,13 +314,7 @@ int cmd_explain(int argc, char *argv[]) {
                   << " is not a rule head; falling back to closest preceding head at line "
                   << r->source_line << ".\n\n";
     }
-
-    print_header(cfg_path, *r);
-    auto cells = walk_body(r->rhs);
-    std::cout << "\n  body grid:\n";
-    print_body_grid(cells, *r);
-    std::cout << "\n";
-    print_offset_tables(cells, *r);
+    emit_rule(cfg_path, *r);
     return 0;
 }
 
