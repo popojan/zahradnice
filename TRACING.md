@@ -16,6 +16,8 @@ behaviour, or study which rules dominate a program's runtime cost.
   --stats PATH         Write per-rule stats summary
   --replay PATH        Replay a recorded trace; ignores other options
   --replay-delay MS    Delay between replay events (default 0)
+  --replay-snapshot S  Comma-separated trace steps to screenshot during replay
+  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)
 ```
 
 Trace and stats files are line-buffered, safe to `tail -f` while a session
@@ -42,7 +44,7 @@ event is logged into the trace.
 
 Header (always at top of file):
 ```
-# zahradnice-trace v1
+# zahradnice-trace v2
 # seed=42
 # screen=24,80
 ```
@@ -54,7 +56,7 @@ Then events, one per line:
 | `program_load`   | step, score, path |
 | `program_unload` | step, score, path |
 | `program_exit`   | step, score |
-| `apply`          | step, score, src, trig, lhs, idx, ro, co, head |
+| `apply`          | step, score, src, trig, lhs, idx, ro, co, src_line, head |
 | `screenshot`     | step, basename |
 
 Columns are tab-separated. Apply lines:
@@ -67,9 +69,17 @@ Columns are tab-separated. Apply lines:
 - **lhs** — the LHS non-terminal of the matched rule
 - **idx** — index of the rule within `R[lhs]` (parse-order in the cfg)
 - **ro, co** — screen coordinates of the matched LHS character
+- **src_line** — line number in the source `.cfg` of the rule's
+  `=...` head; pair with `zahradnice-check explain` to decode the
+  rule's match/write geometry without grepping
 - **head** — the rule's authored `=...` line (the same identifier the
   status bar shows for "last applied rule"); makes each line
   self-readable without consulting the stats file
+
+Trace format is versioned in the header. v1 traces (without
+`src_line`) are rejected by replay; convert them with the helper
+script `scripts/upgrade_trace_v1_to_v2.py` (reads stats to fill
+the new column).
 
 The `(lhs, idx)` pair uniquely identifies a rule within the currently-loaded
 program. The preceding `program_load` line tells you which program owns
@@ -101,6 +111,61 @@ explosions and lottery-loser rules at a glance.
 
 A new section is written every time the program changes (load → unload),
 each starting with a `# program <path>` comment.
+
+## Inspecting rules: `zahradnice-check explain`
+
+A separate binary (`make zahradnice-check`) decodes a rule's
+geometry — the kind of thing you reach for when a trace `apply` row
+or a stats line looks suspect and you want to know exactly which
+screen cells the rule reads vs writes.
+
+```
+./zahradnice-check explain programs/tetris/tetris.cfg --line 935
+```
+
+Output:
+
+```
+=== rule at programs/tetris/tetris.cfg:935 ===
+  head     = ==vT~70
+  lhs      = 'v'   (anchor char this rule rewrites)
+  trigger  = 'T'
+  rep      = '~'   (replaces '@' on RHS)
+  ctx      = '?'   ctxrep = ' '
+  fore=7 back=0  reward=0  weight=1
+  orient   = horizontal (cq=3, co=0, cm=2, rm=1, rq=1)
+
+  body grid:
+          0  1  2  3  4
+  r0:     ~  ~  .  v  ~
+  role:   L  L  .  R  R
+  r1:     @  ~  @  @  ~
+  role:   L  L  B  A  R
+
+  legend: L=LHS(read)  R=RHS(write)  B=boundary  A=anchor  .=empty
+
+  matches (offset relative to anchor):
+    (-1,-3) '~' — matches space
+    (-1,-2) '~' — matches space
+    (+0,-3) '@' — matches anchor char 'v'
+    (+0,-2) '~' — matches space
+  writes (offset relative to anchor):
+    (-1,+0) 'v' — writes literal 'v'
+    (-1,+1) '~' — writes space
+    (+0,+0) '@' — writes rep '~'
+    (+0,+1) '~' — writes space
+```
+
+`--line N` selects by `=...` head line. If N falls inside a body, the
+tool falls back to the closest preceding head and prints a `Note:`
+explaining the redirect. Use the `src_line` column from the trace's
+`apply` rows directly — no cross-reference needed.
+
+The decoded `(dr, dc)` offsets are relative to the anchor cell on
+screen, which lives at `(ro, co)` per the trace. So a write at offset
+`(-1, +5)` lands at screen cell `(ro - 1, co + 5)` — that's how to
+attribute a "what overwrote my cell?" question without instrumenting
+the engine.
 
 ## Replay
 
@@ -196,31 +261,34 @@ If it regresses, replay halts on the first divergence and shows where:
 Replay diverged at event 1842: recorded rule '==XTvgGSS' score=33; live rule '==XTv?(?)' score=33
 ```
 
-The recorded rule head plus `idx` and `src_line` (look up in the stats
-file) take you straight to the cfg line involved. From there, the trace
-events around step 1842 show what state the engine was in just before the
-divergence — read the preceding 20 lines of the trace, you'll see exactly
-which screen cells were touched, in what order, and with which triggers.
+The recorded rule head plus its `src_line` (now in the trace's
+`apply` row directly) take you straight to the cfg line involved.
+Pipe it through `--explain` to decode what cells the rule reads and
+writes:
+
+```
+./zahradnice-check explain programs/tetris/tetris.cfg --line 1842
+```
+
+From there, the trace events around step 1842 show what state the
+engine was in just before the divergence — read the preceding 20
+lines of the trace, you'll see exactly which screen cells were
+touched, in what order, and with which triggers.
 
 **3. (Optional) screenshot for full-state confirmation.**
 
-If the divergence is subtle and you want to see the actual screen state
-diverge, edit `baseline.log` to inject a checkpoint just before the
-suspicious step:
+For a row-by-row diff of the screen at the exact moment things go
+wrong, capture screenshots at chosen steps without mutating the trace:
 
 ```
-sed -i '1842i\
-screenshot\t1841\tcheckpoint_pre_clear' baseline.log
+./zahradnice --replay baseline.log --replay-snapshot 1841,1842
+diff snapshot_step1841.txt snapshot_step1842.txt
 ```
 
-Re-record the baseline (with the same seed) so the pre-divergence
-screenshot file exists, then replay against the new build:
-
-```
-diff checkpoint_pre_clear.txt checkpoint_pre_clear_replay.txt
-```
-
-A row-by-row diff of the screen at the exact moment things go wrong.
+If you also want to compare against a known-good capture, take the
+baseline run with `--replay-snapshot` first, save the outputs, switch
+to the fix-attempt build, re-run replay with the same step list, and
+diff the two snapshot sets.
 
 ## Determinism contract
 
