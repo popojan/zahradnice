@@ -48,6 +48,16 @@ build/tetris_gen: build/tetris_gen.o build/libgenlib.a
 gen-tetris: build/tetris_gen
 	./build/tetris_gen > programs/tetris2/tetris.cfg
 
+build/snake_gen.o: src/gen/snake_gen.cpp src/gen/genlib.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+build/snake_gen: build/snake_gen.o build/libgenlib.a
+	$(CXX) $(STD) -O2 $^ -o $@
+
+# Regenerate snake2 from source.
+gen-snake: build/snake_gen
+	./build/snake_gen > programs/snake2/snake.cfg
+
 build/animation_gen.o: src/gen/animation_gen.cpp src/gen/genlib.h | build
 	$(CXX) $(STD) -O2 -c $< -o $@
 
@@ -71,6 +81,14 @@ zahradnice-debug: build/libgrammar-debug.a
 zahradnice-size: build/libgrammar-size.a
 	$(CXX) $(STD) $(SIZE_FLAGS) $(SIZE_LDFLAGS) -s $(ENGINE_SRCS) $< -o zahradnice $(ENGINE_LIBS)
 	strip ./zahradnice -R .comment -R .gnu.version --strip-unneeded
+
+# --- zahradnice-check: validation/inspection tool, links libgrammar.a ---
+
+build/check.o: src/check/check.cpp src/grammar.h | build
+	$(CXX) $(STD) -O2 -c $< -o $@
+
+zahradnice-check: build/check.o build/libgrammar-speed.a
+	$(CXX) $(STD) -O2 $^ -o $@ -lncursesw -lz
 
 clean:
 	rm -rf build zahradnice

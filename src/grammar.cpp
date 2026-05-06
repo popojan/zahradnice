@@ -1109,14 +1109,16 @@ bool Derivation::apply_recorded(wchar_t lhs, size_t idx, int ro, int co) {
 void Derivation::log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_t idx, int ro, int co) {
     if (!trace_fp) return;
     const wchar_t *head = L"";
+    int src_line = 0;
     auto it = g.R.find(lhs);
     if (it != g.R.end() && idx < it->second.size()) {
         head = it->second[idx].lhsa.c_str();
+        src_line = it->second[idx].source_line;
     }
-    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%ls\n",
+    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%d\t%ls\n",
             (unsigned long long)event_step, score,
             src ? src : '-',
-            (wint_t)trig, (wint_t)lhs, idx, ro, co, head);
+            (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head);
 }
 
 void Derivation::log_program_load(const std::string &path, int score) {

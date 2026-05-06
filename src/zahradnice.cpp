@@ -16,6 +16,8 @@
 #include <fstream>
 #include <ctime>
 #include <cstring>
+#include <vector>
+#include <set>
 
 // Global state for statusline template inheritance
 static std::wstring active_statusline_template = L"";
@@ -239,9 +241,36 @@ std::string resolve_program_path(const std::string& program_path, const std::str
     return base_path;
 }
 
-void clear_status(size_t len) {
+void clear_status(int row, int col, size_t len) {
     std::wstring empty(len, L' ');
-    mvaddwstr(0, 0, empty.c_str());
+    mvaddwstr(row, col, empty.c_str());
+}
+
+// Clear the host-terminal area outside the centred viewport so stale terminal
+// content doesn't bleed through. Called once after initscr() when a smaller
+// --screen is requested.
+static void clear_outside_viewport(int off_row, int off_col, int eff_row, int eff_col) {
+    int actual_row, actual_col;
+    getmaxyx(stdscr, actual_row, actual_col);
+    if (off_row == 0 && off_col == 0
+        && eff_row == actual_row && eff_col == actual_col) return;
+    std::wstring blank(actual_col, L' ');
+    for (int r = 0; r < actual_row; ++r) {
+        if (r >= off_row && r < off_row + eff_row) {
+            // partial: blank only the columns outside [off_col, off_col+eff_col)
+            if (off_col > 0) {
+                std::wstring left((size_t)off_col, L' ');
+                mvaddwstr(r, 0, left.c_str());
+            }
+            int right_start = off_col + eff_col;
+            if (right_start < actual_col) {
+                std::wstring right((size_t)(actual_col - right_start), L' ');
+                mvaddwstr(r, right_start, right.c_str());
+            }
+        } else {
+            mvaddwstr(r, 0, blank.c_str());
+        }
+    }
 }
 
 // Input replay: read a previously-recorded trace and re-feed its triggers to
@@ -249,15 +278,16 @@ void clear_status(size_t len) {
 // a virtual viewport of the recorded screen size, requiring the host terminal
 // to be at least that big. Detects divergence (different rule fired or score
 // drift) automatically.
-static int run_replay(const std::string &replay_path, int delay_ms) {
+static int run_replay(const std::string &replay_path, int delay_ms,
+                      const std::vector<uint64_t> &snapshot_steps) {
     FILE *f = std::fopen(replay_path.c_str(), "r");
     if (!f) {
         std::cerr << "Cannot open replay file: " << replay_path << std::endl;
         return 1;
     }
 
-    // Parse header: "# seed=N" and "# screen=R,C"
-    int rec_seed = 1, rec_rows = 24, rec_cols = 80;
+    // Parse header: "# zahradnice-trace vN", "# seed=N", "# screen=R,C"
+    int rec_seed = 1, rec_rows = 24, rec_cols = 80, trace_version = 0;
     char line[8192];
     long after_header = 0;
     while (std::fgets(line, sizeof(line), f)) {
@@ -266,11 +296,19 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
             break;
         }
         int v, r, c;
-        if (std::sscanf(line, "# seed=%d", &v) == 1) rec_seed = v;
+        if (std::sscanf(line, "# zahradnice-trace v%d", &v) == 1) trace_version = v;
+        else if (std::sscanf(line, "# seed=%d", &v) == 1) rec_seed = v;
         else if (std::sscanf(line, "# screen=%d,%d", &r, &c) == 2) {
             rec_rows = r; rec_cols = c;
         }
         after_header = std::ftell(f);
+    }
+    if (trace_version != 0 && trace_version < 2) {
+        std::cerr << "Trace is v" << trace_version
+                  << "; this build expects v2. Convert with scripts/upgrade_trace_v1_to_v2.py."
+                  << std::endl;
+        std::fclose(f);
+        return 1;
     }
 
     initscr();
@@ -314,6 +352,7 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
     int rep_off_row = (host_row - rec_rows) / 2;
     int rep_off_col = (host_col - rec_cols) / 2;
     w.set_render_offset(rep_off_row, rep_off_col);
+    clear_outside_viewport(rep_off_row, rep_off_col, rec_rows, rec_cols);
 
     auto take_replay_screenshot = [&]() {
         char ts[64];
@@ -326,6 +365,15 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
         take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
         take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
     };
+
+    auto take_snapshot_at = [&](uint64_t step) {
+        char fn[64];
+        std::snprintf(fn, sizeof(fn), "snapshot_step%llu", (unsigned long long)step);
+        std::string base(fn);
+        take_screenshot(base + ".txt", false, rep_off_row, rep_off_col, rec_rows, rec_cols);
+        take_screenshot(base + ".ansi", true, rep_off_row, rep_off_col, rec_rows, rec_cols);
+    };
+    std::set<uint64_t> snapshot_pending(snapshot_steps.begin(), snapshot_steps.end());
 
     auto render_status = [&](const char *phase) {
         char buf[512];
@@ -346,8 +394,8 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
         std::string s(buf);
         if (static_cast<int>(s.size()) > rec_cols) s.resize(rec_cols);
         std::wstring blank(rec_cols, L' ');
-        mvaddwstr(0, 0, blank.c_str());
-        mvaddstr(0, 0, s.c_str());
+        mvaddwstr(rep_off_row, rep_off_col, blank.c_str());
+        mvaddstr(rep_off_row, rep_off_col, s.c_str());
         refresh();
     };
 
@@ -439,7 +487,7 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
             // sequence produces the same outcome until engine logic changes.
             char *saveptr = nullptr;
             strtok_r(line, "\t", &saveptr);             // "apply"
-            strtok_r(nullptr, "\t", &saveptr);          // step
+            char *step_s = strtok_r(nullptr, "\t", &saveptr); // step
             char *sc = strtok_r(nullptr, "\t", &saveptr);   // score
             char *src_s = strtok_r(nullptr, "\t", &saveptr); // src
             char *trig_s = strtok_r(nullptr, "\t", &saveptr); // trig
@@ -447,6 +495,7 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
             strtok_r(nullptr, "\t", &saveptr);          // idx
             strtok_r(nullptr, "\t", &saveptr);          // ro
             strtok_r(nullptr, "\t", &saveptr);          // co
+            strtok_r(nullptr, "\t", &saveptr);          // src_line (v2)
             char *head_s = strtok_r(nullptr, "\t", &saveptr); // head (rest of line)
             if (!trig_s) continue;
             int rec_score = sc ? std::atoi(sc) : score_seen;
@@ -461,6 +510,19 @@ static int run_replay(const std::string &replay_path, int delay_ms) {
             std::vector<wchar_t> sounds_dummy;
             w.stepMultithreaded(trig, score_live, &rule_dummy, &sounds_dummy, src_ch);
             ++events_processed;
+
+            // --replay-snapshot: capture a screenshot when the recorded step
+            // matches a requested step. Uses the trace's step column directly,
+            // which equals events_processed under deterministic replay.
+            if (!snapshot_pending.empty() && step_s) {
+                uint64_t step_v = std::strtoull(step_s, nullptr, 10);
+                auto it = snapshot_pending.find(step_v);
+                if (it != snapshot_pending.end()) {
+                    render_status(diverged_at ? "DIV" : "RUN");
+                    take_snapshot_at(step_v);
+                    snapshot_pending.erase(it);
+                }
+            }
 
             // Internal divergence test: compare live rule head + score to recording.
             // First divergence is sticky — captured for status display.
@@ -522,6 +584,7 @@ int main(int argc, char *argv[]) {
     int max_threads = 0;
     int replay_delay = 0;
     int screen_rows = 0, screen_cols = 0;
+    std::vector<uint64_t> snapshot_steps;
 
     auto needs_value = [&](int i) -> bool {
         if (i + 1 >= argc) {
@@ -544,6 +607,7 @@ int main(int argc, char *argv[]) {
                 "  --stats PATH         Write per-rule stats summary\n"
                 "  --replay PATH        Replay a recorded trace; ignores other options\n"
                 "  --replay-delay MS    Delay between replay events (default 0)\n"
+                "  --replay-snapshot S  Comma-separated trace steps to screenshot during replay\n"
                 "  --screen R,C         Constrain engine to RxC viewport (≤ actual terminal)\n";
             return 0;
         } else if (a == "--seed") { if (!needs_value(i)) return 1; seed = std::atoi(argv[++i]); }
@@ -552,6 +616,22 @@ int main(int argc, char *argv[]) {
         else if (a == "--stats") { if (!needs_value(i)) return 1; stats_path = argv[++i]; }
         else if (a == "--replay") { if (!needs_value(i)) return 1; replay_path = argv[++i]; }
         else if (a == "--replay-delay") { if (!needs_value(i)) return 1; replay_delay = std::atoi(argv[++i]); }
+        else if (a == "--replay-snapshot") {
+            if (!needs_value(i)) return 1;
+            const char *p = argv[++i];
+            char *endp;
+            while (*p) {
+                while (*p == ',' || *p == ' ') ++p;
+                if (!*p) break;
+                unsigned long long v = std::strtoull(p, &endp, 10);
+                if (endp == p) {
+                    std::cerr << "bad --replay-snapshot value, expected comma-separated step numbers\n";
+                    return 1;
+                }
+                snapshot_steps.push_back(static_cast<uint64_t>(v));
+                p = endp;
+            }
+        }
         else if (a == "--screen") {
             if (!needs_value(i)) return 1;
             if (std::sscanf(argv[++i], "%d,%d", &screen_rows, &screen_cols) != 2
@@ -573,7 +653,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!replay_path.empty()) {
-        return run_replay(replay_path, replay_delay);
+        return run_replay(replay_path, replay_delay, snapshot_steps);
     }
 
     config = resolve_program_path(config, "");
@@ -637,10 +717,11 @@ int main(int argc, char *argv[]) {
     int off_row = (actual_row - eff_row) / 2;
     int off_col = (actual_col - eff_col) / 2;
     w.set_render_offset(off_row, off_col);
+    clear_outside_viewport(off_row, off_col, eff_row, eff_col);
 
     // Trace header: tool version, seed, viewport dimensions (constrained or actual)
     if (trace_fp) {
-        fprintf(trace_fp, "# zahradnice-trace v1\n");
+        fprintf(trace_fp, "# zahradnice-trace v2\n");
         fprintf(trace_fp, "# seed=%d\n", actual_seed);
         fprintf(trace_fp, "# screen=%d,%d\n", eff_row, eff_col);
     }
@@ -771,8 +852,8 @@ int main(int argc, char *argv[]) {
             }
             // Sound playing is now handled in the rule application section
 
-            // print status using template system
-            clear_status(col);
+            // print status using template system (row 0 of the centred viewport)
+            clear_status(off_row, off_col, col);
 
             // Get threading stats
             auto [parallel, total] = w.getThreadingStats();
@@ -807,14 +888,14 @@ int main(int argc, char *argv[]) {
 
             // Display left content using wide character function
             if (max_left_width > 0) {
-                mvaddwstr(0, 0, left_content.c_str());
+                mvaddwstr(off_row, off_col, left_content.c_str());
             }
 
             // Display right content (rule) - shift one char left to keep cursor on top row
             if (display_width > 0 && display_width < col) {
                 int start_col = col - display_width - 1;  // Shift one position left
                 if (start_col >= 0) {
-                    mvaddwstr(0, start_col, lhsa_truncated.c_str());
+                    mvaddwstr(off_row, off_col + start_col, lhsa_truncated.c_str());
                 }
             }
 
