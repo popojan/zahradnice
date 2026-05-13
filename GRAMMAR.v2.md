@@ -220,7 +220,12 @@ The body is one or more lines of text following a header (or a stack of headers)
 2. **Second `@`** — the boundary marker: separates the LHS region (matched against the screen) from the RHS region (written to the screen). This cell is never matched and never written.
 3. **Third `@`** — the RHS anchor: the position where the LHS non-terminal's replacement (field `3`) is written.
 
-The body is parsed cell-by-cell. Each non-newline character occupies one cell; newlines advance to the next row. Body cells extend in both directions from the anchors — the engine computes coordinates as `(anchor_row + body_row, anchor_col + body_col)`.
+The body is parsed cell-by-cell. Each non-newline character occupies one cell; newlines advance to the next row. Body cells are resolved relative to the non-terminal's screen position, but the LHS and RHS regions use **different body-coordinate origins**:
+
+- **LHS region** (dry-run, matched against screen): a cell at body position `(br, bc)` is checked at screen offset `(br − ro, bc − co)` from the non-terminal, where `(ro, co)` is `@1`'s position in the body.
+- **RHS region** (apply, written to screen): a cell at body position `(br, bc)` is written at screen offset `(br − rq, bc − cq)` from the non-terminal, where `(rq, cq)` is `@3`'s position in the body.
+
+For horizontal rules all three `@` markers are on the same body row (`ro = rq`), so row offsets are identical across the two regions. Column offsets differ by `cq − co` (the gap between `@1` and `@3`). A LHS cell at body column `co + Δ` and an RHS cell at body column `cq + Δ` both resolve to screen column offset `+Δ` — they reference the **same screen column** despite occupying different body columns. This is the standard idiom for writing to the same neighbour that was checked in dry-run.
 
 The boundary direction is inferred from the layout: if the third `@` is to the right of the first `@`, the body is **horizontal** (LHS is to the left of the boundary, RHS to the right); otherwise **vertical** (LHS above, RHS below). Mixed layouts are not supported.
 

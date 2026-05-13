@@ -144,12 +144,12 @@ void print_body_grid(const std::vector<BodyCell> &cells, const Grammar2D::Rule &
 }
 
 void print_offset_tables(const std::vector<BodyCell> &cells, const Grammar2D::Rule &rule) {
-    std::cout << "  matches (offset relative to anchor):\n";
+    std::cout << "  matches (offset from @1, dry-run origin):\n";
     bool any = false;
     for (auto &cell : cells) {
         if (!cell_in_lhs(rule, cell.br, cell.bc)) continue;
-        int dr = cell.br - rule.rq;
-        int dc = cell.bc - rule.cq;
+        int dr = cell.br - rule.ro;
+        int dc = cell.bc - rule.co;
         std::printf("    (%+d,%+d) '%s' — %s\n", dr, dc,
                     display_char(cell.ch).c_str(),
                     explain_match_token(cell.ch, rule).c_str());
@@ -157,7 +157,7 @@ void print_offset_tables(const std::vector<BodyCell> &cells, const Grammar2D::Ru
     }
     if (!any) std::cout << "    (none)\n";
 
-    std::cout << "  writes (offset relative to anchor):\n";
+    std::cout << "  writes (offset from @3, apply origin):\n";
     any = false;
     for (auto &cell : cells) {
         if (!cell_in_rhs(rule, cell.br, cell.bc)) continue;
