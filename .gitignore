@@ -10,3 +10,26 @@ programs.wip
 *.htm
 *.html
 
+# --- working-tree hygiene (2026-06-17) ---
+# debug / capture artifacts (regeneratable engine outputs)
+*.trace
+*.stats
+*.ansi
+*.out
+screenshot_*
+snapshot_*
+memsnap_*
+replay_*
+*_replay.txt
+pokus.*
+tatus
+__pycache__/
+
+# local sound library (core sounds at sounds/*.wav stay tracked)
+sounds/bass/
+sounds/piano/
+sounds/vsup/
+
+# working notes / backlog (kept on disk, not committed; friction journals live here too)
+backlog/
+
