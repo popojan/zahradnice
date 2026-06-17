@@ -327,6 +327,22 @@ The same rule applies to any non-`=` content (comments after the first column, b
 
 ---
 
+## 20. Rule `<score> <weight>` tail is positional (offset 10) — a single space fails silently
+
+**Symptom.** You add a score to a rule header, e.g. `=Q.T~38 2` (want reward +2) or `=SXw~38^ -1`. The program runs without error but the score is wrong — `=Q.T~38 2` scores 0, `=SXd~38> -1` scores +1. No parse error; the rule just behaves as if mis-scored.
+
+**Cause.** The header is parsed **positionally**, not space-delimited. From `grammar.cpp`: fore=`lhs[5]`, back=`lhs[6]`, ctx(field6)=`lhs[7]`, ctxrep(field7)=`lhs[8]`, then the score/weight come from `parse_ints<2>(lhs.substr(10), …)` (only if `lhs.size() > 10`). So position 9 is an ignored separator and the score must begin at **position 10**. `=Q.T~38 2` is only 9 chars — the trailing ` 2` is read as field6=`' '` and field7=`'2'`, never as a score. `=SXd~38> -1` puts `-` at position 9 (separator) and `1` at position 10, so it parses **+1**, not −1. The spec's "a single space separates the field block from the optional tail" is misleading for short headers.
+
+**Avoid.** Pad so the **number starts at position 10** (= marker + 8 field chars + 1 separator). Count the field-block chars after `=`:
+- Header filled through f5 (e.g. `=Q.T~38`, 7 chars): need 3 spaces → `=Q.T~38   2`.
+- Header filled through f6 (e.g. `=SXd~38>`, `=SXw~38^`, 8 chars): need 2 spaces → `=SXd~38>  -1`.
+
+The padding spaces become field6/field7 (default-equivalent when the body has no `&`; otherwise keep the real f6/f7 chars and only pad the still-missing positions). **Always verify with `zahradnice-check explain --line N` — it prints `reward=` and `weight=`.** Negative numbers parse fine once positioned correctly.
+
+**Static-check candidate.** A linter could flag a header whose trailing integer lands inside a field-block position (likely a mis-positioned score), or whose intended score didn't parse. See `backlog/research/zahradnice-check.md`.
+
+---
+
 ## Adding new entries
 
 When a future session discovers a new gotcha:
