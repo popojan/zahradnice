@@ -73,13 +73,13 @@ There is currently no `--check` linter and no trace tool. **This is the exercise
 
 ## Friction journal (mandatory output)
 
-The purpose of authoring through this skill is to **surface pain points** that drive future tooling (linter, headless replay, trace introspection, rule-family generators). While working, keep a short running journal of friction encountered, in `friction-journal.md` next to your program, with entries like:
+The purpose of authoring through this skill is to **surface pain points** that drive future tooling (linter, headless replay, trace introspection, rule-family generators). While working, keep a short running journal of friction encountered in `backlog/research/<topic>-friction.md` (e.g. `tetris-exercise-friction.md`, `zen-scoring-friction.md`) — **not** next to the program. `backlog/` is the repo's home for working notes and is git-ignored, so journals live together there and never clutter `git status` or get committed. Entries like:
 
 - *Spent 20 minutes debugging a non-firing rule; root cause was an undeclared trigger key. A linter would have caught this.*
 - *Wrote 16 nearly-identical rule headers for tetris piece rotation; a generator would collapse this to one.*
 - *Could not tell whether rule X never fires or fires but writes outside the visible region. A trace tool would distinguish these.*
 
-Keep entries short, factual, and timestamped (relative is fine: "after ~30 min", "third iteration"). The journal is the **deliverable** alongside the working program.
+Keep entries short, factual, and timestamped (relative is fine: "after ~30 min", "third iteration"). The journal (in `backlog/research/`) is a **deliverable** alongside the working program.
 
 ## Reference programs
 
