@@ -8,6 +8,8 @@
 # Usage: ./sweep.sh [SEEDS=30] [BUDGET=20000] > results.csv
 #        WR and WI_LIST override the swept weights, e.g.
 #        WR=16 WI_LIST="5 6 7 8 9 10" ./sweep.sh 50 > fine.csv
+#        THREADS overrides the cfg's #threads (parallel-update variant);
+#        run one sweep per value: THREADS=4 ./sweep.sh > threads4.csv
 set -e
 cd "$(dirname "$0")"
 SEEDS=${1:-30}
@@ -16,6 +18,7 @@ BIN=../../zahradnice-headless
 [ -x "$BIN" ] || BIN=../../zahradnice
 WR=${WR:-8}
 WI_LIST=${WI_LIST:-"1 2 3 4 5 6 8"}
+THREADS=${THREADS:-1}
 SCREEN=17,32
 INPUT=$(printf 'T%.0s' $(seq 1 "$BUDGET"))
 TMP=$(mktemp --suffix=.cfg)
@@ -23,7 +26,7 @@ trap 'rm -f "$TMP"' EXIT
 
 echo "lambda,wi,wr,seed,events,score,extinct"
 for WI in $WI_LIST; do
-  sed "s/   1 4\$/   1 $WI/; s/   -1 8\$/   -1 $WR/" contact.cfg > "$TMP"
+  sed "s/   1 4\$/   1 $WI/; s/   -1 8\$/   -1 $WR/; s/^#threads 1\$/#threads $THREADS/" contact.cfg > "$TMP"
   for seed in $(seq 1 "$SEEDS"); do
     "$BIN" "$TMP" --seed "$seed" --screen "$SCREEN" \
         --input "$INPUT" --max-steps "$BUDGET" 2>&1 >/dev/null \

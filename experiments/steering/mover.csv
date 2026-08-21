@@ -1,0 +1,9 @@
+policy,seed,score,actions
+greedy-mover,1,-2,TTTTTTaaTT
+greedy-mover,2,0,TTTTTTssTT
+greedy-mover,3,-6,dTTsTddTdT
+greedy-mover,4,0,TTTwTTsTwT
+greedy-mover,5,-4,wTTTTTTTTT
+greedy-mover,6,1,TTTTTTTTTT
+greedy-mover,7,-3,TTdTwsTTdT
+greedy-mover,8,-5,sTTTTTTTTT

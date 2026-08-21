@@ -137,7 +137,14 @@ reduce that to a `sort | uniq`-style script — see gap G4 in §6.
 Sweep the weight ratio, measure steps-to-first-repetition over many seeds, plot
 the distribution.
 
-### 2.2 Phase transitions `[DESIGN]`
+### 2.2 Phase transitions `[DESIGN → first data]`
+
+> **Update 2026-08-21:** first measurement done — the contact-process
+> sweep (`experiments/convergence/results.md`, Round 2) shows the
+> effective critical ratio shifting upward with `#threads`: survival at
+> λ = 0.4375 drops 14% → 0% as N goes 1 → 8, with order-of-magnitude
+> longer near-critical transients. The engine's batch parallelism is a
+> real synchrony knob with measurable critical behaviour.
 Blok & Bergersen found a critical synchrony rate α_c ≈ 0.911 for async Game of
 Life (directed percolation universality class in 2+1D). Zahradnice's analogue of
 α is not a synchrony rate but the `#threads` count combined with the weight

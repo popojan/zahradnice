@@ -89,3 +89,42 @@ results-fine.csv`):
 - The `#threads N` variant of the same sweep: does the conservative
   conflict-detection parallelism shift the effective λc? This is the
   §2.2 question in its sharpest form.
+
+---
+
+# Round 2 — the `#threads` variant (same day)
+
+`THREADS=N ./sweep.sh` reruns the identical grid with the engine's
+multi-rule execution: up to N non-conflicting rules sampled without
+replacement per step *from the same pre-batch state* — the engine's
+native synchrony knob. Extinction is still measured in applied rules
+(jump events), so columns are comparable across N.
+
+Survival % (50 seeds, 20k-event budget; T1 column from results-fine.csv,
+same seeds and grid):
+
+| λ | T=1 | T=2 | T=4 | T=8 |
+|---|---|---|---|---|
+| 0.3750 | 0 | 0 | 0 | 0 |
+| 0.4375 | 14 | 18 | **6** | **0** |
+| 0.5000 | 38 | 44 | 44 | 42 |
+| 0.6250 | 50 | 64 | 62 | 60 |
+
+Extinction-time tails at λ = 0.4375: mean/max grow from 62/797 (T=1) to
+~820–930 / 12k–15k (T≥2) — order-of-magnitude longer near-critical
+transients.
+
+Reading: **the near-critical point is suppressed by batch parallelism —
+effective λc shifts upward with thread count.** At λ = 0.4375 survival
+dies from 14% to 0% as N goes 1→8, while comfortably supercritical
+ratios are barely affected (and T=2 mildly *helps* at 0.625). Mechanism
+consistent with synchrony: within a batch, events are sampled from stale
+state, so e.g. two adjacent recoveries can co-fire and extinguish a
+small cluster that sequential sampling would have let re-spread — the
+establishment phase is variance-dominated and batching raises variance.
+This is the engine-native analogue of Blok & Bergersen's async/sync
+distinction, answering §2.2's open question in first approximation: yes,
+there is a parallelism-dependent shift, it is measurable with the stock
+harness, and it comes with giant near-critical transients (some "extinct"
+runs at T≥2 die only after 12–15k events, close to the budget — a finer
+study should raise `--max-steps`).

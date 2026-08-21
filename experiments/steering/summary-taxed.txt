@@ -1,0 +1,4 @@
+# passive: mean=-3.8 scores=[-7, -3, -5, -5, -4, 1, -4, -3]
+# random: mean=-9.1 scores=[-8, -3, -10, -14, -19, 1, -11, -9]
+# greedy: mean=-2.2 scores=[-3, 1, -4, -1, -4, 1, -3, -5]
+# greedy-mover: mean=-2.2 scores=[-3, 1, -4, -1, -4, 1, -3, -5]

@@ -1,0 +1,1 @@
+# greedy-mover: mean=-2.4 scores=[-2, 0, -6, 0, -4, 1, -3, -5]
