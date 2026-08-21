@@ -58,16 +58,36 @@ burnout = burn and slower sprouting.
 | p90 / max | 614 / 1393 |
 
 Log2 histogram of fire sizes: 27, 11, 14, 5, 7, 7, 7, 7, 13, 12, 2
-per octave from 1 to 2047 — **approximately flat per octave across
-three decades**, i.e. density ~ 1/s, with the cutoff at system size
-(max fire = 68% of the field). A power-law-shaped avalanche
-distribution with **no parameter tuned to criticality** — the weights
-only encode timescale separation; the near-critical tree density is
-maintained by the dynamics' own negative feedback (sprout mass ∝
-ground count, lightning exposure ∝ tree count).
+per octave from 1 to 2047 — approximately flat per octave across three
+decades on this first run, cutoff at system size.
 
-A 250k-event run for better statistics is recorded alongside
-(`firestats.py` computes the numbers from any trace).
+## Correction: the robustness scan says "self-organized" was overclaimed
+
+A 250k-event run (534 episodes) and a sprout-weight scan falsified the
+first reading. The user's challenge ("are you sure the
+self-organization is there — maybe the trees just grow fast enough?")
+identified exactly the axis that should not matter under SOC and does:
+
+| sprout weight | episodes | med / p90 / max | shape |
+|---|---|---|---|
+| 30 | 799 | 9 / 124 / 649 | broad, cutoff well below system size (sub-critical flavour) |
+| 100 (250k) | 534 | 15 / 576 / 1539 | **bimodal**: small-fire peak, valley at 16–63, second mass 128–1023 |
+| 300 | ~44 | megafires to 8191 — 4× the field | megafire cycling; sizes > field ⇒ cells regrow and re-burn within one episode |
+
+The distribution shape slides smoothly with the growth rate; the flat
+histogram at sprout 100 sits at a *tuned crossover*, and even there the
+long run shows the quasi-periodic-megafire signature once statistics
+accumulate. **Defensible claim: DS-family fire dynamics with
+parameter-dependent avalanche regimes are expressible in ~11 rules —
+not demonstrated SOC.** What would settle it: field-size scaling (under
+SOC the cutoff tracks L at fixed weights; under tuning it tracks the
+timescale ratio θ), much larger θ (blocked by the integer weight floor
+at the time of the scan — see below), and a proper τ fit. Fairness
+note: canonical DS-FFM's own SOC status is disputed (Grassberger 2002;
+Pruessner & Jensen), so even a perfect mapping inherits a contested
+pedigree.
+
+`firestats.py` computes all numbers from any trace.
 
 ## What this says about "learning without an external optimizer"
 
