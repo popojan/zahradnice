@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Generate manna.cfg — Manna stochastic sandpile with wall dissipation.
 
-The clean SOC citizen (conservative dynamics, boundary dissipation,
-drive-in-quiescence), per experiments/soc/results.md and the research
-notes discussion. Heights are digit symbols 0..6; sites >= 2 are active
-and topple one grain at a time to a random neighbour (the engine's
-weighted sampler supplies the randomness natively). Walls '#' absorb
-grains (score -1); the drive trigger 'd' drops one grain on a random
-quiet site (score +1), so score == grains currently in the pile.
+v2: proper Manna toppling. An active site (height >= 2) sheds TWO
+grains, one at a time, via owe-states u/v/w ("owes one more grain",
+holding 0/1/2 grains): 2->u->0, 3->v->1, 4->w->2. Receivers are
+digits 0..3 (->+1) and owe-states u,v (->v,w); height-4 and owe-w
+receivers have no rule, so that direction is simply unavailable (rare).
 
-Rule family sizes: topple 5 heights x 6 receiver heights x 4 dirs = 120,
-dissipate 5 x 4 = 20, drive 2. Bodies whose first column would start
-with '#' are uniformly indented one space (GRAMMAR.v2.md body-line
-escape).
+v1 shed a single grain (2->1), so no interior site could ever empty:
+density locked at 1.0 and each "avalanche" was one excess grain
+random-walking to the wall (hump-shaped first-passage sizes) — false
+negative #4, caught by the density check (grains == sites) and the
+non-power-law shape. The zeros created by double-shedding are exactly
+where Manna's critical density < 1 comes from.
+
+Drive 'd' drops a grain on a random quiet site (+1 score), walls '#'
+absorb shed grains (-1 score), so score == grains in the pile.
+Bodies whose first column would start with '#' are uniformly indented
+one space (GRAMMAR.v2.md body-line escape).
 """
 from pathlib import Path
 
@@ -44,8 +49,9 @@ A("# carrier for the quit control")
 A("=q0q0")
 A("@@@")
 A("")
-A("# toppling: an active site (>=2) passes one grain to a random")
-A("# neighbour; direction chosen by the sampler")
+
+SHED = {"2": "u", "3": "v", "4": "w", "u": "0", "v": "1", "w": "2"}
+RECV = {"0": "1", "1": "2", "2": "3", "3": "4", "u": "v", "v": "w"}
 
 
 def body(lines):
@@ -54,23 +60,21 @@ def body(lines):
     L.extend(lines)
 
 
-for h in range(2, 7):
-    src, dst = str(h), str(h - 1)
-    for k in range(0, 6):
-        r0, r1 = str(k), str(k + 1)
+A("# toppling: shed one grain to a random neighbour")
+for src, dst in SHED.items():
+    for k, k1 in RECV.items():
         A(f"=={src}T{dst}78")
-        body([f"@{r0}@@{r1}"])
+        body([f"@{k}@@{k1}"])
         A(f"=={src}T{dst}78")
-        body([f"{r0}@@{r1}@"])
+        body([f"{k}@@{k1}@"])
         A(f"=={src}T{dst}78")
-        body([r0, "@", "@", r1, "@"])
+        body([k, "@", "@", k1, "@"])
         A(f"=={src}T{dst}78")
-        body(["@", r0, "@", "@", r1])
+        body(["@", k, "@", "@", k1])
 
 A("")
-A("# dissipation: a grain toppled into a wall leaves the system")
-for h in range(2, 7):
-    src, dst = str(h), str(h - 1)
+A("# dissipation: grains shed into a wall leave the system")
+for src, dst in SHED.items():
     A(f"=={src}T{dst}78   -1 1")
     body(["@#@@"])
     A(f"=={src}T{dst}78   -1 1")
@@ -82,4 +86,5 @@ for h in range(2, 7):
 
 out = Path(__file__).parent / "manna.cfg"
 out.write_text("\n".join(L) + "\n")
-print(f"wrote {out} ({sum(1 for l in L if l.startswith('==') or l.startswith('=q'))} rule headers)")
+n = sum(1 for l in L if l.startswith("==") or l.startswith("=q"))
+print(f"wrote {out} ({n} rule headers)")
