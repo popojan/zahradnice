@@ -724,6 +724,38 @@ conversion pay off here? Honest ladder, cheapest first:
    `backlog/research/pixel-rendering.md`, §7 (Bevy remake). To be
    explored on a future `gamedev/` branch, separate from research.
 
+## 12. Program verdict (2026-08-21, agreed with the user)
+
+One day of execution settled the program's standing. **The substrate is
+now a validated experimental instrument**: it reproduced contact-process
+criticality at the textbook λc, self-organized a Manna pile to ρc with
+a credible avalanche exponent, expressed three model families in a
+handful of rules each, and its methodology caught four of its own
+false negatives. The research also acted as a forcing function on the
+engine (MT determinism, fill seeds, fractional weights). This was, by
+design, a calibration phase — proving the instrument against known
+physics *is* the prerequisite for asking it anything new — and it
+passed cleanly, throwing off one genuinely novel measurement as a
+by-product (the λc(N) batching result). The open questions the
+program was conceived for (reward-coupled adaptation foremost) have
+not yet been attempted; nothing so far argues against them, and the
+calibration argues for the tool they'd be attempted with.
+
+Agreed shape going forward:
+1. **Converge paper #1** (batching vs criticality) as the archival
+   artifact: exponent-grade curves, the 2-site closed-form toy model,
+   a second process from a different universality class.
+2. **Keep the route-3 bet open** — reward-coupled rate adaptation via
+   state, the one line where the answer is unknown and the substrate
+   is the natural home. Explicitly *not* time-boxed: the user values
+   it as a driver of the engine's future sharpening/evolution.
+3. Everything else is a **finished artifact, not a project**: the
+   steering benchmark, the fire mosaic, the sandpile — which double as
+   the "spatial ecological programming language" showcase and as
+   gamedev-ready content.
+4. Standing framing: a fun-substrate for occasional research, and a
+   gamedev opportunity one day (`gamedev/` branch to come).
+
 ## References
 
 - Fatès, N. (2014/2017) — *Asynchronous cellular automata*: survey and tutorial;
