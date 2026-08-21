@@ -142,6 +142,7 @@ Vertical:
 | `L` | Bottom row aligned to grid height. |
 | `C` | Approximate middle aligned to grid height. |
 | `X` | Random row aligned to grid height. |
+| `*` | **All** rows (fill marker, see below). |
 | (anything else) | Random row. |
 
 Horizontal:
@@ -154,9 +155,20 @@ Horizontal:
 | `R` | Right edge aligned to grid width. |
 | `C` | Approximate centre aligned to grid width. |
 | `X` | Random column aligned to grid width. |
+| `*` | **All** columns (fill marker, see below). |
 | (anything else) | Random column. |
 
 Uppercase variants (`L`/`C`/`R`/`X`) require `#grid` to give meaningful results other than the defaults; with the default `#grid 1 1` they behave the same as their lowercase counterparts. They exist to support full-block (double-width) grammars where columns must be even-aligned.
+
+### Fill marker `*`
+
+A `*` in a position fills that whole axis: `^g**` floods the entire
+field with `g`, `^gc*` writes a full row of `g` at the centre row,
+`^g*l` a full column at the left edge. This is the dual of the bare
+`^` clear marker (clear/fill duality) and replaces the common
+"materialize the background with a one-shot spread cascade" idiom —
+needed because rules cannot anchor on empty cells, so a background
+symbol is the way to make emptiness matchable.
 
 ## Rules
 
@@ -192,7 +204,7 @@ The labels `=`, `S`, `1`–`7` correspond directly to the character positions in
 | `6` | Extra context match — character that `&` cells in the body's LHS region must match against (subject to special tokens below). | (none — equivalent to `?`) |
 | `7` | Extra context replacement — character written at `&` cells in the body's RHS region. `*` is substituted by the LHS non-terminal at parse time. | space |
 | (space) | Separator between the field block and score/weight. | — |
-| `<score> <weight>` | Two whitespace-separated integers. Negative weight is clamped to 1. | `0` `1` |
+| `<score> <weight>` | Whitespace-separated: an integer score and a weight. The weight may be a decimal (e.g. `0.01`) so rare events need not inflate every other weight; scores are always integers. Non-positive weight is clamped to 1. | `0` `1` |
 
 #### Special tokens
 

@@ -182,7 +182,7 @@ void print_header(const std::string &cfg_path, const Grammar2D::Rule &rule) {
     std::printf("  ctx      = '%s'   ctxrep = '%s'\n",
                 display_char(rule.ctx == (wchar_t)-1 ? L'?' : rule.ctx).c_str(),
                 display_char(rule.ctxrep).c_str());
-    std::printf("  fore=%d back=%d  reward=%d  weight=%d\n",
+    std::printf("  fore=%d back=%d  reward=%d  weight=%g\n",
                 (int)rule.fore, (int)rule.back, rule.reward, rule.weight);
     bool horiz = rule.cq > rule.co;
     std::printf("  orient   = %s (cq=%d, co=%d, cm=%d, rm=%d, rq=%d)\n",

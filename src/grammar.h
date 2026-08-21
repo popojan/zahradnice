@@ -83,7 +83,7 @@ public:
         wchar_t ctx;
         wchar_t rep;
         wchar_t ctxrep;
-        int weight;
+        double weight;
         wchar_t sound;
         bool load;
         bool engine_action;
@@ -175,7 +175,7 @@ struct RuleApplication {
     std::pair<int, int> position;
     Grammar2D::Rule rule;
     size_t rule_index;
-    int weight;
+    double weight;
 };
 
 // Per-cell match outcome reported during an "explain mode" dry-run

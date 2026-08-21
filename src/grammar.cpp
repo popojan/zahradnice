@@ -492,15 +492,14 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs, int so
     rule.fore_attrs = fore_attrs;
     rule.back_attrs = back_attrs;
     int reward = 0; //default reward
-    int weight = 1;
+    double weight = 1.0;
     rule.key = lhs.length() > 3 ? lhs[3] : L'?';
     if (rule.key == L'~') rule.key = L' ';  // Convert ~ trigger to space
     if (lhs.size() > 10) {
-        int vals[2] = {0, 1};
-        parse_ints<2>(lhs.substr(10), vals);
-        reward = vals[0];
-        weight = vals[1];
-        if (weight < 1) weight = 1;
+        // score stays integer; weight may be fractional (e.g. 0.01) so
+        // rare events need not inflate every other weight around them
+        std::swscanf(lhs.substr(10).c_str(), L"%d %lf", &reward, &weight);
+        if (!(weight > 0)) weight = 1.0;
     }
     rule.reward = reward;
     rule.weight = weight;
@@ -635,13 +634,24 @@ void Derivation::start() {
             r = g.grid_height * ((effective_row / g.grid_height) / 2) + 1; // Center row, grid-aligned
         } else if (s.ul == 'X') {
             r = g.grid_height * ((rand() % ((row - 1) / g.grid_height))) + 1; // Random row, grid-aligned
+        } else if (s.ul == '*') {
+            r = -1; // fill marker: all rows
         } else {
             r = rand() % (row - 1) + 1;
         }
-        x[{r, c}] = s.s;
-        if (display_) display_->put(r, c, s.s, 0, 0);
-        // Update redundant character storage
-        screen_chars[r * col + c] = s.s;
+        // '*' in a position fills that whole axis; '^g**' floods the field.
+        // Complements the bare '^' clear marker (fill/clear duality).
+        if (s.lr == '*') c = -1;
+        int r_lo = (r == -1) ? 1 : r, r_hi = (r == -1) ? row - 1 : r;
+        int c_lo = (c == -1) ? 0 : c, c_hi = (c == -1) ? col - 1 : c;
+        for (int rr = r_lo; rr <= r_hi; ++rr) {
+            for (int cc = c_lo; cc <= c_hi; ++cc) {
+                x[{rr, cc}] = s.s;
+                if (display_) display_->put(rr, cc, s.s, 0, 0);
+                // Update redundant character storage
+                screen_chars[rr * col + cc] = s.s;
+            }
+        }
     }
 }
 

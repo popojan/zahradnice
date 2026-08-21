@@ -63,7 +63,7 @@ i.e. these chars and tokens left to right `=S1234567 <score> <weight>`
 * `6.` extra required context char (special values: `?` for any, `*` for LHS char, `$` for char saved in memory, `#` for out-of-screen, `~` empty space) at each char `&` in the rule body
 * `7.` extra required context replacement (char to replace `&` in the rule body, special values: `~` space)
 * `<score>` integer (default `0`)
-* `<weight>` positive integer (default `1`)
+* `<weight>` positive number, decimals allowed e.g. `0.01` (default `1`)
 
 Specifying multiple headers for a single body is a shortcut equivalent to creating multiple single-header rules with the same body.
 
@@ -115,6 +115,8 @@ Initial symbols are optional and define starting symbols to be placed on screen.
 `^<inital-symbol-char><vertical-placement-char><horizontal-placement-char>`
 
 **Special case:** Plain `^` (with no characters following) requests screen clearing before placing other starting symbols. This is useful for utility programs that need a clean slate.
+
+**Fill marker:** `*` in a position char fills that whole axis — `^g**` floods the field with `g`, `^gc*` writes a full centre row (dual of the bare `^` clear; see GRAMMAR.v2.md).
 
 **Example:**
 ```
