@@ -1,0 +1,7 @@
+cfg,seed,events,scoretail,score,tokx,toky,recon
+bandit-punish,1,180000,52291,52291,0,1199,ok
+bandit-punish,2,180000,52321,52321,0,1207,ok
+bandit-punish,3,180000,52426,52426,0,1210,ok
+bandit-punish,4,180000,52353,52353,0,1215,ok
+bandit-punish,5,180000,52320,52320,0,1207,ok
+bandit-punish,6,180000,52269,52269,0,1210,ok

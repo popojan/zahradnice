@@ -1,0 +1,13 @@
+cfg,seed,events,scoretail,score,tokx,toky,recon
+bandit,1,180000,54882,54882,0,1191,ok
+bandit,2,180000,54820,54820,0,1205,ok
+bandit,3,180000,54767,54767,0,1201,ok
+bandit,4,180000,54615,54615,0,1193,ok
+bandit,5,180000,54485,54485,0,1187,ok
+bandit,6,180000,54515,54515,0,1198,ok
+bandit-nolearn,1,180000,45099,45099,0,0,ok
+bandit-nolearn,2,180000,45255,45255,0,0,ok
+bandit-nolearn,3,180000,45058,45058,0,0,ok
+bandit-nolearn,4,180000,45057,45057,0,0,ok
+bandit-nolearn,5,180000,45109,45109,0,0,ok
+bandit-nolearn,6,180000,44844,44844,0,0,ok
