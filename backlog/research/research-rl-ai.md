@@ -705,17 +705,24 @@ conversion pay off here? Honest ladder, cheapest first:
    ~10⁵ events/s; an incremental CPU matcher (dirty-region tracking)
    likely achieves similar gains with far less effort. A full rewrite
    is only justified by the *game* motivation, not the research one.
-5. **The game-dev branch (user's Noita association).** A pixel-scale
-   Zahradnice — grammar programs compiled to material-interaction
-   tables driving a Falling-Everything-style engine at HD resolution —
-   is a genuinely attractive bridge from text grammars to visuals,
-   and 12 GB of VRAM is ample for a full-HD cell field. Notably,
-   Noita's engine itself uses chunked checkerboard parallel updates:
-   fine for games because only appearance matters — the same scheme
-   the research branch treats as a measured distortion. Related
-   existing notes: `backlog/research/pixel-rendering.md` (pixel
-   backend idea) and §7 (the Bevy remake as distribution artifact).
-   Filed as game-dev direction, not research.
+5. **The game-dev branch (user's Noita association) — parked with
+   conviction, not condemned.** A pixel-scale Zahradnice — grammar
+   programs compiled to material-interaction tables driving a
+   Falling-Everything-style engine at HD resolution — would be a
+   genuinely distinctive engine: *very general* (Type-0 spatial
+   rewriting, not a fixed material table), with grammars that are
+   demonstrably LLM-editable (this whole branch is the witness), and
+   immense expressiveness under exactly one law: **no global clock,
+   no instantaneous signal propagation** — every effect travels at
+   the speed of rule application. That light-cone causality is both
+   the limitation and the design aesthetic: worlds where information
+   has a speed limit (the archived gravity.cfg already embraced this
+   as a feature). Noita's engine itself uses chunked checkerboard
+   parallel updates — fine for games because only appearance matters;
+   the same scheme the research branch measures as a distortion. 12 GB
+   VRAM is ample for a full-HD cell field. Related notes:
+   `backlog/research/pixel-rendering.md`, §7 (Bevy remake). To be
+   explored on a future `gamedev/` branch, separate from research.
 
 ## References
 

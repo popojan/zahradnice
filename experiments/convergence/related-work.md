@@ -98,6 +98,33 @@ does to the sampled distribution.
   batching deployed at scale where only appearance matters; a good
   motivation anecdote for "this scheme is what practitioners write".
 
+## Is it worth it? (who actually benefits)
+
+Honest scoping. The qualitative lesson "update schemes matter" is old;
+serious KMC practitioners already build exact schemes. The concrete
+beneficiaries of *this* result are the communities that parallelize
+threshold-sensitive stochastic simulations with transactional batching
+without thinking of it as an approximation:
+
+- **Spatial epidemic / invasion / ecology ABMs on parallel hardware**
+  (GPU ABM frameworks, parallel agent schedulers): establishment
+  probabilities and epidemic thresholds are exactly the near-critical
+  quantities where the bias is largest — our system shows ~12% shift
+  of the threshold at batch bound 8, direction and magnitude scheme-
+  dependent.
+- **Anyone whose results change with core count**: the scheme's batch
+  bound is often the machine's thread count, so conclusions silently
+  depend on hardware. (Game-design variant of the same bug: an
+  ecosystem balanced on an 8-core dev box plays differently on 4.)
+- **Simulation-engine authors**, as a citable warning + a cheap
+  measurement protocol (absorbing-state survival sweep) to check their
+  scheduler.
+
+Realistic venue: AUTOMATA / ACRI / ALIFE or JCA-class journal — a
+solid short paper with a tiny reproducible artifact, not a high-impact
+splash. Effort to completion estimated at a few focused weeks
+(exponent-grade statistics, toy model, second process).
+
 ## Verdict
 
 The specific claim — **state-serializable, conflict-excluded stochastic

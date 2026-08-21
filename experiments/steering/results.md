@@ -282,11 +282,22 @@ cells). All engine-side; zero engine changes.
   candidate sets, multi-step lookahead / MCTS over burst actions, and
   randomized-evaluation variants (which also close the oracle loophole).
 - **Empty-board episodes** ("zero score forever until the first
-  intervention") are attractive — pure creation, no soup luck — but
-  currently impossible for the in-grammar cursor: rest-gated movement
-  and toggling need materialized blocks, and an empty field has none.
-  Becomes natural with the G1 positioned-action API. The underlying
-  question is worth keeping regardless: *which seeded patterns maximise
-  birth flux in asynchronous Life* — async still-lifes, quasi-
-  oscillators and their flux economies are an ALife question of
-  independent interest.
+  intervention") — *validated, no G1 needed* (the "needs the engine"
+  claim in an earlier draft was wrong; the fix is the user's):
+  rest-gates need materialized blocks, and the board can materialize
+  itself. The cursor's own home block cannot seed the cascade (it is
+  pinned by its brackets — verified), but either (a) one soup cell
+  that dies (board fills, constant −1 offset from its death, cancels
+  across policies) or (b) a direct dead-block injector
+  (`^nuc` + a `==nTbDd` one-shot writing `b0b./b0bb`) works. Variant
+  (b) measured: full materialization, **score exactly 0 forever**,
+  first toggle −1. Costs: a long warmup (the dead machine churns
+  ~80k events per 20k ticks re-scanning; prefix-replay episodes pay
+  the warmup on every evaluation), and rest-gating still blocks ~2/3
+  of moves since dead blocks cycle phases too. The underlying design
+  question stands: *which seeded patterns maximise birth flux in
+  asynchronous Life* — async still-lifes and quasi-oscillators are an
+  ALife question of independent interest. (Diagnostic footnote: the
+  first validation attempt silently loaded zero life rules because
+  `#include` with an absolute path fails silently; `zahradnice-check
+  why`'s rule census exposed it in one call.)
