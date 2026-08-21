@@ -523,16 +523,23 @@ tooling wave. Rewritten against the code.*
   need "run until no rule fires" semantics for clean episode ends; known
   deferred item (`backlog` memory: build only when the friction recurs —
   §2.1-style experiments may be exactly that recurrence).
-- **G7 — Multithreaded seed-determinism.** Multi-threaded runs diverge
-  under identical seed+input (batch size / RNG consumption is
-  timing-dependent), which blocks replay and prefix-diff debugging of MT
-  runs. Note this is a determinism gap, not a correctness gap: conflict
-  detection makes every MT batch equivalent to some sequential
-  interleaving, so no illegal states arise — only the *distribution*
-  over legal trajectories shifts (measurably: see the λc(#threads)
-  result in experiments/convergence). Bounded fix: sample the batch
-  sequentially from a dedicated PRNG, apply in parallel (disjoint
-  footprints commute), keep worker threads RNG-free.
+- **G7 — Multithreaded seed-determinism. RESOLVED (2026-08-21).** Root
+  cause was not RNG at all: `Derivation::x` is an unordered map that
+  parallel batch applies update in thread-completion order, and both
+  `step()` and `gatherApplicableRules()` iterated it directly — so the
+  *candidate ordering* leaked scheduling, and the (deterministic) RNG
+  stream mapped onto different candidates run to run. Fix: canonical
+  `std::sort` of the gathered position list in both paths (two lines).
+  MT runs are now bit-deterministic; the prefix-replay property holds
+  in MT mode (an appended keypress changes exactly one event). The
+  correctness claim was verified separately along the way: apply-mode
+  never re-validates LHS cells and RHS write cells are correctly
+  covered by the conflict footprint, so every batch really is
+  equivalent to a sequential interleaving — the parallelism knob
+  changes only the trajectory *measure* (the λc(#threads) result).
+  Side effect of the fix: per-seed trajectories differ from pre-fix
+  recordings (old traces/goldens replay divergent); statistics are
+  unaffected.
 
 ### Documentation gaps
 
@@ -629,6 +636,39 @@ Dependency order, cheapest-first, each step falsifiable on its own:
    genlib-parameter middle path (§4) first.
 
 ---
+
+## 10. Paper positioning (added 2026-08-21)
+
+If a short paper is ever attempted, triage of what this system is
+*privileged* to ask — ranked by importance beyond the project ×
+our advantage × distance to a writable result:
+
+1. **"Conflict-serialized parallel updates are state-safe but not
+   distribution-faithful."** Serializability (every batch ≡ some
+   sequential interleaving) is the standard justification for
+   parallelizing stochastic simulations; the λc(#threads) data shows
+   the surviving *measure shift* has qualitative consequences near
+   criticality (survival 14%→0%, transients ×10). The async-CA
+   literature studies α-synchrony (a rate), τ-leaping studies batching
+   *without* conflict exclusion, PDES aims at exact preservation —
+   transactional conflict-excluded batching sits between and still
+   shifts the phase diagram. Missing pieces: literature pass to
+   confirm the corner is unclaimed; λc(N) curves with finite-size
+   scaling; a second process for generality; an analytical toy model
+   (2-site cluster batch-extinction probability is computable in
+   closed form). Mostly harness reuse; G7's determinism fix makes it
+   fully replayable.
+2. **The rule-neutral embedded actuator + priced intervention.**
+   "Embed an actuator in a CA without changing its laws" has real
+   content: the neutrality contract (pause-only perturbation,
+   rest-gating, exact restore), the observer effect as an uncosted
+   channel, rate-pricing vs per-event pricing, oracle evasion.
+   Control-of-async-CA benchmarks barely exist; ALife-workshop sized.
+   The gym packaging is the *artifact of this paper* — a gym per se
+   is weak in 2026; a gym isolating a phenomenon is legitimate.
+3. **Learning without an external optimizer** (§3 route 3) — most
+   unique to the substrate, highest risk, blocked on G3; hold until
+   1–2 establish credibility.
 
 ## References
 

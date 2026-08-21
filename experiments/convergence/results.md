@@ -128,3 +128,24 @@ there is a parallelism-dependent shift, it is measurable with the stock
 harness, and it comes with giant near-critical transients (some "extinct"
 runs at T≥2 die only after 12–15k events, close to the budget — a finer
 study should raise `--max-steps`).
+
+---
+
+# Round 3 — finer λ grid (same day)
+
+`WR=32 WI_LIST="12 13 14 15 16" ./sweep.sh 200 50000 > results-fine2.csv`
+(single-threaded, 200 seeds, 50k-event budget):
+
+| λ | n | survive% | ext. median | ext. mean | ext. max |
+|---|---|---|---|---|---|
+| 0.3750 | 200 | 0.0 | 3 | 76.9 | 3693 |
+| 0.4062 | 200 | 0.5 | 3 | **525.2** | 12501 |
+| 0.4375 | 200 | 15.5 | 3 | 70.7 | 3073 |
+| 0.4688 | 200 | 26.5 | 3 | 18.6 | 505 |
+| 0.5000 | 200 | 31.5 | 1 | 12.0 | 265 |
+
+Liftoff is pinned between 0.4062 and 0.4375, tightly bracketing the
+theoretical λc ≈ 0.412, and the extinction-time tail peaks exactly at
+the last subcritical point — the cleanest critical-slowing-down
+signature so far. (Data predates the candidate-order engine fix; that
+fix changes per-seed trajectories, not statistics.)

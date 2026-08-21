@@ -169,3 +169,50 @@ provably rule-legal means: pausing cells (scheduling) and trajectory
 selection (RNG). Steering an async CA without ever bending its laws is
 possible, and profitable. The remaining open economy question is
 unchanged: only randomized evaluation can make the oracle pay the tax.
+
+---
+
+# Round 4 — engine determinism fix + the zero-impact cursor question
+
+## Candidate-order fix (engine)
+
+Chasing MT nondeterminism for the closed loop found the real cause:
+`Derivation::x` is an unordered map that parallel batches update in
+thread-completion order, and the candidate gather iterated it directly —
+the seeded RNG stream mapped onto a scheduling-dependent candidate
+order. Two canonical `std::sort` calls fix it; multithreaded runs are
+now bit-deterministic and the prefix-replay property holds in MT mode
+(appending one keypress changes exactly one event). Consequences here:
+the harness no longer needs `--trace /dev/null` to force determinism,
+and per-seed trajectories differ from the CSVs recorded pre-fix
+(statistics unaffected). The fix also exposed a single-thread-only
+spawn race: the bootstrap chars (`o`, `+`, `)`) competed at weight 1
+against the waking machine and could be bulldozed before converting;
+they now carry weight 100 so the bootstrap completes before the
+machine spreads.
+
+## Can a cursor have ZERO execution impact (not even pausing)?
+
+Analysis, for the record:
+
+- **Not with any in-field character.** The cursor needs a matchable
+  identity; the engine matches characters only; every field cell is
+  read or written by the machine; therefore any identity glyph at
+  least pauses its host block. Colours are invisible to matching (a
+  colour-only highlight is free) but cannot carry identity. Off-field
+  rows (status row 0, rows beyond the grid-aligned wrap area) are
+  unreachable or broken for rule anchoring.
+- **Burst protocol + home parking gets asymptotically close today,
+  zero engine changes.** In headless/RL use the harness controls the
+  trigger stream completely: execute every move/toggle burst with no
+  machine ticks interleaved (the machine never observes the cursor in
+  transit), and park the cursor between decisions on one designated
+  home block kept dead. Residual impact: exactly one frozen-dead cell,
+  constant and policy-independent (cancels in comparisons), plus RNG
+  consumption — which is the accepted floor. Not available
+  interactively (live timing interleaves ticks between keypresses).
+- **Exact zero requires an engine-level positioned action** ("toggle
+  cell (r,c)" as part of the G1 step-mode protocol), bypassing the
+  grammar for Level-0 external agents. Legitimate at Level 0 — the
+  agent is external by definition — and the in-grammar cursor remains
+  the Level-1 embodied bridge.
