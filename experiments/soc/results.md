@@ -118,3 +118,25 @@ would be the clean fix if this line deepens.
   still with no optimizer anywhere.
 - `#threads N` variant: does batching shift the avalanche exponent the
   way it shifted λc? (Ties the SOC line back to paper #1.)
+
+## Scaling runs (post fractional-weights engine feature)
+
+The two falsification axes, now cheap thanks to decimal weights
+(lightning 0.001 without inflating anything):
+
+- **Field size ↑ at fixed θ=100** (65×128 = 8192 cells, 250k events):
+  the regime changes instead of scaling — 12 completed episodes, 43
+  fires alive at trace end, "episodes" up to 46 008 burns (5.6× the
+  field: cells regrow and re-burn inside one never-ending fire).
+  Lightning mass grows with tree count, fires overlap, the system
+  slides into continuous burning. The cutoff does **not** track L;
+  DS-style scaling would need θ to grow with L (the double limit).
+- **θ ↑ at fixed L** (θ=1000, 33×64, 250k events): 411 clean episodes,
+  same bimodal fingerprint (valley at 8–31, second mass 512–2047,
+  max 1717), heavier megafire tail. More separation alone does not
+  produce scale-invariance.
+
+Conclusion unchanged and now two-axis-tested: at terminal-accessible
+scales this is parameter-dependent avalanche phenomenology with
+quasi-periodic megafires — a good expressiveness result for the
+grammar, not a demonstration of SOC.
