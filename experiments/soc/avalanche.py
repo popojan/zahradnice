@@ -26,14 +26,14 @@ def main():
         f = line.rstrip("\n").split("\t")
         if not f or f[0] != "apply":
             continue
-        head = f[-1]
         last_score = int(f[2])
-        if head.startswith(("==0d", "==1d")):
+        trig = f[4]
+        if trig == "d":
             if cur is not None:
                 sizes.append(cur)
             drives += 1
             cur = 0
-        elif cur is not None and head[2].isdigit():
+        elif trig == "T" and cur is not None:
             cur += 1
     if cur is not None:
         sizes.append(cur)
