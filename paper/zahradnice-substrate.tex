@@ -46,7 +46,10 @@ just a particular nature.
 the repository documents referenced per section
 (\repo{experiments/*/*-results.md}, \repo{GRAMMAR.v2.md}).}
 
+\bigskip
+{\nonum\notoc\sec Contents}
 \maketoc
+\bigskip
 
 \sec The substrate in one page
 
@@ -423,24 +426,28 @@ environment. {\it J.\ Theor.\ Biol.} 12, 119--129.
 dormant eggs. {\it Nature} 401, 446.
 * Little, J. D. C. (1961). A proof for the queuing formula
 $L=\lambda W$. {\it Operations Research} 9, 383--387.
-* Åström, K. J., Murray, R. M. (2008). {\it Feedback
-Systems}. Princeton University Press.
+* Åström, K. J., Murray, R. M. (2008). {\it Feedback Systems: An
+Introduction for Scientists and Engineers}. Princeton University
+Press.
 * Mutch, R. W. (1970). Wildland fires and ecosystems --- a
 hypothesis. {\it Ecology} 51, 1046--1051.
 * Bond, W. J., Midgley, J. J. (1995). Kill thy neighbour: an
 individualistic argument for the evolution of flammability.
-{\it Oikos} 73, 79--85.
+{\it Oikos} 73, 79--85. (Fittingly, modelled with cellular
+automata.)
 * Herrnstein, R. J. (1961). Relative and absolute strength of
 response as a function of frequency of reinforcement. {\it J.\
 Exp.\ Anal.\ Behav.} 4, 267--272.
-* Roth, A. E., Erev, I. (1995). Learning in extensive-form games.
-{\it Games and Economic Behavior} 8, 164--212.
+* Roth, A. E., Erev, I. (1995). Learning in extensive-form games:
+experimental data and simple dynamic models in the intermediate
+term. {\it Games and Economic Behavior} 8, 164--212.
 * Narendra, K. S., Thathachar, M. A. L. (1989). {\it Learning
 Automata: An Introduction}. Prentice-Hall. (Tsetlin, M. L., 1973,
 {\it Automaton Theory and Modeling of Biological Systems}.)
 * Michie, D. (1963). Experiments on the mechanization of
 game-learning. Part I. {\it The Computer Journal} 6, 232--236.
-(Gardner, M., 1962, Mathematical Games, {\it Sci.\ Am.} 206(3).)
+(Gardner, M., 1962, Mathematical Games, {\it Sci.\ Am.} 206(3),
+138--154.)
 * Underwood, B. J. (1957). Interference and forgetting. {\it
 Psychol.\ Review} 64, 49--60.
 * Lerman, D. C., Iwata, B. A. (1995). Prevalence of the extinction
@@ -464,8 +471,10 @@ diversity. {\it Annu.\ Rev.\ Ecol.\ Syst.} 31, 343--366.
 \noindent{\bf Reproduce it.} Clone the repository, `make
 zahradnice-size`, and run any experiment's sweep script; every
 number above regenerates from a seed. Or simply watch:
-`./zahradnice experiments/garden/garden.cfg` --- white forgets,
-yellow remembers, cyan forgets on purpose; hold {\tt b} to change
-the season under their feet.
+\medskip
+\centerline{\tt ./zahradnice experiments/garden/garden.cfg}
+\medskip
+\noindent --- white forgets, yellow remembers, cyan forgets on
+purpose; hold {\tt b} to change the season under their feet.
 
 \bye
