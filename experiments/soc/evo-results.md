@@ -55,3 +55,8 @@ eventually motivate: score-conditioned rules (a global-signal gate),
 which remains the deliberate, unbuilt option.
 
 Also fun: `l` throws lightning interactively. The storm is a key.
+
+Milestone 2 (heritable trait ladder, same day): see ladder-results.md
+— the 5-rung ladder turned the directional flip into a graded,
+monotone environmental response, revealed as a driven relaxation
+oscillation on the trait axis.
