@@ -149,3 +149,48 @@ theoretical λc ≈ 0.412, and the extinction-time tail peaks exactly at
 the last subcritical point — the cleanest critical-slowing-down
 signature so far. (Data predates the candidate-order engine fix; that
 fix changes per-seed trajectories, not statistics.)
+
+---
+
+# Round 4 — λc(N) curves (100 seeds, 50k budget, deterministic engine)
+
+`THREADS=N PAR=8/N WR=32 WI_LIST="13 14 15 16 17 18" ./sweep.sh 100
+50000 > results-lN.csv`, all four N on the candidate-order-fixed engine
+(every run replayable). Survival %:
+
+| λ | N=1 | N=2 | N=4 | N=8 |
+|---|---|---|---|---|
+| 0.4062 | 0 | 0 | 0 | 0 |
+| 0.4375 | 17 | 14 | **1** | **0** |
+| 0.4688 | 27 | 34 | 36 | **5** |
+| 0.5000 | 35 | 41 | 45 | 41 |
+| 0.5312 | 41 | 45 | 50 | 52 |
+| 0.5625 | 46 | 59 | 55 | 56 |
+
+The giant-transient marker (mean/max extinction time of extinct runs)
+tracks the moving critical point:
+
+| N | transient peak at λ | mean / max there |
+|---|---|---|
+| 1 | 0.4062 | 1067 / 32051 |
+| 2 | 0.4375 | 1176 / 47351 |
+| 4 | 0.4375 | 1624 / 25729 |
+| 8 | 0.4688 | 3927 / 47937 |
+
+Reading:
+
+- **The effective critical point moves monotonically upward with batch
+  bound N**: the 10%-survival crossing sits near 0.43 (N=1,2), ~0.45
+  (N=4), ~0.48 (N=8), and the critical-slowing-down peak walks with it.
+- **The shift is critical-region-specific, not a uniform handicap.**
+  Deep in the supercritical phase batching mildly *helps* (0.5312+:
+  41→52% from N=1 to N=8). Two competing effects: batches co-fire
+  correlated recoveries that kill small clusters during establishment
+  (raising the establishment barrier), while established populations
+  spread slightly faster per event under batching. A serialisable
+  scheme thus reshapes the phase diagram non-uniformly — the sharpest
+  version of the paper's claim.
+- Budget caveat: at N=8, λ=0.4688 the extinct-run mean is ~3.9k with
+  max ~48k against a 50k cap — some "survivors" there are likely slow
+  deaths; the λc(N) fit should treat that point as censored or re-run
+  with a larger budget.
