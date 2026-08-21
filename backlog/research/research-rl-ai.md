@@ -670,6 +670,53 @@ our advantage × distance to a writable result:
    unique to the substrate, highest risk, blocked on G3; hold until
    1–2 establish credibility.
 
+## 11. Scaling note: CUDA / GPU (added 2026-08-21, exploratory)
+
+Context: an RTX 4070 (12 GB) is available and other project tools
+(zetacalc, primes-in-AP) were successfully CUDA-ported. Would a similar
+conversion pay off here? Honest ladder, cheapest first:
+
+1. **Process-level parallelism first.** The sweeps were sequential;
+   `sweep.sh` now runs `PAR=N` concurrent engine processes and the
+   experiments are embarrassingly parallel across (seed, parameter).
+   An 8-core box gives ~8× for free; this is the right tool up to
+   ~10³ runs per study and is already implemented.
+2. **Ensemble CUDA kernels for specific experiments — the real GPU
+   win.** Do not port the engine; port the *experiment*: a specialized
+   kernel per process (contact process, async Life) running one
+   independent replica per thread/warp, each an event-sequential jump
+   chain over a small grid in shared memory with a counter-based RNG
+   (Philox). Thousands of replicas fit trivially in 12 GB; expected
+   10²–10³× over one CPU core for sweep-style studies. This mirrors
+   the zetacalc/primes conversions: specialized compute, not a general
+   engine. It is the credible path to paper-grade statistics
+   (finite-size scaling, exponent fits).
+3. **Faithfulness caveat — our own result applies.** The GPU-natural
+   way to parallelize *within* one derivation (checkerboard / batched
+   conflict-free updates) is exactly the update family whose measure
+   shift the λc(#threads) study documents. Massively-parallel
+   *faithful* async simulation must keep each chain event-sequential
+   (replicas in parallel), or adopt the exact parallel-KMC machinery
+   (sublattice decomposition with proper clocks). "Just run the rules
+   on fragments" quietly changes the physics — which is the paper's
+   point.
+4. **General-engine GPU port: probably not worth it.** Per-event
+   kernel-launch overhead caps a match-on-GPU/commit-on-CPU design at
+   ~10⁵ events/s; an incremental CPU matcher (dirty-region tracking)
+   likely achieves similar gains with far less effort. A full rewrite
+   is only justified by the *game* motivation, not the research one.
+5. **The game-dev branch (user's Noita association).** A pixel-scale
+   Zahradnice — grammar programs compiled to material-interaction
+   tables driving a Falling-Everything-style engine at HD resolution —
+   is a genuinely attractive bridge from text grammars to visuals,
+   and 12 GB of VRAM is ample for a full-HD cell field. Notably,
+   Noita's engine itself uses chunked checkerboard parallel updates:
+   fine for games because only appearance matters — the same scheme
+   the research branch treats as a measured distortion. Related
+   existing notes: `backlog/research/pixel-rendering.md` (pixel
+   backend idea) and §7 (the Bevy remake as distribution artifact).
+   Filed as game-dev direction, not research.
+
 ## References
 
 - Fatès, N. (2014/2017) — *Asynchronous cellular automata*: survey and tutorial;

@@ -216,3 +216,49 @@ Analysis, for the record:
   grammar for Level-0 external agents. Legitimate at Level 0 — the
   agent is external by definition — and the in-grammar cursor remains
   the Level-1 embodied bridge.
+
+---
+
+# Round 5 — burst protocol: the cleanest observer (same day)
+
+`greedy.py --policies burst-greedy,burst-random` implements the
+zero-tick burst interface from round 4: at each decision the harness
+takes a frame (the dump the engine already emits), builds the block
+grid, BFS-routes the cursor from its dead home block through *resting*
+blocks only, and compiles `walk + toggle + walk-back` with no machine
+ticks inside — the machine never observes the cursor in transit. An
+end-to-end audit of one 27-key burst showed score exactly −1 and **the
+target's digit flip as the only changed block on the whole field**.
+Side benefit: burst toggles always land on rest-phase blocks, so the
+toggle-vs-paused-scan race is gone. Costs: longer input strings
+(negligible), extra RNG consumption (the accepted channel), and
+deterministic path-blocking — a mid-scan block stays blocked for the
+whole burst, so some targets are unreachable at some instants (BFS
+simply skips them). Not available in live interactive play, where
+ticks flow between keypresses.
+
+Action space per decision: WAIT or TOGGLE(one of 5 sampled reachable
+cells). All engine-side; zero engine changes.
+
+## Results (8 seeds, fixed engine, 10 decisions)
+
+| policy | mean | per-seed |
+|---|---|---|
+| passive | −3.8 | −5 −7 −2 −1 −1 −5 −3 −6 |
+| burst-random | **−10.6** | −11 −14 −8 −2 −12 −12 −12 −14 |
+| burst-greedy | −3.0 | −2 −5 −2 −1 −3 −1 −4 −6 |
+
+- **The free channel is gone and it shows.** Greedy's edge over passive
+  collapses from +2.2 (round 3, wandering cursor) to +0.8 (3 wins, 3
+  ties, 2 losses) — clean confirmation that most of the earlier
+  "steering skill" was pause-positioning and free trajectory rerolls,
+  not toggling. What remains is the true value of ±1-priced positioned
+  interventions under a 1-step oracle: small at this horizon.
+- **Positioned random intervention is much more destructive than
+  wandering** (−10.6 vs round 3's −6.9): every burst action is now a
+  real, priced, spatially-committed intervention.
+- The interface prices exactly the causal channel and nothing else —
+  this is the version of the benchmark worth building learning agents
+  against. Open economy question, now sharp: at ×5 rewards
+  (birth +5 / toggle −5) does a longer-horizon or learned policy make
+  toggling pay?
