@@ -356,6 +356,21 @@ closure, requires no reflective layer, and is far less ambitious than §4. Note
 it does require engine work — runtime-mutable weights (§6 gap G3); today weights
 are fixed at parse time.
 
+**Update (2026-08-21, after the trait-ladder milestone — see §13):** route 3
+probably does *not* need G3. Because rule selection is proportional to
+applicable mass, the **abundance of a token species is already an effective
+rate dial** — "mutable weights, fixed structure" is expressible with weights
+untouched, as mass-action kinetics in the derivation. The ladder experiment
+demonstrated the response side (selection moves composition, composition is
+the policy) and diagnosed the missing side: a slow variable that *retains* —
+composition alone leaks at an ecology-determined rate (τ_descent), which is
+why the tracker oscillates instead of learning. The sharpened spec: engineer
+a state variable whose retention time is decoupled from the environment's
+fluctuation time — seed-bank/dormancy tokens, copy-number counters, refugia,
+bistable motifs. Reward-coupling needs no global read: a scoring rule can
+deposit the memory token in the same rewrite. Laws immutable, adaptation in
+matter — the cleanest separation, and chemistry/DNA is the existence proof.
+
 ---
 
 ## 4. The reflective layer `[PARKED]`
@@ -515,6 +530,10 @@ tooling wave. Rewritten against the code.*
 - **G3 — Runtime rule mutation** (Level 2+/§3 route 3). Weights and rules are
   fixed at parse time. Needed for mutable-weight learning; explicitly *not*
   file-rewriting. Unchanged from the export; still the largest engine lift.
+  **Demoted 2026-08-21 (§13): probably unnecessary** — abundance-as-rate
+  (mass-action in the derivation) expresses mutable effective weights with
+  laws untouched; retention comes from state-encoded slow variables, not
+  from weight registers.
 - **G4 — State hash in trace.** One field per `apply` line makes §2.1's
   repetition detection a text-processing job instead of a replay job. Tiny.
 - **G5 — Seed-sweep harness.** Still a per-experiment shell/Python script; the
@@ -628,8 +647,10 @@ Dependency order, cheapest-first, each step falsifiable on its own:
 5. **Stigmergic agents** (Level 3 route 2) — revive `archived/ants.cfg`;
    cheapest genuinely emergent behaviour.
 6. **Level 1 embodied agent**, local perception only.
-7. **Rule-as-meta-rule weight adaptation** (Level 3 route 3) — needs G3; the
-   closure result.
+7. **Rule-as-meta-rule weight adaptation** (Level 3 route 3) — originally
+   "needs G3"; superseded by §13: state-encoded integrator (seed bank,
+   pair-cell channel) delivers it with immutable rules. Milestone 3 in
+   ladder-results.md.
 8. **Level 2 multi-agent** with symbol-partition safety constraints (the
    z-order constraint is gone; partitioning carries it).
 9. **Reflective layer** — only if 1–8 have made it feel necessary; consider the
@@ -755,6 +776,186 @@ Agreed shape going forward:
    gamedev-ready content.
 4. Standing framing: a fun-substrate for occasional research, and a
    gamedev opportunity one day (`gamedev/` branch to come).
+
+## 13. The laws/matter boundary (2026-08-21, post-ladder discussion)
+
+Prompted by the trait-ladder result (experiments/soc/ladder-results.md)
+and the question "if the grammar is Type-0/Turing-complete, is
+expressiveness even open?"
+
+**(a) Universality triage.** Three layers, only the third interesting:
+- *Idealized formalism*: as implemented this is an asynchronous
+  stochastic CA with fixed-geometry rewrites and a weight-proportional
+  sampler. On an unbounded grid it is plausibly TC: the sampler gives
+  a.s. fairness over the applicable set, Nehaniv's async-emulates-sync
+  construction handles scheduling, and determinism is *programmable*
+  via exclusivity — arrange that exactly one rule is ever applicable
+  (our one-shot cascade idiom is precisely this).
+- *Realized machine*: finite screen × finite alphabet = a finite
+  stochastic system, whatever the glyphs. Absorbing states and noise
+  are facts of the machine — the ladder's frozen all-rung-1 corner is
+  a live example. Unbounded *space* is the load-bearing idealization,
+  and the terminal denies it; alphabet size cannot substitute.
+- *The actual question*: emulation being always available, "can it
+  express X" is always trivially yes and never informative (Life is TC;
+  nobody learns ecology from a glider computer; backprop here would be
+  a CPU emulator — huge, brittle against the sampler, uninstructive).
+  The meaningful metric is **native cost**: rules per mechanism, space
+  overhead, robustness to the engine's own randomness, legibility of
+  the result. Route 3's bet, properly stated: adaptive mechanisms are
+  *cheap* here because the sampler's noise is the working fluid. The
+  ladder's evidence: 1–3 rules per ecological force, a full
+  quantitative-trait system in 88 generated rules, every mechanism
+  inspectable.
+
+  The running ledger (the program's actual deliverable — concise &
+  practical expressibility, never expressibility-at-all):
+
+  | mechanism | rule cost | verified by |
+  |---|---|---|
+  | DS-FFM fire mosaic | ~7 | episode statistics |
+  | 2-species trade-off + immigration + rent | 23 | 16-run matrix |
+  | 5-rung heritable ladder w/ mutation | 88 (generated) | exact trace↔screen accounting |
+  | seed-bank integrator (deposit/germ/decay) | +31 | 54-run retention curves, exact |
+  | catalytic readout (read-by-template) | +20 | E3 |
+
+  Each row was hypothesis-to-measurement in minutes-to-an-hour on the
+  existing harness; that cycle time, not the rule count alone, is the
+  practicality claim.
+
+  **Economics vs specialized native code (honest ledger, 2026-08-21):
+  we win design time, we lose run time — not both.** Design: a new
+  mechanism is a 15–40-line generator delta plus exactness for free
+  (engine-level tracing/replay is amortized, already-debugged
+  instrumentation; "design time" properly means time-until-you-trust-
+  the-number). Bespoke sims pay for dynamics AND a per-project
+  verification layer, hours per variant — though the advantage is
+  domain-conditional: ecology/percolation is the substrate's native
+  vocabulary; counters and rigid geometry are not (tetris, Manna
+  owe-states). Run: ~2.1k events/s (generic matcher, rules-as-data)
+  vs 10⁶–10⁸ for incremental-rate C kernels — 3–5 orders lost.
+  Product: at exploratory scale (≤10² runs × 10⁶ events) run cost is
+  noise and the substrate wins outright; at exponent-grade scale the
+  kernel wins decisively (§11). Mature workflow: substrate as the
+  *executable spec* — discover here, then validate a specialized
+  kernel bit-for-bit against replay before it earns the big runs.
+  Optional middle path if ever needed: cfg→native transpiler
+  (mechanical specialization of static rules, ~10–100×), filed with
+  §11.5.
+
+**(b) Where the boundary goes.** Laws = rules, weights, colours,
+conflict semantics, time, RNG — fixed at parse. Matter = derivation
+(+ per-cell memory struct, score) — mutable. Adaptation belongs
+entirely in matter: mass-action encoding (abundance as rate dial)
+makes "mutable weights" a configuration property, and chemistry/DNA
+is the existence proof that fixed local laws support unbounded
+adaptation and arbitrarily long retention in configuration alone.
+Keeping laws immutable buys: analyzability (long-run behaviour is a
+property of one fixed Markov kernel — the entire tooling stack,
+src_line trace classification, replay, exactness checks, assumes it);
+authorship (static semantics is what makes programs LLM-legible); and
+composability. Note this is the standing repo engineering rule
+(per-program features in the cfg, engine changes need broad
+justification) applied at a different scale — the boundary principle
+and the contribution policy are the same statement. One physics
+subtlety matter must respect: **jump-chain time has no absolute
+clock** — "slow" can only be manufactured as a ratio against a
+persistent co-applicable mass (the freeze/renormalization lessons).
+
+**(c) Matter has the capacity.** Per-cell *matchable* state is the
+character — and that channel widens freely: (i) **pair cells** (1×2 —
+two terminal chars per logical cell, the existing full-block idiom
+with `#grid 2 1`, and the aesthetically square pixel): left char =
+phenotype, right char = co-located hidden channel (seed-bank slot,
+eligibility trace, age); rules pay the product cost only where they
+couple the channels, and the generator stack absorbs it; (ii) the
+**Unicode palette** — effectively unbounded alphabet; e.g. the
+Braille block U+2800–U+28FF is a systematic 8-bit *visible bitfield*
+per cell (dot pattern = register contents). Caveats that shape
+designs: colours and the `$`-memory struct are display/restore
+channels only — **not matchable**, so compute-state must live in
+chars; and there are no char classes beyond `!`/`%`/`&`, so large
+alphabets mean literal spelling — generator territory (genlib's
+size-inflation analysis already brushed this; a laws-level char-class
+lift is to be considered only if that friction recurs broadly).
+
+**(d) Consequences.** G3 (runtime rule mutation) demoted from
+"largest needed lift" to "probably unnecessary" — see the §3 update;
+mass-action + deposit-with-reward (a scoring rule writes the memory
+token in the same rewrite — correlation exact by construction) covers
+reward-coupled rate adaptation with laws untouched. Score-conditioned
+rules reframed: adding a global *observable* to fixed laws (a mean
+field, like temperature) — a legitimate physics extension if ever
+needed, likely not. §4's reflective layer is the "laws are matter"
+extreme and stays parked, now on principle rather than difficulty.
+Milestone 3 spec lives in ladder-results.md: an in-derivation
+seed-bank integrator, retention tunable over orders of magnitude and
+decoupled from the environment's period; pair-cell encoding is the
+natural draft.
+
+**Executed same day (experiments/soc/bank-results.md): the integrator
+works.** Braille seeds as protected matter; retention weight-set
+(fast bank dies in 15–60k of adversity, slow archive half-life ≈170k
+events ≈ 1200 fire cycles, still halving recovery time at B=240k);
+the heredity-only control retains nothing (re-derives by mutation at
+τ_descent regardless of history) — population memory is hot storage,
+erased by the selection that wrote it; dormancy is the cold tier.
+Two identities fell out: destructive readout gives influence ×
+retention = N (Little's law pins germination flux to fidelity ×
+deposit flux — G is a delay knob, never a throughput knob), so
+memory-with-feedback needs catalytic readout (seed as unrewritten
+context — transcription, not consumption; expressible today). And
+the retention constant is a ratio to ambient applicable mass (fire
+freezes bank time), so the rule set must keep coverage: every cell
+type always has an applicable rule (rung-1 rent M1>0), making event
+time ≡ input time — verified exactly, 54/54 runs.
+
+## 14. Route-3 closure plan (2026-08-21)
+
+The chapter closes when its founding question — **reward-coupled
+adaptation living in state, with no optimizer anywhere** — is
+answered in either direction. Not when the topic is exhausted;
+topics like this never exhaust.
+
+**The summit experiment: reward-following with reversal (a bandit in
+the grammar).** Policy = token abundances (mass-action); learning
+rule = deposit-in-the-same-scoring-rewrite; forgetting = decay;
+catalysis = loop gain. Task: two behaviours X/Y whose expression
+rates are biased by their token masses; an environmental marker
+(input-toggled "season") decides which behaviour *pays*; the paying
+rule deposits its own token in the rewrite that scores. Crucially,
+X vs Y must be survival-neutral — mortality indifferent — so any
+policy shift is pure reward-following, not natural selection in
+disguise. Success = a learning curve toward the paid behaviour AND
+re-adaptation after reversal, with learning/forgetting constants set
+by weights (the E2/E3 methodology transfers directly). Failure = a
+named structural obstruction. Either outcome closes the question.
+Side payoff: this unifies route 2 with route 3 — the token *is* a
+pheromone; stigmergy and mutable-weights coincide under mass-action.
+Machinery estimate: ~80% exists (tokens, catalysis, deposit-with-
+reward, sweep/exactness harness); one to two sessions.
+
+**EXECUTED same day — verdict YES** (experiments/bandit/
+bandit-results.md): 25 rules, 24/24 exact; acquisition 2k events,
+reversal 14.7k (unlearning 7× slower — proactive interference);
+steady capture matches π/(2+π) theory (310 predicted/measured vs
+control 250/251); net-reward crossover measured — learner loses at
+30k blocks, wins +21% at 90k: the adaptive-value-of-learning
+condition as data. Checklist item 1 ✅; item 2 (synthesis doc)
+remains; item 3 stands.
+
+**Closure checklist (clear conscience = all three):**
+1. Summit experiment answered either way, exact accounting throughout.
+2. One synthesis document for the whole arc — calibration → selection
+   (evo) → oscillator (ladder) → memory triad (bank) → learning —
+   with an honest-limits section: qualitative replication of known
+   ecology validates *expressiveness*, it is not new ecology; the
+   ledger measures problems the substrate is good at (selection
+   bias); run-time economics per §13.
+3. Explicit parked-with-conscience list: hidden-genome/plasticity
+   (3b), G1 gym packaging, reflective layer (§4), gamedev/ — none
+   block the founding question. Paper #1 (batching vs criticality)
+   is a *separate* chapter with its own remaining list (§10).
 
 ## References
 
