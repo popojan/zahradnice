@@ -523,6 +523,16 @@ tooling wave. Rewritten against the code.*
   need "run until no rule fires" semantics for clean episode ends; known
   deferred item (`backlog` memory: build only when the friction recurs —
   §2.1-style experiments may be exactly that recurrence).
+- **G7 — Multithreaded seed-determinism.** Multi-threaded runs diverge
+  under identical seed+input (batch size / RNG consumption is
+  timing-dependent), which blocks replay and prefix-diff debugging of MT
+  runs. Note this is a determinism gap, not a correctness gap: conflict
+  detection makes every MT batch equivalent to some sequential
+  interleaving, so no illegal states arise — only the *distribution*
+  over legal trajectories shifts (measurably: see the λc(#threads)
+  result in experiments/convergence). Bounded fix: sample the batch
+  sequentially from a dedicated PRNG, apply in parallel (disjoint
+  footprints commute), keep worker threads RNG-free.
 
 ### Documentation gaps
 

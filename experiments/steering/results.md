@@ -123,3 +123,49 @@ hover exactly −1.
 - Toggles at −1 were never chosen by lookahead in either round; if
   toggling should be part of optimal play, the ×5 economy (birth +5,
   toggle −5, keeping integers) gives finer room to make it worthwhile.
+
+---
+
+# Round 3 — the rule-neutral cursor (same day)
+
+Round 2's cursor violated a principle worth making explicit: the cursor
+may perturb *scheduling* (async semantics leaves it free) and RNG
+consumption, but must never make the field deviate from Life's rules.
+Normalize-on-departure did deviate: it aborted in-flight scans and could
+manufacture blocks the machine never produces.
+
+**The rule-neutrality contract** (now implemented in life-steer.cfg):
+movement is gated on the target block's visible phase-mirror cell
+(`b` at c2), the brackets are `#transient`, and departure `$`-restores
+the covered cells exactly. Covered cells are then never mid-i/s-phase,
+hidden chars are guaranteed to satisfy the machine's guards the same way
+the brackets do, and hovering becomes a pure pause with exact resume —
+every reachable field state is a legal Life state. (The c2 mirror stays
+`b` during the neighbour-count scan, so the cursor can enter scanning
+blocks; still neutral — `$` resumes the paused scan exactly, and the
+machine's scans are multi-tick non-atomic anyway.)
+
+Testing the contract immediately paid off: a toggle+depart dump exposed
+a **dual-anchor bug** — the cursor draws two `>` glyphs, the toggle rule
+could anchor on the bottom one and write a row too low, into the
+neighbouring block. Fixed with a `>`-at-(1,0) disambiguating body cell
+(movement rules already had one); the tax rule had the same bug in a
+sneakier form (both anchorings applicable with disjoint footprints =
+possible double tax in multithreaded mode). Two earlier validations had
+passed on a lucky 50/50 anchor draw.
+
+## Results (8 seeds, tax cadence 60, rule-neutral cursor)
+
+| policy | round 2 (deviating) | round 3 (neutral) |
+|---|---|---|
+| passive | −3.8 | −3.4 |
+| random | −9.1 | −6.9 |
+| greedy | −2.2 | **−1.2** |
+| greedy-mover | −2.2 | **−1.2** |
+
+Greedy still beats passive (+2.2 mean, action strings again identical to
+mover's, zero toggles) — and now its entire edge is exercised through
+provably rule-legal means: pausing cells (scheduling) and trajectory
+selection (RNG). Steering an async CA without ever bending its laws is
+possible, and profitable. The remaining open economy question is
+unchanged: only randomized evaluation can make the oracle pay the tax.
