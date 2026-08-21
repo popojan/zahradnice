@@ -350,3 +350,56 @@ When a future session discovers a new gotcha:
 1. Add an entry here with **Symptom / Cause / Avoid** sections.
 2. Cross-reference from the relevant `genlib_lessons_session_N.md` memory.
 3. If the gotcha implies a static-check candidate, note it in `backlog/research/zahradnice-check.md`.
+
+---
+
+## 21. `#include` with an absolute path fails silently — zero rules loaded
+
+**Symptom.** A wrapper cfg runs but nothing happens; only the wrapper's own
+rules exist. No parse error.
+
+**Cause.** Include resolution prepends the including file's directory to the
+path unconditionally (`dir + "/" + include_path`), so an absolute path
+becomes a nonexistent relative one and the include contributes nothing.
+
+**Avoid.** Always include by relative path (relative to the *including
+file*). Diagnose in one call: `zahradnice-check why CFG --screen DUMP
+--trigger T` prints a rule census — a suspiciously small "Excluded (N
+rules)" count means the include never loaded.
+
+---
+
+## 22. A tiny weight does not make an event rare once it is the only applicable rule
+
+**Symptom.** A "rare" event (lightning at weight 0.001) fires at effectively
+every step in some phase of the program; two "environments" differing only
+in that weight behave identically.
+
+**Cause.** Selection is weight-proportional over the *applicable* set. In a
+jump chain, rarity is only relative to co-applicable mass: when the field
+saturates and competing rules (growth into empty cells, etc.) stop being
+applicable, the rare rule is the entire mass and fires with certainty.
+
+**Avoid.** Put genuinely rare drives on their **own trigger char** and
+control their rate by cadence — `#timing` interval interactively, input
+composition headless (the drive-in-quiescence pattern: `TT…TlTT…`). Weights
+tune *relative* rates among co-applicable rules only.
+
+---
+
+## 23. Multi-glyph sprites: every rule needs an anchor-disambiguating body cell
+
+**Symptom.** A sprite rendered with the same non-terminal at several cells
+(e.g. a cursor drawing two `>`) misbehaves nondeterministically: an action
+rule sometimes writes one row off, into a neighbouring structure — and
+validation runs can pass on a lucky draw.
+
+**Cause.** A rule anchored on that glyph is applicable at *each* copy; the
+sampler picks any of them, and body offsets are applied relative to the
+chosen copy.
+
+**Avoid.** Give every rule anchored on a repeated glyph a body cell that
+only matches from the intended copy (e.g. `>` at (1,0) pins the top
+bracket). Audit *all* rules on that lhs, including passive ones — two
+anchorings with disjoint footprints can even co-fire in one multithreaded
+batch (a tax rule double-charged this way).
