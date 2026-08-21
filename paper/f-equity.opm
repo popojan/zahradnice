@@ -1,0 +1,25 @@
+%% This is NOT part of the OpTeX project, see http://petr.olsak.net/optex
+
+\_famdecl [Equity] \Equity {Equity fonts by Matthew Butterick obtained from mbtype.com}
+     {\caps \grade} {\rm \bf \it \bi} {FiraMath}
+     {[Equity A Regular]}
+     {\_def\_fontnamegen{[Equity \_gradeV \_capsV \_currV]: \_fontfeatures}}
+
+\_wlog{\_detokenize{%
+Modifiers:^^J
+  \caps   ..... capitals^^J
+  \agrade ..... weight grade A^^J
+  \bgrade ..... lighter weight grade B^^J
+}}
+
+\_moddef \resetmod {\_fsetV caps={},grade={A } \_fvars Regular Bold Italic {Bold Italic} }
+\_moddef \agrade   {\_fsetV grade={A } }
+\_moddef \bgrade   {\_fsetV grade={B } }
+\_moddef \caps     {\_fsetV caps={Caps } }
+\_moddef \nocaps   {\_fsetV caps={} }
+
+\_initfontfamily % new font family must be initialized
+
+\_loadmath {[texgyrepagella-math]}
+
+\_endcode

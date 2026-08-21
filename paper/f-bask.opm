@@ -1,0 +1,27 @@
+%% This is NOT part of the OpTeX project, see http://petr.olsak.net/optex
+
+\_famdecl [Bask] \Bask {StormType Foundry Baskerville Pro}
+     {\grade \medium \regular} {\rm \bf \it \bi} {FiraMath}
+     {[Baskerville10Pro]}
+     {\_def\_fontnamegen{[Baskerville\_gradeV Pro\_currV]: script=latn;\_fontfeatures}}
+
+\_wlog{\_detokenize{%
+Modifiers:^^J
+  TODO^^J
+}}
+
+\_def\_sp{}
+\_def\_baskmed{med}
+\_def\_baskreg{reg}
+\_def\_baskI {\_ifx\_typfV\_baskmed -MediumItalic\_else -Italic\fi}
+\_def\_baskRM {\_ifx\_typfV\_baskmed -Medium\_else\fi}
+
+\_moddef \resetmod {\_fsetV typf=reg,grade=10 \_fvars {\_baskRM} {-Bold} {\_baskI} {-BoldItalic} }
+\_moddef \agrade   {\_fsetV grade=10 }
+\_moddef \bgrade   {\_fsetV grade=120 }
+\_moddef \medium   {\_fsetV typf=med }
+\_moddef \regular   {\_fsetV typf=reg }
+
+\_initfontfamily % new font family must be initialized
+
+\_endcode
