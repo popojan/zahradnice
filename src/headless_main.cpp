@@ -13,6 +13,9 @@
 
 int main(int argc, char* argv[]) {
     setlocale(LC_ALL, "");
+    // Keep %lf/%g byte-exact ("0.25" never "0,25"): fractional rule
+    // weights are a file-format contract, not a locale preference.
+    setlocale(LC_NUMERIC, "C");
 
     zg::HeadlessOptions opts;
     opts.rows = 24;

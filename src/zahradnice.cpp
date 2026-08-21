@@ -1,6 +1,7 @@
 #include <ncursesw/ncurses.h>
 #include <clocale>
 #include <iostream>
+#include "wide_io.h"
 #include "grammar.h"
 #include "display_curses.h"
 #include "display_headless.h"
@@ -96,6 +97,7 @@ static bool take_screenshot(const std::string& filename, bool capture_colors = f
     if (!file.is_open()) {
         return false;
     }
+    imbue_utf8(file);
 
     for (int r = top; r < top + height; ++r) {
         std::wstring line;
@@ -679,6 +681,9 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
+    // Keep %lf/%g byte-exact ("0.25" never "0,25"): fractional rule
+    // weights are a file-format contract, not a locale preference.
+    setlocale(LC_NUMERIC, "C");
 
     std::string config(".");
     std::string trace_path, stats_path, replay_path;

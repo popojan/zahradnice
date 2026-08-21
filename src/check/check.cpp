@@ -7,6 +7,7 @@
 //     / are excluded for the given (screen, trigger).
 
 #include "../grammar.h"
+#include "../wide_io.h"
 #include <algorithm>
 #include <clocale>
 #include <cstdio>
@@ -338,6 +339,7 @@ bool load_screen_dump(const std::string &path, LoadedScreen &out) {
         std::cerr << "cannot open --screen file: " << path << "\n";
         return false;
     }
+    imbue_utf8(f);
     std::vector<std::wstring> lines;
     std::wstring line;
     while (std::getline(f, line)) lines.push_back(line);
@@ -689,6 +691,9 @@ void usage() {
 
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
+    // Keep %lf/%g byte-exact ("0.25" never "0,25"): fractional rule
+    // weights are a file-format contract, not a locale preference.
+    setlocale(LC_NUMERIC, "C");
     if (argc < 2) { usage(); return 2; }
     std::string sub = argv[1];
     if (sub == "explain") return cmd_explain(argc - 2, argv + 2);

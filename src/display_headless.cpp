@@ -1,4 +1,5 @@
 #include "display_headless.h"
+#include "wide_io.h"
 #include <fstream>
 #include <iostream>
 
@@ -94,6 +95,7 @@ void HeadlessDisplay::dump_text(const std::string& path) const {
     }
     std::wofstream f(path);
     if (!f) return;
+    imbue_utf8(f);
     write_text(f);
 }
 
@@ -105,5 +107,6 @@ void HeadlessDisplay::dump_ansi(const std::string& path) const {
     }
     std::wofstream f(path);
     if (!f) return;
+    imbue_utf8(f);
     write_ansi(f);
 }
