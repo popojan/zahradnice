@@ -82,5 +82,22 @@ then resolve it (a) in one batch (`#threads 8`, one `T`), (b) in two
 sequential events (`#threads 1`, `TT`); count extinct outcomes over
 many seeds at wr=8, wi=4 (λ=0.5). Prediction: 0.160 vs 0.133.
 
-Measured (5000 seeds each): see the appendix below, filled in from the
-validation runs.
+## Measured (5000 seeds each, wr=8 wi=4, λ=0.5)
+
+| quantity | predicted | measured |
+|---|---|---|
+| P_seq (two events, `#threads 1`) | 0.1333 | 0.1288 (644/5000) |
+| P_batch (one batch, `#threads 8`) | 0.1600 | **0.1570** (785/5000) |
+| ratio | 1.200 | 1.219 |
+
+Both within 1σ. The batch measurement has a story: the first run gave
+**0/5000** — impossible under the model — which exposed a real engine
+defect: `calculateRuleArea` walked the whole body from the apply
+origin, inflating conflict footprints with phantom cells (a recovery's
+`@@@` claimed three cells, so horizontally adjacent recoveries could
+never co-fire — anisotropically, since vertical pairs could). Fixed to
+spec-true footprints (LHS cells at the dry-run origin, RHS at the
+apply origin, boundary excluded); single-threaded behaviour is
+bit-identical, and the toy model then matched. All multithreaded
+measurements predating the fix (the first λc(N) curves) carry the
+phantom-footprint bias and were re-run.

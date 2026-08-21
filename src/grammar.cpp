@@ -886,27 +886,49 @@ int Derivation::getColor(char fore, char back) {
 }
 
 ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &rule) {
-    // Calculate area that includes both LHS pattern (context checking) and RHS replacements
-    // This ensures proper conflict detection for both read and write operations
+    // Conflict footprint = the rule's ACTUAL cells: LHS cells at the
+    // dry-run origin, RHS cells at the apply origin (the two-@-anchor
+    // geometry), boundary marker excluded. The previous implementation
+    // walked the whole body from the apply origin, inflating boxes with
+    // phantom cells (e.g. a recovery's @@@ claimed 3 cells), which
+    // over-blocked batches anisotropically -- found by the 2-site toy
+    // model validation (horizontally adjacent recoveries could never
+    // co-fire in one batch).
 
     ScreenArea area = {INT_MAX, INT_MIN, INT_MAX, INT_MIN};
     bool found_any = false;
 
-    // Scan the entire RHS to find bounding box of all non-space characters
-    int r = ro;
-    int c = co;
+    // ro/co is the apply origin (caller passes position - rq/cq);
+    // reconstruct the dry-run origin from the rule's anchor offsets.
+    bool horiz = rule.cq > rule.co;
+    int ro_dry = ro + rule.rq - rule.ro;
+    int co_dry = co + rule.cq - rule.co;
+
+    int r = 0;
+    int c = 0;
 
     for (size_t i = 0; i < rule.rhs.length(); ++i, ++c) {
         wchar_t ch = rule.rhs[i];
         if (ch == L'\n') {
             ++r;
-            c = co - 1;
+            c = -1;
             continue;
         }
         if (ch == L' ') continue;
 
-        int wrapped_r = wrap_row(r);
-        int wrapped_c = wrap_col(c);
+        // Region split mirrors apply_impl: boundary cell belongs to
+        // neither region and is skipped entirely.
+        bool is_lhs;
+        if (horiz) {
+            if (c == rule.cm) continue;      // boundary column marker
+            is_lhs = c < rule.cm;
+        } else {
+            if (r == rule.rm) continue;      // boundary row marker
+            is_lhs = r < rule.rm;
+        }
+
+        int wrapped_r = is_lhs ? wrap_row(ro_dry + r) : wrap_row(ro + r);
+        int wrapped_c = is_lhs ? wrap_col(co_dry + c) : wrap_col(co + c);
 
         if (!found_any) {
             area.min_row = area.max_row = wrapped_r;
