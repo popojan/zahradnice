@@ -262,3 +262,31 @@ cells). All engine-side; zero engine changes.
   against. Open economy question, now sharp: at ×5 rewards
   (birth +5 / toggle −5) does a longer-horizon or learned policy make
   toggling pay?
+
+## Design notes from discussion (baselines, starting states)
+
+- **Starting configuration** (making explicit what the cfg encodes): 36
+  `^oXX` seeds place alive blocks at *random grid-aligned positions*,
+  so every `--seed` is a different soup (overlaps merge; ~30 distinct
+  blocks typical), deterministic given the seed. The cursor spawns on a
+  dead block at grid-aligned centre.
+- **Budget-matched (yoked) random** is the better control for greedy:
+  condition random's toggle count on the count greedy chose for the
+  same seed, with random placement/timing. That decomposes greedy's
+  edge into "how much to act" vs "where/when to act" — the current
+  free-running random conflates both (it acts ~9× per episode, greedy
+  ~1×). Standard yoked-control design; cheap since greedy's per-seed
+  action counts are in the CSVs. Queued for the next measurement round.
+- **1-step greedy over 5 sampled cells is a weak skyline**, not a
+  baseline to beat — stronger references when this matters: full-cell
+  candidate sets, multi-step lookahead / MCTS over burst actions, and
+  randomized-evaluation variants (which also close the oracle loophole).
+- **Empty-board episodes** ("zero score forever until the first
+  intervention") are attractive — pure creation, no soup luck — but
+  currently impossible for the in-grammar cursor: rest-gated movement
+  and toggling need materialized blocks, and an empty field has none.
+  Becomes natural with the G1 positioned-action API. The underlying
+  question is worth keeping regardless: *which seeded patterns maximise
+  birth flux in asynchronous Life* — async still-lifes, quasi-
+  oscillators and their flux economies are an ALife question of
+  independent interest.
