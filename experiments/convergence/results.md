@@ -194,3 +194,21 @@ Reading:
   max ~48k against a 50k cap — some "survivors" there are likely slow
   deaths; the λc(N) fit should treat that point as censored or re-run
   with a larger budget.
+
+---
+
+# Round 5 — toy model, footprint fix, second process
+
+- **2-site toy model** (`toy-model.md`): closed form for the batch
+  extinction shift, P_batch/P_seq = (1+4λ)/(1+3λ); engine-validated
+  within 1σ on both branches — after the prediction caught the
+  phantom-footprint engine bug (commit 725ef8b). **Provenance note:
+  the Round-2/λc(N) multithreaded data above predates that fix and
+  carries the phantom bias; corrected curves live in
+  `results-l*-v2.csv`.** Single-threaded data is unaffected
+  (bit-identical, regression-verified).
+- **Second process: SIR outbreak** (`sir.cfg`, isotropic percolation
+  class). N=1 baseline (200 seeds/point, 31×64 interior): P(size>200)
+  = 0.01 / 0.10 / 0.42 / 0.71 / 0.81 at p = 0.40…0.60 — the
+  transition sits at the bond-percolation anchor p ≈ 0.5 as it
+  should. N=8 comparison: `results-sir-n8.csv`.

@@ -140,3 +140,13 @@ Conclusion unchanged and now two-axis-tested: at terminal-accessible
 scales this is parameter-dependent avalanche phenomenology with
 quasi-periodic megafires — a good expressiveness result for the
 grammar, not a demonstration of SOC.
+
+## Closure: L-scaling confirms the sandpile's SOC (Manna v2)
+
+L=32 run (8000 drives, skip 4000): density again self-organizes
+(694/992 = 0.70 ≈ ρc), smooth monotone decay over **12 octaves**, same
+octave ratio (τ ≈ 1.2). Cutoff scaling against L=16: p99 grew 5.0×
+and max 7.4× for a 2× field — bracketing Manna's D ≈ 2.75. **The
+cutoff tracks system size**: the signature the forest failed, the
+sandpile passes. Same instrument, same day, three families, three
+correct discriminations (tuned criticality / no SOC / SOC).
