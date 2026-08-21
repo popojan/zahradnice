@@ -661,6 +661,10 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char sr
         if (a.find(nit->second) != a.end())
             xx.push_back(nit->first);
     }
+    // x is unordered and parallel batches update it in thread-completion
+    // order, so its iteration order leaks scheduling. Canonical order keeps
+    // the seeded RNG stream mapping to the same candidates across runs.
+    std::sort(xx.begin(), xx.end());
 
     if (xx.size() <= 0)
         return false;
@@ -931,6 +935,8 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
         if (a.find(nit->second) != a.end())
             xx.push_back(nit->first);
     }
+    // Same canonical ordering as step(): see comment there.
+    std::sort(xx.begin(), xx.end());
 
     for (auto nit = xx.begin(); nit != xx.end(); ++nit) {
         auto &n = x[*nit];
