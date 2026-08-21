@@ -71,6 +71,50 @@ Making errors expensive moves fitness from mass to information:
   of unlearning is set by the price of error** — measured by
   flipping one environmental constant.
 
+## Architecture evolution (mutation ladder n↔i↔p, start = pure n)
+
+`garden-evo.cfg` (MUT=0.1, START=n): offspring occasionally carry the
+neighbouring architecture; the world begins with twelve non-learners
+and no learning anywhere. Results (6 seeds each, 18/18 exact):
+
+- **Evolution discovers learning unaided**: both learning
+  architectures emerge via the n→i→p mutation path and reach
+  two-thirds of the field within 30k events.
+- **The equilibrium is a stable polymorphism, not fixation** — and
+  its shares quantitatively reproduce the fixed-species competition:
+  toxic const 311/357/380 evolved vs 293/362/383 seeded; toxic p2
+  326/348/371 vs 320/335/392. The garden's verdict is invariant to
+  whether species are planted or evolved.
+- Cheap p2 evolved: 365/394/396 — the non-learner stays fully
+  competitive when errors are cheap, and the i-vs-p difference that
+  fixed competition resolved (397 vs 382) is blurred below the
+  mutational load (μ/2 flux homogenizes small fitness gaps).
+- Diversity is the outcome, not a failure mode: no architecture ever
+  fixates. Coexistence is held by immigration (design), by slow
+  local competition (spatial refugia), and by a genuine stabilizer —
+  **memory's space rent**: learner territory carries its token load,
+  reducing its own vacancy supply, which keeps the lean non-learners
+  in the game. An ecosystem answers nonstationarity with a portfolio
+  of architectures, not a champion.
+
+## The threshold, pinned (toxic garden, season-length scan)
+
+Fixed three-species competition, toxic errors, 18/18 exact
+(6 seeds/regime, mean populations):
+
+| seasons | n | i | p |
+|---|---|---|---|
+| 8k | 322 | 373 | 372 |
+| 4k | 322 | 359 | 376 |
+| 2k | 320 | 335 | 392 |
+| 1k | **347** | 340 | 353 |
+
+The naive learner's edge over the non-learner vanishes between 4k
+and 1k seasons; punishment stays ahead down to 2k and is marginal at
+1k. **The adaptive-value-of-learning threshold sits at season
+lengths of roughly 1-4k events, and punishment extends learning's
+profitable range about fourfold toward faster worlds.**
+
 ## What the MVP demonstrates
 
 Selection acting on learning *architectures* — not on traits — in a
