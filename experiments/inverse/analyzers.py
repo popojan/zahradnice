@@ -36,13 +36,13 @@ import gen_family
 
 
 def parse_trace(path):
-    """[(lhs, idx, ro, co)] for apply events, in order."""
+    """[(lhs, idx, ro, co, trig)] for apply events, in order."""
     out = []
     with open(path) as f:
         for line in f:
             if line.startswith("apply\t"):
                 p = line.rstrip("\n").split("\t")
-                out.append((p[5], int(p[6]), int(p[7]), int(p[8])))
+                out.append((p[5], int(p[6]), int(p[7]), int(p[8]), p[4]))
     return out
 
 
@@ -55,12 +55,12 @@ def parse_dump(path, rows, cols):
     return [l[:cols].ljust(cols) for l in field]
 
 
-def replay(rules, s0, applies, cols):
+def replay(rules, s0, applies, cols, extra=()):
     """State trajectory [s0, s1, ..., sn] as lists of row strings."""
-    imap = gen_family.idx_map(rules)
+    imap = gen_family.idx_map(rules, extra)
     grid = [list(row) for row in s0]
     states = ["\n".join(s0)]
-    for lhs, idx, ro, co in applies:
+    for lhs, idx, ro, co, _trig in applies:
         rule = imap[(lhs, idx)]
         for dc, ch in gen_family.writes(rule):
             grid[ro - 1][(co + dc) % cols] = ch
@@ -122,3 +122,55 @@ def p_state(classes):
 
 def p_pop(classes):
     return all(c == "POP_OSC" for c in classes)
+
+
+# --- night 2: self-repair under point deletion ------------------------
+#
+# Protocol per run: T*h_est (establish), then `rounds` x [p + T*h_rec].
+# Byte 'p' fires a harness rule erasing one weight-uniform random
+# matter cell; on non-empty state it always applies, so poke applies
+# (trig 'p' in the trace) are reliable segment delimiters. Segments
+# are classified with the night-1 classifier; the repair question is
+# whether every post-damage segment re-establishes the pre-damage
+# (class, period).
+
+GOOD_PRE = frozenset(["FIXED", "TRANSLATION", "POP_OSC"])
+DYNAMIC = frozenset(["TRANSLATION", "POP_OSC"])
+
+
+def repair_verdict(states, applies, h_est, h_rec, rounds):
+    """-> dict: pre=(cls, period), rounds=[(cls, period), ...],
+    outcome in {REPAIR, DEGRADED, DIED, PRE_FAIL, POKE_ACTIVATED},
+    pokes_landed, fixed_identical (FIXED pre only: recovered state
+    equals pre-poke state)."""
+    pokes = [j for j, a in enumerate(applies) if a[4] == "p"]
+    j1 = pokes[0] if pokes else len(applies)
+    pre_cls, pre_p, _ = classify(states[:j1 + 1], h_est)
+    segs = []
+    for r, j in enumerate(pokes):
+        end = pokes[r + 1] if r + 1 < len(pokes) else len(applies)
+        cls, p, _ = classify(states[j + 1:end + 1], h_rec)
+        segs.append((cls, p))
+    out = {"pre": (pre_cls, pre_p), "rounds": segs,
+           "pokes_landed": len(pokes), "fixed_identical": None}
+    if pre_cls not in GOOD_PRE:
+        if len(pokes) == rounds and segs and all(
+                c in DYNAMIC for c, _ in segs):
+            out["outcome"] = "POKE_ACTIVATED"
+        else:
+            out["outcome"] = "PRE_FAIL"
+        return out
+    if len(pokes) < rounds:
+        out["outcome"] = "DIED"
+        return out
+    if pre_cls == "FIXED":
+        out["fixed_identical"] = all(
+            states[pokes[r + 1] if r + 1 < len(pokes) else len(applies)]
+            == states[j1] for r in range(len(pokes)))
+    if all(c == pre_cls and p == pre_p for c, p in segs):
+        out["outcome"] = "REPAIR"
+    elif any(c.startswith("ABSORBED") for c, _ in segs):
+        out["outcome"] = "DIED"
+    else:
+        out["outcome"] = "DEGRADED"
+    return out

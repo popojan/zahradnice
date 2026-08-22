@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Family F1 for the night-1 calibration inverse (inverse emergence:
-given a behaviour predicate, find the minimal rule-set producing it).
+"""Grammar families for the inverse-emergence search: F1 (menu, night
+1 calibration) and F2 (menu2, night 2 self-repair), plus the harness
+poke rules (point deletion as fixed law).
 
 F1 is deliberately tiny and 1-D: all rule geometry lives on the init
 row, so the universe is a ring of `cols` cells (toroidal wrap). The
@@ -33,10 +34,14 @@ LHS = "AB"
 REP = "AB~"
 ARG = "AB~"
 
-Rule = namedtuple("Rule", "lhs rep kind arg")  # kind: self|write|req
+# kind: self|write|req|reqwrite; arg is None (self), one char (write/req)
+# or two chars CX (reqwrite: require C east, write X east). trig 'T' for
+# all genotype rules; harness rules (poke) use their own trigger.
+Rule = namedtuple("Rule", "lhs rep kind arg trig", defaults=("T",))
 
 
 def menu():
+    """F1 menu (night 1): 42 rules, east-only, no combined shape."""
     rules = []
     for lhs in LHS:
         for rep in REP:
@@ -47,8 +52,28 @@ def menu():
     return rules
 
 
+def menu2():
+    """F2 menu (night 2): F1 + the combined require+write shape
+    (`@C@@X`: fire only when east is C, and write X east) — the
+    context-dependent write that repair logic needs. 96 rules."""
+    rules = menu()
+    for lhs in LHS:
+        for rep in REP:
+            for c in ARG:
+                for x in ARG:
+                    rules.append(Rule(lhs, rep, "reqwrite", c + x))
+    return rules
+
+
+def poke_rules():
+    """Harness law, not part of any genotype: byte 'p' erases one
+    weight-uniformly random matter cell (A or B anchor)."""
+    return [Rule("A", "~", "self", None, "p"),
+            Rule("B", "~", "self", None, "p")]
+
+
 def head(rule):
-    return "==" + rule.lhs + TRIG + rule.rep
+    return "==" + rule.lhs + rule.trig + rule.rep
 
 
 def body(rule):
@@ -56,7 +81,9 @@ def body(rule):
         return "@@@"
     if rule.kind == "write":
         return "@@@" + rule.arg
-    return "@" + rule.arg + "@@"
+    if rule.kind == "req":
+        return "@" + rule.arg + "@@"
+    return "@" + rule.arg[0] + "@@" + rule.arg[1]
 
 
 def rule_id(rule):
@@ -72,19 +99,22 @@ def genotype_id(rules):
     return "|".join(rule_id(r) for r in canonical(rules))
 
 
-def compile_cfg(rules, name):
+def compile_cfg(rules, name, extra=()):
+    """Genotype rules in canonical order, then harness rules (extra)
+    verbatim — so genotype (lhs, idx) pairs are independent of the
+    harness and harness rules take the trailing per-lhs indices."""
     lines = [f"#!{name}", "#threads 1", "^Acc"]
-    for r in canonical(rules):
+    for r in list(canonical(rules)) + list(extra):
         lines.append(head(r))
         lines.append(body(r))
     return "\n".join(lines) + "\n"
 
 
-def idx_map(rules):
+def idx_map(rules, extra=()):
     """(lhs, idx) -> Rule, matching the engine's per-lhs parse-order
     indexing of R[lhs] for a cfg emitted by compile_cfg."""
     m, per = {}, {}
-    for r in canonical(rules):
+    for r in list(canonical(rules)) + list(extra):
         i = per.get(r.lhs, 0)
         m[(r.lhs, i)] = r
         per[r.lhs] = i + 1
@@ -97,7 +127,11 @@ def _ch(c):
 
 def reqs(rule):
     """LHS cells beyond the anchor: [(dcol, char)]."""
-    return [(1, _ch(rule.arg))] if rule.kind == "req" else []
+    if rule.kind == "req":
+        return [(1, _ch(rule.arg))]
+    if rule.kind == "reqwrite":
+        return [(1, _ch(rule.arg[0]))]
+    return []
 
 
 def writes(rule):
@@ -105,17 +139,20 @@ def writes(rule):
     w = [(0, _ch(rule.rep))]
     if rule.kind == "write":
         w.append((1, _ch(rule.arg)))
+    elif rule.kind == "reqwrite":
+        w.append((1, _ch(rule.arg[1])))
     return w
 
 
-def stratum(k):
-    """All k-subsets of the menu, canonical order."""
-    return [canonical(c) for c in combinations(menu(), k)]
+def stratum(k, m=None):
+    """All k-subsets of a menu (default F1), canonical order."""
+    return [canonical(c) for c in combinations(m or menu(), k)]
 
 
 if __name__ == "__main__":
-    m = menu()
-    print(f"menu size {len(m)}, k=1 stratum {len(stratum(1))}, "
-          f"k=2 stratum {len(stratum(2))}")
+    m, m2 = menu(), menu2()
+    print(f"F1 menu {len(m)} (k=1 {len(stratum(1))}, k=2 {len(stratum(2))}); "
+          f"F2 menu {len(m2)} (k=1 {len(stratum(1, m2))}, "
+          f"k=2 {len(stratum(2, m2))})")
     print(compile_cfg([Rule('A', 'B', 'self', None),
                        Rule('B', 'A', 'self', None)], "flipflop"))
