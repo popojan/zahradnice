@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this repository or its papers, please cite it as below."
+title: "Zahradnice: a grammar garden"
+type: software
+authors:
+  - family-names: Popelka
+    given-names: Jan
+repository-code: "https://github.com/popojan/zahradnice"
+abstract: >-
+  A terminal game engine whose programs are weighted stochastic 2D
+  rewriting grammars, used as an experimental substrate for
+  artificial-life research (branch research: the inverse-emergence
+  arc, papers in paper/).

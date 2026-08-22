@@ -1,0 +1,1186 @@
+% compile: OSFONTDIR=~/.fonts// optex zahradnice-nights-v2.tex
+% (f-equity.opm alongside; Equity by Matthew Butterick, not in repo)
+% v2: theory promoted to a section; jargon defined at first use;
+%     numbers anchored in natural units (laps, wounds, budget shares).
+\fontfam[Equity]
+\hyperlinks \Blue \Blue
+\report
+\margins/1 a4 (2.4,2.4,2.4,2.6)cm
+\typosize[11/13.8]
+\raggedbottom
+
+\def\repo#1{{\tt #1}}
+\def\lawname#1{{\bf #1.}}
+\def\g#1{{\tt #1}}
+\def\sqr{\sqcup}
+\verbchar`
+
+\tit The Subtraction Ladder
+
+\centerline{\it Ten nights of inverse emergence: repair, heredity,
+and parasitism in eleven rules}
+\medskip
+\centerline{Jan Popelka \& Claude (Anthropic) --- August 2026}
+\centerline{\tt github.com/popojan/zahradnice \quad branch {\tt research}
+\quad \repo{experiments/inverse/}}
+\bigskip
+
+\noindent{\bf Abstract.}
+How much of evolution must be written into physical law, and how
+much is a property of matter? We attack the question by deletion.
+The laboratory is a deliberately small physics --- five axioms, none
+of which mentions copying, fitness, or lineage: local rewriting of
+typed cells on a ring, one event at a time, under a fixed rule
+table and an external damage source. Over ten experiments
+(“nights”) we first {\it find} minimal mechanisms by exhaustively
+running every small rule set in a declared family, then compose
+them into evolving systems, then delete the authored ingredients one by one --- rate dials,
+lineages, mutation operators, fitness functions, copy primitives.
+The end state is a family of worlds of nine to thirteen uniform
+rules exhibiting selection, heredity with a seed bank, adaptation
+with an arrow, evolutionary rescue, error catastrophe, a commons
+tragedy, and a parasite enforcing permanent coexistence and a
+self-sustaining variation supply --- none of it named in any
+rule. Six laws survive translation out of
+the substrate; a mean-field reduction explains the sharpest of
+them, accounts for two measured robustnesses, and its predicted
+circulating probability current is measured directly ---
+certifying the parasite phase as a genuine non-equilibrium steady
+state. Every
+quantitative claim is verified by exact accounting: independently
+replaying each run's event log reconstructs its final state
+byte-for-byte (about 26{,}000 runs, zero mismatches), at a total
+compute cost of under an hour on a laptop.
+
+\medskip
+\noindent{\it This is the second paper of a set. The substrate
+companion} [22] {\it documents the engine and its language; here
+the substrate appears only as physics. Every table regenerates
+from} \repo{experiments/inverse/night*.py} {\it and the CSV files
+beside them.}
+
+\bigskip
+{\nonum\notoc\sec Contents}
+\maketoc
+\bigskip
+
+\sec The question
+
+Models of evolution usually begin by assuming its ingredients.
+Population genetics assumes replicators and a fitness function;
+genetic algorithms assume a selection loop; artificial-life systems
+relax some assumptions and keep others. Tierra and Avida [2,3]
+hand-author the first replicator and let selection emerge; the
+evolving-cellular-automata program [4] keeps an external genetic
+algorithm as the selector and searches over physical laws; AlChemy
+[1] derives replication from a chemistry but gives up space and
+population structure. Each result is conditioned on what was
+assumed.
+
+We wanted the complementary experiment: fix one small physics whose
+axioms contain {\it no evolutionary vocabulary at all}, put
+everything else in matter, and determine --- by exhaustive search
+where the worlds are small enough, and by controlled deletion
+everywhere --- which evolutionary phenomena are genuinely properties
+of law and which are properties of configuration. The claim we can
+defend at the end is not “assumption-free” (nothing is) but
+{\bf evolution-free assumptions}: five axioms about space, matter,
+time, law, and drive, with selection, heredity, variation, and
+parasitism appearing downstream as measured consequences.
+
+\sec The physics in five axioms
+
+The substrate is the execution model of the Zahradnice engine [22],
+used unmodified throughout; the reader needs only its abstract
+form:
+
+\begitems
+* \lawname{A1 Locality} Space is a row of cells on a ring (a
+one-dimensional torus; we use rings of 6 to 96 cells). A rule reads
+and writes a bounded neighbourhood and applies identically at every
+position.
+* \lawname{A2 Exclusion} Each cell holds exactly one symbol from a
+finite alphabet, or is empty.
+* \lawname{A3 Serialized choice} Time is a sequence of events. In
+each event, all (rule, position) pairs whose pattern currently
+matches are collected, and {\it exactly one} is applied, chosen at
+random in proportion to rule weight. Because only one thing happens
+per event, a “rate” can only ever be a {\it share} of the
+currently applicable activity --- all processes pay from one budget.
+(In the final worlds all weights are equal, so even the
+weighted-choice generality goes unused.)
+* \lawname{A4 Frozen law} The rule table is fixed before the world
+starts and nothing in the world can change it. Whatever adapts,
+adapts in configuration.
+* \lawname{A5 Drive} The world is open: an external trigger erases
+one uniformly random occupied cell --- a {\it wound} --- once every
+$m{+}1$ events. We call $m$ the damage interval; its reciprocal
+picture is the {\bf damage share} of the event budget: $m{=}8$
+means wounds take about $11\%$ of all events, $m{=}4$ about
+$20\%$, $m{=}2$ a third.
+\enditems
+
+One deliberate abstinence completes the setup: {\it the law has
+no variables.} Every symbol a rule writes is a constant fixed when
+the law was written; no rule can read a symbol from matter and
+re-emit it. Writing is synthesis, never transport --- so copying,
+if it is to exist, must be assembled in matter as an alphabet
+case-split (one constant-writing rule per symbol, selected by
+matching), carried through a material intermediary. Copying is
+therefore derived, priced (a rule per symbol plus a carrier
+state), and --- because it is assembled case by case --- mutable:
+a one-symbol edit to one case yields systematic miscopying, which
+is where night 10 will find its parasite.
+
+Runs are seeded and bit-reproducible. Throughout, an
+“experiment” is a sweep over damage shares, rule-set variants
+(“arms”), and 16--64 random seeds; a run lasts 24{,}000--96{,}000
+events unless stated.
+
+\medskip
+\noindent The arc in one table --- each authored ingredient and
+where the ladder deleted it (or shows it was never needed):
+
+\medskip
+\noindent\table{lll}{
+ingredient & authored & deleted / never needed \crl\noalign{\smallskip}
+mechanism design & --- & nights 1--2: found by exhaustion \cr
+reproduction primitive & never & night 3: emerges from repair $\times$ damage \cr
+lineage identity & night 4 & night 5 (arises by mutation); night 7 (gone) \cr
+rate dials (weights) & nights 4--5 & night 6: structural event cost \cr
+fitness function & never & night 6: the budget itself; night 7: emergent \cr
+mutation operator & nights 5--6 & night 10: self-sustaining variation \cr
+copy primitive & never & night 7: machinery-mediated repair \cr
+copying-benefit design & --- & night 8: pattern-programmed \cr
+codon semantics & nights 8, 10 & {\it still law-side (Section 12)} \cr
+}
+\medskip
+
+\sec Two rules, read slowly
+
+Most of the paper's vocabulary lives in one two-rule organism, so
+we introduce it concretely. Take a ring, one wandering symbol \g{A}
+(a {\it head}), and two rules:
+
+\begitems
+* {\bf Mover:} an \g{A} rewrites itself to \g{B} and writes a fresh
+\g{A} into the cell to its east. Effect: the head steps east once
+per firing, leaving a trail of \g{B} behind it --- and since the
+ring wraps, it eventually laps its own trail and repaints it.
+* {\bf Handler:} a \g{B} whose eastern neighbour is {\it empty}
+rewrites itself to \g{A}. In an intact world this rule can never
+fire --- the trail has no gaps --- so it is dormant matter. The
+moment a wound (axiom A5) erases a cell, the trail cell west of the
+hole satisfies the pattern and wakes: a new head is born at the
+wound.
+\enditems
+
+That is the entire organism: mover $+$ handler, two rules. Poke it
+anywhere and it heals; poke it repeatedly and --- as Section~6
+measures --- it {\it multiplies}, because every wound can wake a
+head and heads merge when they collide. When we later speak of a
+{\it trail as a genome}, a {\it wound expressing stored variation},
+or {\it repair as the only copying in the universe}, it is this
+mechanical picture, elaborated: patterns that sit inert until
+damage gives them a context, then act, then are overwritten by the
+life that flows over them.
+
+Numbers below come with natural units. Distances are in cells;
+times in events, often restated as {\it laps} (events for a head to
+circle its ring: 24 events for a one-step walker on our standard
+24-cell ring) or as {\it wounds suffered}. “Final quarter” means
+the last 25\% of a run's samples --- our standard steady-state
+window.
+
+\medskip
+\noindent{\bf Notation.} {\it Event}: one applied rewrite.
+{\it Wound}: one externally erased cell (axiom A5); damage share
+$=1/(m{+}1)$. {\it Lap}: the events a head needs to circle its
+ring. {\it Run}: a maximal block of equal symbols (an experimental
+execution is also a “run”; context disambiguates). {\it Arm}: a
+rule-set variant in a controlled comparison. {\it Dwell} (stroke
+count) $k$: events the machinery spends per cell of a given type.
+{\it Seed}: the RNG initialization; same-seed arms share initial
+conditions.
+
+\medskip
+\noindent{\bf Figure 1.} The organism of this section, in the
+substrate's native rendering: space--time of a 40-cell ring (time
+downward, one row per four events; {\tt .} = empty). The head
+\g{A} paints trail \g{B} and wraps; two wounds arrive and are
+healed in passing.
+\begingroup\everytt={\typosize[7/8.4]}
+\verbinput (1-36) figs/spacetime.txt
+\endgroup
+
+\sec Method: search, exactness, controls
+
+\secc Finding mechanisms instead of designing them
+
+Early nights do not design rule sets; they enumerate them. A {\it
+family} is a finite menu of rule shapes (rewrite in place; write
+east; require east; combinations) closed under a compiler that can
+only emit well-formed programs --- so every candidate parses and no
+search time is spent on syntax. {\it Stratified exhaustion} then
+runs every 1-rule set, every 2-rule set, and so on, stopping at the
+first stratum containing a verified solution. The resulting claim,
+“$k$ rules are the minimum {\it within family} $F$,” is
+theorem-shaped with an explicitly declared scope --- stronger than
+“smallest found”, weaker than “minimal absolutely”, and honest
+about which.
+
+\secc Exact accounting
+
+Every run logs each applied rule. An independent replay ---
+sharing nothing with the engine except the family definition ---
+reconstructs the whole state trajectory from that log and compares
+its final state byte-for-byte against the engine's own screen
+dump. This check ran on every replayed run in the arc, about 26{,}000 of them, with zero mismatches. All measurements
+(populations, order parameters, per-rule ledgers) are taken on the
+replayed trajectory, so every number in this paper is backed by a
+reconstruction that provably matches the machine.
+
+\secc Controls, and the lessons that cost us wrong tables
+
+Every “solution” found by a sweep is re-verified on held-out
+seeds, longer horizons, and a second ring size before it is
+believed. Two experiment designs recur: {\bf three-arm same-seed}
+comparisons (identical initial conditions across rule-set variants,
+paired statistics), and a {\bf three-probe} attribution pattern ---
+a per-capita birth ledger, a per-capita death ledger, and
+machinery-residence statistics conditioned on system state ---
+which resolves “composition moved but every rate looks fair”
+situations and twice overturned our own written predictions.
+
+Two methodological results are reported because we paid for them.
+{\it Power:} pilot effects at 16 seeds that looked systematic
+evaporated at 64 seeds; every headline differential below uses 64
+paired seeds. {\it Absorbing states:} observables sampled per event
+are blind to extinction --- a dead run's samples simply stop, still
+showing its last living population. Sixty extinctions were
+misclassified as survivals until a conservation check (wounds
+landed versus offered) exposed them. Standing rule: absorption is
+judged from ground-truth final state, which the exactness check
+pins. Two more traps earned entries during the theory work.
+{\it Aliasing:} a probability current invisible at 50-event
+sampling and unmistakable ($t\approx10$) at 5-event sampling ---
+match the grid to the mechanism's timescale, and sample
+deterministic cycles per event or at strides coprime to the
+period. {\it Aggregation:} seed-averaged compositions that
+satisfied an equilibrium law exactly turned out to be mixtures of
+fixated monocultures, which satisfy it vacuously --- check
+per-seed histograms for bimodality before calling anything an
+equilibrium.
+
+{\it Statistics, stated once.} Arm comparisons use the paired
+same-seed design: per-seed differences, two-sided $t$, $n=64$
+unless noted; “statistically zero” for the timing codon means all
+six paired differentials had $|t|\le1.4$ ($p>0.16$). Proportions
+are raw counts; intervals are 95\% normal approximations.
+Exemplars: the parasite plateau $\rho^*=0.261\pm0.013$ (seed sd,
+$n=32$, parasite-only, 20\% damage share; $0.204\pm0.014$ with
+the honest codon); fixation of the slow gene at 64 seeds,
+$0.47\pm0.12$ (dwell 2) and $0.55\pm0.12$ (dwell 3), both
+against the neutral expectation 0.36 set by the initial share
+(pooled $z\approx3.4$; the dwell ordering directional, not
+separated at this power). Sweeps are exploratory and uncorrected
+for multiplicity; the headline claims are saturated proportions
+(240/240, 288/288, 24/24), robust to any correction. No mean-field
+coefficient was fitted anywhere: the reduction's predictions are
+parameter-free.
+
+\secc What the arc cost
+
+\medskip
+\noindent\table{lrrl}{
+night & runs & wall & verdict \crl\noalign{\smallskip}
+1 calibration census & 3{,}075 & 3 s & minima recovered and proven \cr
+2 self-repair census & 14{,}664 & 14 s & one route to repair (16 doors) \cr
+3 damage phase diagram & 1{,}944 & 5 s & collapse threshold; multiplication \cr
+4 heredity \& selection & 600 & 32 s & the contest dichotomy \cr
+5 mutation & 720 & 34 s & adaptation 288/288; arrow 0/288 \cr
+6 stroke ladder & 432 & 29 s & rescue; error catastrophe \cr
+7 tape commons & 256$+$probes & 8 s & neutral flows; residence \cr
+8 codons & 768 & 32 s & content matters, schedule doesn't \cr
+9 consolidation & $\sim$2{,}000 & 60 s & four open questions closed \cr
+10 deceptive codons & 576 & 21 s & the parasite phase \cr
+ring-scaling check & 576 & 28 s & phase survives doubling \cr
+theory probes & $\sim$700 & 90 s & current; language order; $R(x)$ map \cr
+}
+\medskip
+
+\noindent At these prices one runs every control
+arm, every verify stage, and the 64-seed rerun that kills a false
+positive. (Night 9 was a consolidation pass with no movement of
+its own; its results appear where they close each question, in
+Sections 6.1, 7.1 and 9.)
+
+\sec Movement I: minimal mechanisms (nights 1--3)
+
+\secc Night 1 --- calibration: the question defines the minimum
+
+Night 1 asked something with a known answer --- the smallest
+sustained oscillator --- over all 903 one- and two-rule programs of
+a small family. The calibration paid by exposing an ambiguity in
+the question itself. Under a {\it state-recurrence} predicate
+(“the world revisits a configuration forever”) the minimum is one
+rule: a walker, whose period is the ring circumference, courtesy of
+the wrap. Under a {\it population-oscillation} predicate (“some
+symbol count rises and falls forever”) the minimum is provably
+two: the one-rule stratum is exhaustively empty. The predicate
+defines the phenomenon; exhaustion prices it. The census also
+delivered its first unplanned mechanism: a two-rule oscillator
+whose first firing writes an inert partner cell and thereafter
+{\it requires it as context} --- matter built once, then leaned on
+as structure.
+
+\secc Night 2 --- self-repair: one route, sixteen doors
+
+Add wounds, and ask: what is the smallest rule set whose
+established behaviour survives them? For static structures, one
+rule suffices (a self-copier that saturates the ring and refills
+holes). For {\it dynamic} behaviour --- something moving or
+oscillating --- the answer is two rules, and the census of all
+4{,}656 candidates found exactly 16 solutions, every one of them
+anatomically the mover-plus-handler organism of Section~3: an
+unconditional mover and a handler that can only fire beside a
+wound. Damage-as-signal is not one design option among several;
+within the family it is the {\it only} route to minimal dynamic
+self-repair. Median healing time, measured on the 6-cell ring of
+that census: five events --- under one lap. (Scaling splits by
+anatomy, as night 3 shows: for the 14 mechanisms that respawn
+adjacent to the wound, healing is a local race that does not know
+the ring size; for the 2 that must walk to the wound, healing is
+proportional to a lap.)
+
+\secc Night 3 --- the phase diagram: collapse, and reproduction for free
+
+Bombard the sixteen repairers with sustained damage. The survival
+boundary sits between damage shares of one third and one half of
+the event budget --- and because rates are shares (axiom A3), the
+boundary is a {\it ratio}: it does not move with ring size. The
+night-2 anatomy predicts robustness: adjacent-respawn mechanisms
+are ring-independent, walk-to-wound mechanisms fail on the larger
+ring, exactly as their healing-time scaling implies (Figure~2).
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/phase.pdf}}
+\smallskip\noindent{\bf Figure 2.} Recovery fraction against
+damage interval for the two night-2 anatomies at two ring sizes.
+The adjacent-respawn cliff ($m$ = 1 to 2) is ring-independent ---
+a budget-share threshold; the walk-to-wound family shifts right on
+ring 6 and saturates at the “alive but altered” one-half on
+ring 12.
+\medskip
+
+The unplanned result sits mid-diagram: at intermediate damage
+rates, the organism {\it multiplies} --- one walker becomes
+several. Each wound can wake a handler into a new
+head; heads merge on collision; the standing head count (about
+three on a 12-cell ring at 25\% damage share) is set by wounding
+rate against merge rate. No night had yet asked for reproduction.
+Multiplication emerged as a corollary of repair in a damaging
+world --- fragmentation reproduction, the planarian motif, in two rules.
+(Strictly, proliferation --- multiplication without heredity;
+heredity is night 4's addition.)
+
+\sec Movement II: evolution assembled (nights 4--6)
+
+\secc Night 4 --- heredity, dormancy, and the contest dichotomy
+
+Put two copies of the organism on one ring with distinct symbol
+pairs (heads \g{A}/\g{C}, trails \g{B}/\g{D}); movers overwrite
+whatever they walk into, so the two lineages compete for territory.
+The trail {\it is} the genome: wounds respawn heads from the local
+trail, so lineages breed true by construction, and a lineage whose
+heads all died but whose trail survives is not extinct --- it is
+{\it dormant}, and a later wound resurrects it. At heavy damage
+this seed-bank pathway carried the handicapped lineage through in
+21 of 24 runs (median dormancy: 8.5 events).
+
+Call an enabled rule instance {\bf contested} when some other
+enabled instance overlaps it --- reads or writes one of the same
+cells --- so that firing one changes or disables the other: which
+fires first then decides a {\it state} outcome, and the weights,
+which set firing order, become outcome probabilities. Call it
+{\bf uncontested} when nothing enabled overlaps it: it commutes
+with everything else happening, will fire sooner or later with
+the same effect, and its weight shifts only timing. Every rule
+competes for time (axiom A3); contested rules also compete for
+state. This night's law is that only the second competition is
+visible to selection (formal version: Section~9).
+
+The law came from handicapping the same organism at two different
+rules, with everything else identical. Halving or
+quartering the {\it mover's} weight --- walk speed --- lost 240 of
+240 runs at every damage share {\it including zero}: heads race
+for the same cells at every single event, and the territory
+boundary drifts at the weight difference, deciding the outcome
+within the first lap or two (median extinction: 22 events).
+Applying the same handicap to the {\it handler} --- repair speed
+--- was invisible at every damage share: a wound waits for its
+owner's handler, whose only competitor is a distant head walking
+toward it, a race even a four-times-slower handler almost never
+loses. \lawname{L2, first half} Selection acts on contested rates
+only.
+
+Night 9 completed the law's other cell with an arena of two
+moverless tissues in which {\it both} neighbours of a wound can
+claim it. Uncontested (west neighbour only), the handicap is
+invisible in the strongest possible sense --- the runs are
+bit-identical across handicap values, because every wound heals
+before the next lands, so claim weights only permute healing
+order. Contested, the same handicap is lethal: 24 of 24
+extinctions. Same trait, same magnitudes; visibility decided
+solely by whether two parties race for the same resource.
+
+\secc Night 5 --- mutation: adaptation, its arrow, and the expression law
+
+Add variation as law: rare trail-symbol flips, symmetric between
+lineages, with the fitness difference on the contested rate (walk
+speed). Start from the slow lineage alone; the fast one must {\it
+arise} --- a mutant trail cell is invisible until a wound lands
+beside it and the handler transcribes it into a living head.
+
+Across 720 runs: with damage present, the fast lineage arose and
+took sustained majority in {\bf 288 of 288} slow-start runs (the
+first beneficial birth arriving after roughly a hundred wounds of
+waiting at low mutation supply, down to a few dozen at high); under
+the identical symmetric law, fast-start runs saw doomed slow
+lineages born about 26 times per run and eaten every time --- {\bf
+0 of 288} sustained reversals. And the control that became a law:
+with no damage, {\bf 144 of 144} runs produce no birth ever, while
+mutant genotype accumulates to 17\% of the trail and just sits
+there. \lawname{L1} Stored variation is inert without damage:
+wounding is simultaneously the selection pressure and the
+transcription mechanism. (Biology knows this joint: bacterial
+stress-induced mutagenesis couples mutation supply to damage
+through the SOS response [17].)
+
+\secc Night 6 --- the stroke ladder: fitness without dials
+
+Night 5's fitness was still a dial --- a weight attached to lineage
+identity. Night 6 removed every dial. Three walking engines, all
+weights equal, differing only in {\it anatomy}: one, two, or three
+events per cell of progress (the extra events are wind-up strokes
+that buy no distance). Under axiom A3 a three-stroke engine is a
+third as fast {\it by structure}. \lawname{L3} Where all processes
+pay from a shared event budget, events-per-outcome is a fitness ---
+with no fitness function anywhere.
+
+Started from the slowest engine with symmetric mutation among the
+three trail symbols, the ladder was climbed in {\bf 72 of 72}
+moderate-damage runs (population mean speed rising threefold to the
+optimum), and mostly by {\it leapfrog}: direct worst-to-best
+transitions outnumbered sequential ascent two to one, since a
+direct mutation path exists and a newborn one-stroke walker outruns
+a two-stroke sweep already in progress --- clonal interference,
+visible in the lineage traces. Heavy damage turned the same setup
+into {\bf evolutionary rescue} [9,19]: the slow resident is
+subcritical there (night 3's collapse threshold, reached through
+anatomy), dying at a median of 237 events --- about three of its
+own laps --- unless a faster engine arises {\it and establishes}
+first. Rescue probability was non-monotone in mutation supply
+(5, then 8, then 3 of 24 as supply rose), because at the top of
+that range even the {\it optimal} engine, installed as resident,
+died in 19 of 24 runs --- an {\bf error catastrophe} [7] with a
+distinct signature: slow, load-driven decay over hundreds of laps,
+against the sharp three-lap structural collapse. Mutation is
+rescuer and executioner at once; even failed rescues stretched
+survival by an order of magnitude.
+
+\sec Movement III: the author dissolved (nights 7--8)
+
+\secc Night 7 --- the tape commons: neutral flows, and residence
+
+Now remove lineages, mutation, and every remaining asymmetry. The
+ring is a circular chromosome of genes \g{f} and \g{s}; a fixed
+population of {\it polymerase} heads patrols it eastward, crossing
+\g{f} in one event and \g{s} in two (a settle stroke --- anatomy
+again, not weight); wounds strike the tape only; and {\it the only
+copying in the universe is repair}: a head standing beside a hole
+writes a copy of the gene it covers into it. Nine uniform rules.
+Variation is the random initial tape. The unauthored game: \g{f}
+is a public good (fast tape speeds every head); \g{s} taxes the
+commons.
+
+Our design notes predicted a tragedy of the commons via
+replication bursts. The three-probe attribution refuted it:
+per-capita replication is {\it neutral} (0.98--1.00 against
+instantaneous composition) and so is per-capita death
+(0.99--1.00). Yet composition moves --- so the motion must live in
+state structure, and it does: at a one-third damage share the
+system spends about 90\% of its time nearly wiped, and in that
+regime the machinery is found covering \g{s} 82\% of the time
+(covered genes cannot be wounded, and settling on \g{s} doubles
+the dwell), while the rare regrowth episodes are almost pure
+\g{f}-work. Heavy damage does not select slowness within a living
+commons; it destroys the commons, and slowness survives as what
+the machinery happens to be sheltering.
+
+Night 9 probed the scaling: a {\it three}-stroke \g{s} lifts
+machinery residence further, and the outcomes shift with it.
+Understanding {\it what} shifts took one more measurement ---
+charting the residence map $R(x)$ along relaxation trajectories
+(Section~9, Figure~4) shows $R$ strictly above composition
+throughout the interior, so these worlds do not equilibrate at
+all: they {\it fixate}, and the honest statistics are fixation
+counts --- at 64 seeds the slow gene fixes in $0.47\pm0.12$ of
+dwell-2 worlds and $0.55\pm0.12$ of dwell-3 worlds, both above
+the neutral expectation 0.36 set by the initial composition
+(pooled $z\approx3.4$). \lawname{L4} The machinery's residence
+excess over composition is a selection differential:
+slow-to-process genes are favoured in proportion to structural
+dwell, up to fixation --- a tragedy of the commons [11] whose tax
+collector is time itself. (Two candidate equilibrium readings
+dissolved on the way, one into relaxation under a longer horizon,
+one into the fixation mixture just described; both dissolutions
+are reported because the arc's credibility lives in them.)
+
+\secc Night 8 --- closing the loop: what heredity is made of
+
+Can a sequence program the machinery that copies it? A three-arm
+same-seed experiment against a measured null. The null is itself a
+discovery: with no codon at all, damage plus copy-local repair
+{\it homogenizes} the genome (mean run of identical symbols
+growing from 2.2 to 8.9 cells on a 24-ring --- near-total
+coarsening), because every repair copies a run's edge outward. Any
+codon claim must beat that ratchet.
+
+Two codons were added, separately, both uniform and
+symbol-symmetric; each is two rules, and the nine-rule base plus
+one codon is the eleven-rule world of the subtitle. The {\bf timing codon} gives a head that is
+reading a run (same symbol behind it) a second, co-applicable
+repair rule --- doubling repair's share of the event budget at run
+sites, {\it without changing what is written}. It carried 40--43\%
+of all repairs and did nothing: every paired differential is
+statistically zero at 64 seeds. The reason is visible in the rule
+text --- both rules write the same symbol, so the codon modulates
+only {\it when} a hole closes, and fill identity is
+timing-independent. The {\bf content codon} lets a head reading a
+run repair a two-cell gap with {\it two copies in one event} ---
+changing what is written. It fired in only 9--21\% of repairs and
+moved every observable first-order: commons health up 28\% at a
+20\% damage share, up 60\% in the collapse regime (paired
+$t\approx4$, $n{=}64$ throughout), run structure above the null at
+every damage share, and --- night 9's fine grid --- one full step
+of viability at the collapse boundary. \lawname{L5} Heritable
+information --- in every codon tested --- is exactly the part of
+pattern whose reading changes what the machinery writes. Reading
+frequency is irrelevant; consequence of reading is everything. L2
+and L5 are one law seen from two sides: an uncontested rate {\it
+is} a schedule.
+
+\sec Movement IV: ecology without an author (night 10)
+
+Deception entered as two one-character edits of night 8's honest
+codons --- in this substrate the distance between fidelity and
+parasitism is literally one symbol.
+
+The {\bf mutator} (the timing codon with its context flipped: at a
+run's {\it edge}, the western gene reaches through the machinery
+and claims the hole, making the fill a 50/50 contest) fails by
+starvation. It feeds on boundaries between runs, and boundaries
+are what the coarsening ratchet destroys: all mutator arms
+crystallize to a single-symbol world, the mutator ending with
+under 2\% of repairs. A deception that consumes its own context is
+self-limiting.
+
+The {\bf parasite} (the content codon with its {\it output}
+flipped: the same run-reading context, but the double yield spent
+on {\it wrong} copies) is fueled by order itself, and it cannot
+starve. Its arms never crystallize. The boundary density $\rho$
+--- boundaries per adjacent gene pair, so $0$ is a one-species
+crystal and $0.5$ is coin-flip disorder --- stabilizes at $\rho\approx0.2$ at {\it every} damage share
+(Figure~3), against $\rho=0$ in
+every parasite-free arm, and fluctuates forever around that level
+(the fluctuation amplitude grows with damage share while the level
+does not --- Section~9 explains both). The cycle is visible in the
+trajectories: coarsening grows runs; runs regenerate the
+parasite's reading context; wrong copies re-seed boundaries; local
+order collapses; coarsening resumes. And the cycle is not a
+manner of speaking: sampled at the mechanism's own timescale the
+trajectory violates detailed balance outright ($t\approx-10$ at
+five-event lags; Section~9) --- a circulating probability current
+that no reversible rule set could produce. The parasite is
+simultaneously a {\it matter benefactor} and an {\it information
+corruptor}: its commons health matches the honest-codon arms and
+beats the null in the collapse regime, because wrong copies still
+fill wounds. Two corollaries. First, coexistence. Night 4's impossibility is
+the small theorem it sounds like: under overwrite competition the
+monocultures are absorbing and reachable, so fixation is almost
+sure --- gambler's ruin. Here the ordered state is {\it not}
+absorbing (a whole-ring run is itself parasite context: the
+crystal leaks), and with at least two heads the reachable set
+contains no absorbing state at all; “permanent” means exactly
+that --- recurrence of the mixed phase, structural in the law and
+observed in 128 of 128 parasite-arm runs, in the family of
+diversity-under-disturbance results ecology knows [18]. And the parasite arms are the only worlds of the arc that
+never exhaust their variation: standing diversity is generated and
+regulated by the system itself, with no mutation operator
+anywhere. \lawname{L6} Deception persists iff it is fueled by the
+order it attacks --- parasitology's oldest rule, derived in
+thirteen rules.
+
+\medskip\centerline{\picw=11cm \inspic{figs/rho.pdf}}
+\smallskip\noindent{\bf Figure 3.} Mean boundary density over 32
+seeds at a 20\% damage share. The codon-free and mutator worlds
+crystallize ($\rho\to0$); both parasite worlds hold a fluctuating
+plateau forever ($\rho^*=0.261\pm0.013$ parasite-only,
+$0.204\pm0.014$ with the honest codon competing; seed sd).
+\medskip
+
+The stationary word itself testifies (Section~9): its run-length
+distribution is measurably non-geometric --- singleton runs
+suppressed, pairs enriched, the pair-codon's own writing signature
+--- and its two-point correlations turn {\it negative} at
+distances of three to five cells, which --- given the measured
+positive $C(1)$ --- no order-1 Markov fit can reproduce. The parasite does not merely keep the world diverse; it
+gives the stationary language a structure that remembers the
+grammar that made it.
+
+A referee-proofing check: at equal machinery density (one head per
+24 cells, rings 24 and 48) the parasite level is the same at both
+sizes for moderate damage --- the phase is intensive, not a
+small-ring artifact --- with one honest corner: at the collapse
+edge a {\it single} polymerase cannot sustain it (the world dies
+back to a pure remnant of whatever the machine was sheltering);
+two can. The phase has a machinery floor.
+
+\sec Theory: what the axioms explain
+
+\secc Which axioms each law consumes
+
+\medskip
+\noindent\table{lll}{
+law & consumes & scope prediction (ablation) \crl\noalign{\smallskip}
+L1 expression & A5 + the no-copy abstinence & closed world: frozen (measured, 208/208) \cr
+L2 contest & A3, A4 & survives any update order that serializes \cr
+L3 structural fitness & A3 & {\it breaks} under synchronous update \cr
+L4 residence & A2, A3, A5 & weakens without exclusion \cr
+L5 heredity content & A1, A4 & needs timing-independent fill identity \cr
+L6 deception & A1, A5; sign via A3 & mean-field: survives (below) \cr
+}
+\medskip
+
+\noindent The table generates experiments mechanically: each law
+should survive exactly the ablations of axioms it does not
+consume. Two entries are already measured (L1's closed-world
+column is the arc's no-damage controls; L2's serialization was
+stress-tested by night 9's bit-identical runs). The sharpest open
+prediction is L3's: under synchronous parallel updating,
+wind-up strokes cost wall-clock instead of budget share, the
+fitness arithmetic changes, and the ladder results should shift or
+vanish. We register it as falsifiable scope
+rather than claim universality.
+
+\secc Contest is a statement about critical pairs
+
+In rewriting vocabulary, an overlap of enabled instances is a
+{\it critical pair}. Proposition (schedule invisibility): if,
+between consecutive external events, the enabled instances are
+pairwise non-overlapping and each phase runs to completion, then
+the inter-event state is independent of the rule weights ---
+non-overlapping applications commute, so by Newman's lemma the
+normal form is unique and weights only permute the path to it; no
+outcome functional can depend on them. Selection therefore
+requires critical pairs. Night 9's uncontested arms ---
+bit-identical across a four-fold handicap --- are the hypothesis
+side of this proposition holding exactly; its contested arms'
+24/24 are the converse. Nights 4 and 8 are the same statement at
+two scales: a persistently contested mover against a
+critical-pair-free handler; a content codon that changes what is
+written against a timing codon that merely reorders it.
+
+\secc A mean-field reduction of the parasite phase (L6)
+
+Let $\rho$ be boundary density and $\delta$ the damage share. Three
+processes move $\rho$. {\it Coarsening:} a wound plus its repair
+replaces a random cell by a copy of its western neighbour; in a
+mean-field of independent adjacent pairs this changes the expected
+boundary count by $-2\rho^2$ per repair --- a quadratic loss,
+which reproduces the null's behaviour: crystallization with a slow
+tail, $\rho=0$ absorbing. {\it Gap bursts} add a loss linear in
+$\rho$ (a multi-cell gap refills from one flank, deleting any
+boundary it spanned). {\it Deception:} an infidelity event creates
+about two boundaries, at a rate proportional to its {\it fuel}
+term --- $\rho$ for the mutator (it needs a boundary to read),
+$(1-\rho)$ for the parasite (it needs a run). Hence
+
+$$
+\dot\rho \;=\; 2\,c_d\,\delta\,F(\rho)\;-\;2\,c_0\,\delta\,\rho^2
+\;-\;c_1\,\delta\,\rho, \qquad
+F(\rho)=\cases{\rho & mutator \cr 1-\rho & parasite.}
+$$
+
+Two structural consequences follow immediately, and both were
+measured before this reduction was written. First, the {\bf
+dichotomy}: for the parasite, $F(0)=1>0$, so the flow at the
+crystal is strictly positive --- $\rho=0$ is not absorbing and an
+interior equilibrium $\rho^*$ exists for any nonzero deception
+coefficient. For the mutator, $F(0)=0$: gain and the linear loss
+compete at the same order, and the crystal remains absorbing
+whenever bursts and coarsening dominate --- which the data decided
+(the mutator's measured share never reached 2\%). The sign of the
+fuel term at the ordered state is the whole law. Second, the {\bf
+two robustnesses}: every term carries the same factor $\delta$, so
+the damage share sets the {\it clock} but cancels from the
+equilibrium condition --- predicting a plateau level insensitive
+to damage share and ring size, with fluctuation {\it amplitude}
+growing with $\delta$ (fewer, larger stochastic kicks per unit of
+relaxation). Both match: $\rho^*\approx0.2$ across all
+damage shares and both rings; second-half standard deviation
+rising from 0.08 to 0.20 as damage share triples. (The reduction
+assumes independent adjacent pairs while Section~9.4 measures
+correlations beyond any order-1 model; there is no contradiction
+--- the consequences used are structural, the sign of $F(0)$ and
+the $\delta$-cancellation, not quantitative --- but the mean-field
+succeeds despite, not because of, its independence assumption.)
+
+The current implied by the interior state is measured directly:
+time-reversal asymmetry of the (boundary density, tape level)
+trajectory is null at the paper's standard 50-event sampling and
+decisive at 5-event sampling ($t=-10.5$ at lag one in the
+two-codon world, decaying within $\approx$40 events --- the
+current lives at the timescale of individual repair episodes,
+which coarser grids alias away). The parasite-only world adds
+structure: the asymmetry {\it reverses sign} with lag ($-9.3$ at
+lag one, $+5.2$ at lag sixteen) --- two nested, counter-rotating
+circulation loops, a fast wound-repair cycle inside a slow
+build-and-corrupt cycle, the slow loop suppressed when the honest
+codon is present. Detailed balance is decisively violated; a
+reversible grammar cannot have this phase.
+
+\secc The stationary word is not order-1 Markov
+
+Two tests against the maximum-entropy null at the measured
+boundary density. Run lengths: singletons suppressed and pairs
+enriched relative to the geometric distribution in all four
+measured cells --- the pair-codon writes wrong copies in pairs,
+and the word keeps that signature. Correlations: $C(1)$ matches
+the Markov value by construction, then the measured $C(d)$
+collapses faster than $(1-2\rho)^d$ and turns negative at
+$d=3$--$5$ (deepest $-0.16$). A two-state chain can alternate
+sign, but only with $C(1)<0$; the measured $C(1)>0$ forces any
+order-1 fit to $C(d)=C(1)^d>0$ at every lag, so the negative lobe
+excludes order-1 outright. The stationary
+language of the parasite phase has liquid-like short-range order
+at a characteristic domain scale of two to three cells: the phenomenon climbs the weighted-language hierarchy, and the
+climb is mechanistic --- the word statistics carry the generating
+codon's signature.
+
+\secc The residence law: a derivation, a self-refutation, and a better law
+
+Write the composition balance. Deaths strike visible genes
+composition-uniformly. Births write the gene the machinery covers;
+split them by the covered value's provenance --- freshly inherited
+at the wound's flank (composition-distributed) versus carried
+through the head's dwell (residence-distributed, share
+$\lambda>0$). Then
+$$
+\dot x \;\propto\; \lambda\,\bigl(R(x)-x\bigr),
+$$
+and the channel weights, previously flagged as the open unknown,
+cancel: any equilibrium must satisfy $x^*=R(x^*)$, and away from
+one the residence excess $R(x)-x$ is a selection differential ---
+a Fisher-like drift with no fitness function anywhere.
+
+The empirical part then corrected us twice, and the corrections
+improved the law. On a frozen tape the residence map is pure
+traversal dwell, $R(x)=kx/(1-x+kx)$ --- verified exactly. On the
+live tape, charting $(x,R)$ windows along relaxation trajectories
+yields a map (Figure~4) lying strictly {\it between} identity
+and the dwell curve ($R-x\approx+0.10$ to $+0.22$ across the interior, larger
+at dwell 3 than dwell 2), so at these damage shares $R$ has {\it
+no interior fixed point}: both monocultures are absorbing and the
+worlds fixate. That exposed our own earlier check as vacuous ---
+the seed-averaged cells in which composition appeared to track
+residence were mixtures of fixated monocultures, which satisfy
+$R=x$ identically (the aggregation trap of Section~4). What
+survives is stronger than what fell: the drift law, with the
+charted excess as its selection coefficient, is borne out at 64 seeds: the slow gene
+fixes above the neutral expectation set by the initial composition
+($0.47\pm0.12$ at dwell 2, $0.55\pm0.12$ at dwell 3, against
+neutral 0.36; pooled $z\approx3.4$), the dwell ordering
+directional but not separated at this power. The one open
+calculation left is the live map itself: a renewal analysis of the
+head's action cycle with self-consistent hole density, its target
+curve now measured.
+
+\medskip\centerline{\picw=9.5cm \inspic{figs/rmap.pdf}}
+\smallskip\noindent{\bf Figure 4.} The residence map: frozen-tape
+theory (dotted), live measurement along relaxation trajectories
+(solid, binned windows over 16 seeds per dwell), identity dashed.
+The live map lies between identity and dwell with no interior
+fixed point; the excess $R-x$ is L4's selection differential.
+\medskip
+
+\secc One thermodynamic sentence
+
+Axiom A5 is the arc's cartoon of the second law plus the flux that
+funds repair; the no-damage controls (208 runs, no replication ever
+happens) are the measured version of “no dissipation, no
+self-organization,” and we leave the resonance at that.
+
+\sec The phenomena ledger
+
+None of the following was named in any rule set; each was either
+found by exhaustive census or emerged in measurement --- several
+by first falsifying our written prediction. “World (rules)”
+counts rules as each night's text does: genotype rules for the
+searched and composed worlds (their two-to-four-rule damage harness
+kept separate), the full law for the tape worlds, where damage is
+constitutive.
+
+\medskip
+\noindent\table{lcll}{
+phenomenon & night & world (rules) & provenance \crl\noalign{\smallskip}
+predicate-dependent minimality & 1 & census (1--2) & exhaustion \cr
+self-scaffolding structure & 1 & census (2) & census surprise \cr
+dynamic self-repair & 2 & census (2) & exhaustion \cr
+damage-as-signal regeneration & 2 & census (2) & universal (16/16) \cr
+viability threshold (budget share) & 3 & census (2) & emerged \cr
+fragmentation reproduction & 3 & census (2) & emerged, unsearched \cr
+heredity, breed-true & 4 & lineage (4) & composed \cr
+seed bank, dormancy, resurrection & 4 & lineage (4) & emerged \cr
+drift; gambler's-ruin fixation & 4 & lineage (4) & emerged \cr
+selection on contested rates & 4, 9 & lineage (4--6) & law, both cells \cr
+adaptation with an arrow & 5 & lineage (6) & 288/288 vs 0/288 \cr
+genotype/phenotype; expression & 5 & lineage (6) & emerged (L1) \cr
+mutation--selection balance & 5 & lineage (6) & emerged \cr
+leapfrog; clonal interference & 6 & ladder (15) & emerged \cr
+evolutionary rescue & 6 & ladder (15) & emerged \cr
+error catastrophe & 6 & ladder (15) & emerged \cr
+commons collapse; shelter & 7 & tape (9) & emerged; prediction refuted \cr
+tragedy of commons (dwell threshold) & 9 & tape (10) & emerged \cr
+self-organized homogenization & 8 & tape (9) & emerged null \cr
+sequence-programmed replication & 8 & tape (11) & template designed, effect measured \cr
+parasitism; host--parasite cycle & 10 & tape (13) & emerged \cr
+permanent coexistence, no niches & 10 & tape (13) & emerged \cr
+self-sustaining variation & 10 & tape (13) & emerged \cr
+circulating probability current & --- & tape (11--13) & measured, Sec.~9 \cr
+stationary word above order-1 Markov & --- & tape (11--13) & measured, Sec.~9 \cr
+}
+\medskip
+
+\noindent The three world families, for orientation; complete
+listings live in the repository result documents:
+
+\medskip
+\noindent\table{lllll}{
+world & nights & matter & law size & damage \crl\noalign{\smallskip}
+census F1/F2 & 1--3 & \g{A},\g{B} & 1--2 & point deletion \cr
+lineage worlds & 4--6 & heads + trail genomes & 4--15 & point deletion \cr
+tape world & 7--10 & genes \g{f},\g{s}; polymerases & 9 $+$ 2 per codon & tape-only deletion \cr
+}
+\medskip
+
+\sec The six laws, substrate-free
+
+\begitems
+* \lawname{L1 Expression} In machinery-mediated copying systems,
+stored variation enters phenotype space only through repair
+events: damage is simultaneously selection pressure and
+transcription. No damage, no evolution --- however much variation
+the genome carries.
+* \lawname{L2 Contest} A rate parameter is under selection iff two
+processes race for the same resource under one clock. An
+uncontested rate is a schedule; schedules are invisible to
+selection however large their differences.
+* \lawname{L3 Structural fitness} Where all processes pay from a
+shared event budget, the number of events a mechanism spends per
+unit of outcome is a fitness, with no fitness function anywhere:
+anatomy is selectable with all rates equal.
+* \lawname{L4 Residence} With protection or expression coupled
+to the copying machinery's position, the machinery's residence
+excess over composition is a selection differential:
+slow-to-process information is favoured in proportion to
+structural dwell, up to fixation, even in a healthy system ---
+with no fitness function anywhere.
+* \lawname{L5 Heredity} Heritable information is exactly the
+part of pattern whose reading changes what the machinery writes;
+reading frequency is irrelevant. (We advance L5 as a definition
+the measurements reward --- demonstrated for both codons tested
+--- rather than as a proven biconditional.)
+* \lawname{L6 Deception} Infidelity persists iff its expression is
+fueled by the order it corrupts. Disorder-fueled deception starves
+on its own success; order-fueled deception self-regulates into
+permanent coexistence with its host --- and thereby into a
+self-sustaining variation supply.
+\enditems
+
+\sec Honest limits
+
+\begitems
+* {\bf The codon tables are still law-side.} Nights 8 and 10 made
+codon {\it expression} pattern-dependent, but the map from context
+to consequence is authored and uniform. A codon table in matter
+--- semantics the tape itself can rewrite --- is the identified
+next remove, and likely spends the substrate's so-far-unused
+second dimension.
+* {\bf One dimension, two-symbol genomes, rings of 6--96 cells.}
+The parasite phase is intensive in ring size at equal machinery
+density, with a measured machinery floor at the collapse edge;
+other results state their ring scope explicitly.
+Collapse-regime composition depends on the absolute machinery
+count (the remnant is what the machines cover), and is stated per
+configuration.
+* {\bf Theory status is uneven by design.} L6 has a reduction
+that explains the measured robustnesses and a directly measured
+current; L2 has a proof sketch via critical pairs; L4 is a
+derived drift law whose coefficient --- the live residence map ---
+is charted but not yet derived (a renewal calculation with a
+measured target); L3 carries a registered falsification condition
+(synchronous updating). The law-side ablation program and the
+hierarchy formalization are deferred to a successor paper by
+scope, not difficulty.
+* {\bf Negative results are load-bearing.} The timing codon's
+null, the mutator's starvation, the handler's invisibility, and
+two dissolved selection signals are not caveats; they are how the
+laws were isolated. Where our written predictions failed (night
+7's tragedy mechanism, night 3's repair-selection forecast), the
+failure is reported beside its resolution.
+* {\bf Instrument scope.} The engine loses three to five orders of
+magnitude of runtime to specialized kernels [22]; what that buys
+here is exhaustive small-world search with exact accounting for
+free. Exponent-grade statistical physics of these models belongs
+to dedicated code, validated against our replay.
+\enditems
+
+\sec Related work
+
+AlChemy [1] derived replicators from a chemistry without space;
+Tierra [2] and Avida [3] evolve authored replicators; the EvCA
+program [4] searches over CA rule tables with an external genetic
+algorithm. The present arc differs from each on one axis:
+replication is never a primitive (it emerges as repair, night 3,
+and becomes programmable, night 8); the law is never searched or
+mutated (all search and all evolution happen in matter under one
+fixed physics); and there is no external selection loop ---
+selection, where it occurs, is paid from the same event budget as
+everything else, in the spirit of asynchronous-CA studies [5,6,16]
+with the event measure promoted from nuisance to subject. A
+formal kinship deserves its own sentence: in one dimension,
+spatial adjacency {\it is} string adjacency, so these worlds are
+weighted stochastic string-rewriting (semi-Thue) systems on
+circular words [23,24] --- sequential rewriting under a weighted
+strategy, walls as end markers, the whole arc a study of
+stationary processes of a small context-sensitive fragment. The
+mapping breaks precisely at two dimensions, where graph rewriting
+begins, and the critical-pair reading of L2 (Section~9) is its
+first dividend. The nearest neighbour of the coexistence result is
+the spatial host--parasite literature of RNA-world models, where
+parasites are contained by emergent pattern formation --- spiral
+waves [25], travelling waves and multilevel structure [26] --- in
+two dimensions; our claim is deliberately sharper, coexistence on
+a bare one-dimensional ring with no pattern-forming mechanism
+available, carried by the fuel structure of the deception alone
+(L6). Artificial chemistries broadly are reviewed in [27]; beside
+the night-2 census sits the self-repairing-loop lineage of Langton
+and Sayama [28,29], with the difference that our repairers are
+found by exhaustion, not construction. The individual phenomena
+connect to their own literatures: error
+catastrophe and parasite-threatened replicators to Eigen and the
+hypercycle [7,8] --- whose classical rescue, compartments, is
+exactly what our measured parasite now motivates; evolutionary
+rescue to Bell and Gonzalez [9,19]; clonal interference to Gerrish
+and Lenski [10]; the commons to Hardin [11]; coarsening and
+majority amplification to voter models [12]; damage-coupled
+mutation supply to stress-induced mutagenesis [17];
+diversity-under-disturbance to Connell [18]; gene-level
+bookkeeping to Dawkins [13]; the ladder of removes to the
+major-transitions program [14]; dormancy to seed-bank ecology
+[15]; and the summit the arc walks toward --- self-copying
+structure without a copy primitive --- to von Neumann [21].
+
+\sec Where this leaves the project
+
+The arc set out to measure what evolution needs from law. The
+running answer: locality, exclusion, serialized choice, a frozen
+rule table, and a drive --- five axioms with no evolutionary
+vocabulary --- plus configurations. Selection, heredity, dormancy,
+adaptation, rescue, catastrophe, tragedy, and parasitism are then
+properties of matter, several provably minimal within their
+declared families. Four continuations are queued: the axiom-ablation matrix
+(subtract law-side axioms as this paper subtracted matter-side
+ingredients --- each law should survive exactly the ablations of
+the axioms it does not consume); the formal program (the
+semi-Thue treatment, the critical-pair theorem, the residence
+renewal calculation --- rigor deferred here by scope, not
+difficulty); the codon table in matter; and compartments ---
+biology's answer to parasites [8,14] --- built as walls of
+matter, in a world that finally contains a parasite to test them
+against.
+
+\sec Appendix: the substrate and the families, formally
+
+{\bf State.} A configuration is a map $c:{\bf Z}_N\to\Sigma\cup\{\sqr\}$
+on a ring of $N$ cells; $\sqr$ is the empty cell, $\Sigma$ the
+world's alphabet (census and lineage worlds: matter symbols such as
+\g{A},\g{B},\dots; tape world: genes \g{f},\g{s} and machinery
+states \g{F},\g{S},\g{W},\g{V}).
+
+{\bf Rules.} A rule is $r=(a,\tau,P_r,O_r,w)$: an anchor symbol
+$a\in\Sigma$, a trigger class $\tau$ (working event or wound), a
+read set $P_r$ of (offset, required symbol) pairs, a write set
+$O_r$ of (offset, written symbol) pairs, and a weight $w$ (equal to
+1 for every rule of the final worlds). $r$ is {\it enabled} at
+position $i$ iff $c(i)=a$ and $c(i{+}d)=g$ for every $(d,g)\in P_r$.
+Applying it sets $c(i{+}d):=g'$ for every $(d,g')\in O_r$. All
+offsets are in $\{-1,0,+1,+2\}$; there are no variables (Section 2):
+every written symbol is a constant of the rule.
+
+{\bf Events.} A working event collects all enabled
+(rule, position) pairs with $\tau=$ work and applies exactly one,
+sampled with probability proportional to $w$. A wound event does
+the same over the erase family $\{(g,\hbox{wound},\emptyset,
+\{(0,\sqr)\},1):g\in\Sigma\}$ --- one uniformly random occupied
+cell becomes empty. The drive interleaves one wound per $m{+}1$
+events.
+
+{\bf Shapes.} Every rule of the paper is an instance of seven
+shapes ($\varrho$ = the anchor's replacement symbol; $C,W,X$
+symbols or $\sqr$):
+
+\medskip
+\noindent\table{lll}{
+shape & reads & writes \crl\noalign{\smallskip}
+self & --- & $0{\mapsto}\varrho$ \cr
+write($X$) & --- & $0{\mapsto}\varrho,\ {+}1{\mapsto}X$ \cr
+req($C$) & ${+}1{\mapsto}C$ & $0{\mapsto}\varrho$ \cr
+reqwrite($C,X$) & ${+}1{\mapsto}C$ & $0{\mapsto}\varrho,\ {+}1{\mapsto}X$ \cr
+wreqwrite($W,C,X$) & ${-}1{\mapsto}W,\ {+}1{\mapsto}C$ & $0{\mapsto}\varrho,\ {+}1{\mapsto}X$ \cr
+gapwrite($W,X$) & ${-}1{\mapsto}W,\ {+}1{\mapsto}\sqr,\ {+}2{\mapsto}\sqr$ & $0{\mapsto}\varrho,\ {+}1{\mapsto}X,\ {+}2{\mapsto}X$ \cr
+westclaim($X$) & ${-}1{\mapsto}\sqr$ & $0{\mapsto}\varrho,\ {-}1{\mapsto}X$ \cr
+}
+\medskip
+
+{\bf Families.} With $\Sigma=\{A,B\}$ and
+$\varrho\in\{A,B,\sqr\}$: $F_1$ is the set of all rules of
+shapes self, write($X$), req($C$) with $X,C\in\{A,B,\sqr\}$ ---
+$2\times3\times(1{+}3{+}3)=42$ rules; $F_2=F_1\cup{}$reqwrite
+($2\times3\times9=54$ more, 96 total). A genotype is a subset of
+the family; stratum $k$ is all $k$-subsets; minimality claims
+quantify over exactly these sets, with the wound family as fixed
+harness in both.
+
+{\bf The tape world} (nights 7--10), complete law:
+
+\begitems
+* $F$-movers: $(F,\hbox{reqwrite}(f,F))$ and
+$(F,\hbox{reqwrite}(s,W))$, both $\varrho{=}f$;
+* $S$-movers: $(S,\hbox{reqwrite}(f,F))$ and
+$(S,\hbox{reqwrite}(s,W))$, both $\varrho{=}s$;
+* settle: $(W,\hbox{self},\varrho{=}S)$; the dwell-3 variant adds
+$W{\to}V{\to}S$;
+* repairs: $(F,\hbox{reqwrite}(\sqr,f),\varrho{=}F)$ and
+$(S,\hbox{reqwrite}(\sqr,s),\varrho{=}S)$;
+* wounds on $\{f,s\}$ only; the codons are the wreqwrite/gapwrite
+instances of Sections 7--8, each symbol-symmetric.
+\enditems
+
+\noindent Machinery states are wound-immune and no rule removes
+them: heads are eternal, which is where the machinery floor of the
+parasite phase (Section~8) enters.
+
+\sec References
+
+\begitems\style n
+* Fontana, W., Buss, L. W. (1994). “The arrival of the fittest”:
+Toward a theory of biological organization. {\it Bull.\ Math.\
+Biol.} 56, 1--64.
+* Ray, T. S. (1991). An approach to the synthesis of life. In
+{\it Artificial Life II}. Addison-Wesley.
+* Ofria, C., Wilke, C. O. (2004). Avida: a software platform for
+research in computational evolutionary biology. {\it Artificial
+Life} 10, 191--229.
+* Mitchell, M., Crutchfield, J. P., Das, R. (1996). Evolving
+cellular automata with genetic algorithms: a review of recent
+work. {\it Proc.\ 1st Int.\ Conf.\ on Evolutionary Computation and
+Its Applications} (Moscow).
+* Fatès, N. (2014). A guided tour of asynchronous cellular
+automata. {\it J.\ Cellular Automata} 9, 387--416.
+* Blok, H. J., Bergersen, B. (1999). Synchronous versus
+asynchronous updating in the “game of Life”. {\it Phys.\ Rev.\
+E} 59, 3876--3879.
+* Eigen, M. (1971). Selforganization of matter and the evolution
+of biological macromolecules. {\it Naturwissenschaften} 58,
+465--523.
+* Eigen, M., Schuster, P. (1979). {\it The Hypercycle: A Principle
+of Natural Self-Organization}. Springer.
+* Bell, G., Gonzalez, A. (2009). Evolutionary rescue can prevent
+extinction following environmental change. {\it Ecology Letters}
+12, 942--948.
+* Gerrish, P. J., Lenski, R. E. (1998). The fate of competing
+beneficial mutations in an asexual population. {\it Genetica}
+102/103, 127--144.
+* Hardin, G. (1968). The tragedy of the commons. {\it Science}
+162, 1243--1248.
+* Clifford, P., Sudbury, A. (1973). A model for spatial conflict.
+{\it Biometrika} 60, 581--588. (Holley, R., Liggett, T., 1975,
+{\it Ann.\ Prob.} 3, 643--663.)
+* Dawkins, R. (1976). {\it The Selfish Gene}. Oxford University
+Press.
+* Maynard Smith, J., Szathmáry, E. (1995). {\it The Major
+Transitions in Evolution}. Oxford University Press.
+* Cohen, D. (1966). Optimizing reproduction in a randomly varying
+environment. {\it J.\ Theor.\ Biol.} 12, 119--129.
+* Nehaniv, C. L. (2004). Asynchronous automata networks can
+emulate any synchronous automata network. {\it Int.\ J.\ Algebra
+Comput.} 14, 719--739.
+* Galhardo, R. S., Hastings, P. J., Rosenberg, S. M. (2007).
+Mutation as a stress response and the regulation of evolvability.
+{\it Crit.\ Rev.\ Biochem.\ Mol.\ Biol.} 42, 399--435.
+* Connell, J. H. (1978). Diversity in tropical rain forests and
+coral reefs. {\it Science} 199, 1302--1310.
+* Gonzalez, A., Ronce, O., Ferrière, R., Hochberg, M. E. (2013).
+Evolutionary rescue: an emerging focus at the intersection between
+ecology and evolution. {\it Phil.\ Trans.\ R.\ Soc.\ B} 368,
+20120404.
+* Fatès, N., Morvan, M. (2005). An experimental study of
+robustness to asynchronism for elementary cellular automata.
+{\it Complex Systems} 16, 1--27.
+* von Neumann, J. (1966). {\it Theory of Self-Reproducing
+Automata} (A. W. Burks, ed.). University of Illinois Press.
+* Popelka, J., Claude (2026). Zahradnice: a grammar garden as an
+experimental substrate. Repository paper,
+\repo{paper/zahradnice-substrate.tex}, branch \repo{research}.
+* Newman, M. H. A. (1942). On theories with a combinatorial
+definition of “equivalence”. {\it Ann.\ Math.} 43, 223--243.
+* Book, R. V., Otto, F. (1993). {\it String-Rewriting Systems}.
+Springer.
+* Boerlijst, M. C., Hogeweg, P. (1991). Spiral wave structure in
+pre-biotic evolution: Hypercycles stable against parasites.
+{\it Physica D} 48, 17--28.
+* Takeuchi, N., Hogeweg, P. (2012). Evolutionary dynamics of
+RNA-like replicator systems: A bioinformatic approach to the
+origin of life. {\it Phys.\ Life Rev.} 9, 219--263.
+* Dittrich, P., Ziegler, J., Banzhaf, W. (2001). Artificial
+chemistries --- a review. {\it Artificial Life} 7, 225--275.
+* Langton, C. G. (1984). Self-reproduction in cellular automata.
+{\it Physica D} 10, 135--144.
+* Sayama, H. (1999). A new structurally dissolvable
+self-reproducing loop evolving in a simple cellular automata
+space. {\it Artificial Life} 5, 343--365.
+\enditems
+
+\medskip
+\noindent{\bf Reproduce it.} Clone the repository, `make
+zahradnice-size`, then run any night's driver, e.g.
+\medskip
+\centerline{\tt python3 experiments/inverse/night10.py}
+\medskip
+\noindent Every number above regenerates from a seed; each driver
+prints its own summary against its CSV. Code, data and figures are
+pinned at commit {\tt 460f9f0} on branch {\tt research}; a tagged,
+Zenodo-archived release (DOI) will accompany submission. Or simply watch the
+endgame:
+\medskip
+\centerline{\tt ./zahradnice demos/inverse/parasite.cfg}
+\medskip
+\noindent --- green and red genes, white polymerases; order keeps
+forming, deception keeps harvesting it, and neither ever wins.
+Press {\tt p} to wound the world; compare
+\repo{demos/inverse/codon.cfg}, one flipped symbol away, where the
+crystal wins forever.
+
+\bye
