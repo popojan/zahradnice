@@ -362,8 +362,10 @@ boundary sits between damage shares of one third and one half of
 the event budget --- and because rates are shares (axiom A3), the
 boundary is a {\it ratio}: it does not move with ring size. The
 night-2 anatomy predicts robustness: adjacent-respawn mechanisms
-are ring-independent, walk-to-wound mechanisms fail on the larger
-ring, exactly as their healing-time scaling implies (Figure~2).
+are ring-independent; walk-to-wound mechanisms lose reliability on
+the larger ring --- recovering only half the time, the
+alive-but-altered outcome --- exactly as their healing-time
+scaling implies (Figure~2).
 
 \medskip\centerline{\picw=10.5cm \inspic{figs/phase.pdf}}
 \smallskip\noindent{\bf Figure 2.} Recovery fraction against
@@ -592,8 +594,9 @@ flipped: the same run-reading context, but the double yield spent
 on {\it wrong} copies) is fueled by order itself, and it cannot
 starve. Its arms never crystallize. The boundary density $\rho$
 --- boundaries per adjacent gene pair, so $0$ is a one-species
-crystal and $0.5$ is coin-flip disorder --- stabilizes at $\rho\approx0.2$ at {\it every} damage share
-(Figure~3), against $\rho=0$ in
+crystal and $0.5$ is coin-flip disorder --- stabilizes --- at $\rho^*\approx0.26$ parasite-only,
+$\approx0.20$ with the honest codon competing --- at {\it every}
+damage share (Figure~3), against $\rho=0$ in
 every parasite-free arm, and fluctuates forever around that level
 (the fluctuation amplitude grows with damage share while the level
 does not --- Section~9 explains both). The cycle is visible in the
@@ -731,8 +734,9 @@ the damage share sets the {\it clock} but cancels from the
 equilibrium condition --- predicting a plateau level insensitive
 to damage share and ring size, with fluctuation {\it amplitude}
 growing with $\delta$ (fewer, larger stochastic kicks per unit of
-relaxation). Both match: $\rho^*\approx0.2$ across all
-damage shares and both rings; second-half standard deviation
+relaxation). Both match: $\rho^*$ is arm-dependent but constant across
+damage shares and both rings ($0.26$ parasite-only, $0.20$ with
+the honest codon); second-half standard deviation
 rising from 0.08 to 0.20 as damage share triples. (The reduction
 assumes independent adjacent pairs while Section~9.4 measures
 correlations beyond any order-1 model; there is no contradiction
@@ -1035,10 +1039,12 @@ every written symbol is a constant of the rule.
 
 {\bf Events.} A working event collects all enabled
 (rule, position) pairs with $\tau=$ work and applies exactly one,
-sampled with probability proportional to $w$. A wound event does
-the same over the erase family $\{(g,\hbox{wound},\emptyset,
-\{(0,\sqr)\},1):g\in\Sigma\}$ --- one uniformly random occupied
-cell becomes empty. The drive interleaves one wound per $m{+}1$
+sampled with probability proportional to $w$. A wound event does the same over the
+erase family $\{(g,\hbox{wound},\emptyset,\{(0,\sqr)\},1):
+g\in\Sigma_w\}$ for a declared $\Sigma_w\subseteq\Sigma$ ---
+one uniformly random erasable cell becomes empty. Census and
+lineage worlds take $\Sigma_w=\Sigma$; the tape world takes
+$\Sigma_w=\{f,s\}$, leaving machinery wound-immune. The drive interleaves one wound per $m{+}1$
 events.
 
 {\bf Shapes.} Every rule of the paper is an instance of seven
@@ -1067,24 +1073,30 @@ the family; stratum $k$ is all $k$-subsets; minimality claims
 quantify over exactly these sets, with the wound family as fixed
 harness in both.
 
-{\bf The tape world} (nights 7--10), complete law:
+{\bf The tape world} (nights 7--10), complete law. The
+“nine uniform rules” of Section 7.1 count the wound pair, damage
+being constitutive there (the convention of the Section 10 ledger
+note); numbered:
 
-\begitems
-* $F$-movers: $(F,\hbox{reqwrite}(f,F))$ and
-$(F,\hbox{reqwrite}(s,W))$, both $\varrho{=}f$;
-* $S$-movers: $(S,\hbox{reqwrite}(f,F))$ and
-$(S,\hbox{reqwrite}(s,W))$, both $\varrho{=}s$;
-* settle: $(W,\hbox{self},\varrho{=}S)$; the dwell-3 variant adds
-$W{\to}V{\to}S$;
-* repairs: $(F,\hbox{reqwrite}(\sqr,f),\varrho{=}F)$ and
-$(S,\hbox{reqwrite}(\sqr,s),\varrho{=}S)$;
-* wounds on $\{f,s\}$ only; the codons are the wreqwrite/gapwrite
-instances of Sections 7--8, each symbol-symmetric.
+\begitems\style n
+* $F$-mover onto $f$: $(F,\hbox{reqwrite}(f,F),\varrho{=}f)$
+* $F$-mover onto $s$: $(F,\hbox{reqwrite}(s,W),\varrho{=}f)$
+* $S$-mover onto $f$: $(S,\hbox{reqwrite}(f,F),\varrho{=}s)$
+* $S$-mover onto $s$: $(S,\hbox{reqwrite}(s,W),\varrho{=}s)$
+* settle: $(W,\hbox{self},\varrho{=}S)$; the dwell-3 variant
+inserts $W{\to}V{\to}S$ (ten rules there)
+* repair over $f$: $(F,\hbox{reqwrite}(\sqr,f),\varrho{=}F)$
+* repair over $s$: $(S,\hbox{reqwrite}(\sqr,s),\varrho{=}S)$
+* wound on $f$: $(f,\hbox{wound},\varrho{=}\sqr)$
+* wound on $s$: $(s,\hbox{wound},\varrho{=}\sqr)$
 \enditems
 
-\noindent Machinery states are wound-immune and no rule removes
-them: heads are eternal, which is where the machinery floor of the
-parasite phase (Section~8) enters.
+\noindent Each codon of Sections 7--8 adds its symbol-symmetric
+wreqwrite or gapwrite pair (9${+}$2 $=$ the subtitle's eleven;
+9${+}$4 $=$ thirteen with both). Machinery states appear in no
+erase rule and no rule removes them: heads are eternal, which is
+where the machinery floor of the parasite phase (Section~8)
+enters.
 
 \sec References
 
