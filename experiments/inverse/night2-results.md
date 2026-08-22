@@ -67,6 +67,9 @@ Both structural facts below were checked programmatically over all
    going) plus that one damage-conditioned handler. No satisfier
    uses two conditioned rules or two movers.
 
+Watch the archetype live: `./zahradnice demos/inverse/repair.cfg`
+(ambient wounds heal in red; press p to wound by hand).
+
 Example (the archetype): `A>B.writeA | B>A.req~` — A walks east
 leaving a B trail (mover); a B that ever sees empty east — possible
 only where a poke struck — turns into a fresh A head (handler).

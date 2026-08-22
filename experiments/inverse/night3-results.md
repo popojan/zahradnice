@@ -46,6 +46,10 @@ reorders the plan: multiplication is already in hand; what's missing
 is heredity (variants that breed true), which is a composition
 experiment, not a needle-in-haystack search.
 
+Watch it: `./zahradnice demos/inverse/repair.cfg` — gentle p =
+repair, medium mashing = multiple heads (this regime), fast mashing
+= collapse (the budget-share cliff).
+
 **4. "Alive but altered" is its own phase.** The fragile family at
 high damage on ring 12 survives 6/6 but restores behaviour only
 ~3/6: it lacks a merge mechanism, so damage-induced proliferation is

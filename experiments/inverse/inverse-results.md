@@ -71,6 +71,9 @@ classes by reachable dynamics:
 | M3 two-glyph walker | 1 | ring (6, 8) | `A>~.writeB\|B>~.writeA`: walks one cell per event, alternating glyph — population oscillates while translating |
 | M4 self-scaffolded context oscillator | 1 | 2 | `A>B.writeB\|B>A.reqB`: first fire writes a static B partner east; the partner never fires (its own east is empty) but is the load-bearing context for `reqB`. The oscillator builds its own wall, then leans on it. |
 
+Watch M4 live: `./zahradnice demos/inverse/m4.cfg` (p destroys it —
+contrast with the self-repairing `demos/inverse/repair.cfg`).
+
 M4 is the census's genuine discovery: the only satisfier where a
 context-match participates productively, and the smallest example in
 F1 of a program constructing inert matter that functions as structure
