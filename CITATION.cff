@@ -6,6 +6,11 @@ authors:
   - family-names: Popelka
     given-names: Jan
 license: CC0-1.0
+doi: 10.5281/zenodo.22059784
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22059785
+    description: Version DOI for release nights-1.0
 repository-code: "https://github.com/popojan/zahradnice"
 abstract: >-
   A terminal game engine whose programs are weighted stochastic 2D
