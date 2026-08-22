@@ -40,9 +40,53 @@ Verification (all measured cells, night 9-B):
 | dwell 2, m=2 | 0.62 | 0.62 | 0.00 |
 | dwell 3, m=2 | 0.69 | 0.69 | 0.00 |
 
-v3 action: upgrade §9.3 from "measured, decomposed, not derived"
-to this derivation; the open item shrinks to deriving R itself
-(the residence map's shape) from dwell and damage rate.
+v3 action (REVISED below, §1b): upgrade §9.3 to the derivation,
+but with the corrected empirical story.
+
+## 1b. CORRECTION (same day): the four-cell verification was vacuous;
+## the real law is a drift law
+
+Charting the LIVE residence map along relaxation trajectories
+(windowed (x, R) pairs, 16 seeds, k in {2,3}, m=8) revealed:
+
+- Frozen-tape R obeys the dwell formula kx/(1-x+kx) EXACTLY (after
+  removing a sampling-stride/period gcd alias — the day's third
+  aliasing incident; deterministic cycles must be sampled at strides
+  coprime to the period, or per-apply).
+- Live R(x) sits BETWEEN identity and dwell: R - x = +0.10..+0.22
+  across the whole interior, for both k (k=3 above k=2).
+- Therefore R has NO interior fixed point at m=8; the fixed-point
+  theorem of §1 is boundary-degenerate here: both monocultures are
+  absorbing, and the m=8 worlds FIXATE (the night-8 coarsening,
+  rediscovered from the composition side).
+- Consequently the §1 "verification table" was contentless: a
+  seed-average over fixated runs satisfies R = x identically
+  (monoculture => cover share = composition, trivially). Fourth
+  instance of the aggregation trap: a bimodal ensemble masqueraded
+  as an interior equilibrium.
+
+The law, restated with content: the balance equation of §1 still
+holds, so composition obeys  dx/dt ∝ λ (R(x) − x)  — the residence
+EXCESS is a selection differential (Fisher-like drift), and its
+measured k-dependence explains the fixation statistics: from the
+same s-poor init, P(fix s) ≈ 0.50 at dwell 2 (weak drift vs
+diffusion) and ≈ 0.69 at dwell 3 (strong drift). "Equilibrium ≈
+residence" survives only in its trivial boundary sense; the
+substantive quantity is the charted R(x) − x curve.
+
+Deriving R: the frozen part is done (dwell formula, verified); the
+live part is an interacting correction (holes, repair bursts,
+head–tape correlations) that pulls R from the dwell curve toward —
+but not onto — the identity. World-dependent in its coefficients,
+derivable in principle: the right object is a renewal analysis of
+the head's action cycle with a self-consistent standing-hole
+density. Open, now with the target curve measured.
+
+v3 actions updated: §9.3 presents (i) the balance/cancellation
+derivation, (ii) the drift-law reading with the charted R(x),
+(iii) fixation probabilities as the observable, and DROPS the
+four-cell table as evidence (it goes, if anywhere, into the
+aggregation-trap methods lesson).
 
 ## 2. L2 as a proposition about critical pairs
 
