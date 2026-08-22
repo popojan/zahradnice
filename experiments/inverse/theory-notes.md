@@ -196,3 +196,17 @@ semi-Thue paragraph (+Newman, Book-Otto refs), contested/
 uncontested definition, phrasing fixes; "read slowly" retained per
 author. Deferred to paper #3: axiom ablations, hierarchy
 formalization, residence renewal calculation.
+
+## 7. Review v3-01 response: v4 SHIPPED (2026-08-22)
+
+All ten major points + minors addressed in
+paper/zahradnice-nights-v4.tex (17 pp, 4 figures, formal appendix).
+Notable: M3 was a real error (order-1 exclusion now conditional on
+measured C(1)>0 — fixed here and to be reflected wherever quoted);
+M5 forced a re-power of P(fix): at 64 seeds 0.47±0.12 (dwell 2) vs
+0.55±0.12 (dwell 3) — dwell ordering DIRECTIONAL ONLY (the earlier
+0.50/0.69 at 16 seeds overstated separation; both exceed neutral
+0.36, pooled z≈3.4). Figures pipeline: experiments/inverse/
+fig_nights.py → paper/figs/. Pin: commit 460f9f0; tag + Zenodo DOI
+deferred to merge (author's call). M8 (venue, authorship policy)
+left to the author.
