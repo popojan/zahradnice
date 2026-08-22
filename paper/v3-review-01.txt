@@ -1,0 +1,53 @@
+The reproduce-it paths all check out: branch research exists, experiments/inverse/night10.py and demos/inverse/parasite.cfg/codon.cfg are there, and make zahradnice-size is a real target. Here's the review.
+
+Ano — přesně tak bych to udělal: poctivá recenze s akčním seznamem, ne binární verdikt. Tady je, psaná z pozice recenzenta, který zná ALife literaturu, specializuje se řekněme na asynchronní CA / stochastické částicové systémy, a o Zahradnici nikdy neslyšel.
+
+---
+
+Review: "The Subtraction Ladder" (v3)
+
+Summary (my words, to show I understood it). The authors fix a minimal stochastic string-rewriting physics — 1D ring, finite alphabet, weighted serialized events, frozen rule table, external random deletion — whose axioms contain no evolutionary vocabulary. Over ten experiments they first find minimal mechanisms by exhaustive search over small rule families, then compose evolving systems, then delete each authored ingredient (rate dials, lineage identity, mutation operator, fitness function, copy primitive) and show the corresponding phenomenon survives as a property of configuration: self-repair, fragmentation reproduction, heredity with a seed bank, adaptation with an arrow, evolutionary rescue, error catastrophe, a commons tragedy, and a parasite phase certified as a non-equilibrium steady state via a directly measured probability current. Six substrate-free "laws" are distilled; one (L6) gets a mean-field reduction with parameter-free robustness predictions that match measurement. All ~26k runs are verified by independent replay.
+
+Overall assessment. This is a genuinely interesting paper with an unusually high standard of experimental hygiene for the field. The subtraction methodology is a real inversion of the standard ALife narrative (where the replicator is authored and emergence is downstream), the negative results are load-bearing rather than decorative, and Section 4.3 — the catalogue of traps that cost the authors wrong tables — should be required reading. The strongest scientific core is the L6 cluster: measured dichotomy (mutator starves, parasite persists), a mean-field reduction whose parameter-free structural consequences match two measured robustnesses, and a direct detailed-balance violation. The main problems are presentational (no figures; heavy dependence on an unpublished companion; a stylized register that occasionally outruns its definitions) plus a small number of overclaims and one technically false sentence. Recommendation: revise and resubmit — the revisions are real work but none threaten the results.
+
+---
+
+Major points (actionable)
+
+M1. The paper is not self-contained; the substrate lives in an unpublished repository paper [22]. As a reviewer I cannot check that axioms A1–A5 faithfully abstract the implementation, and — more importantly — the minimality claims ("k rules minimum within family F") are exactly as meaningful as the definition of F, which is only gestured at ("rewrite in place; write east; require east; combinations"). Fix: a one-page appendix with the formal rule grammar, matching/weight semantics, wound semantics, and the precise definition of families F1/F2. The scoped-claim discipline of §4.1 is admirable; give it the definition it needs.
+
+M2. No figures at all, in a paper about spatial dynamics. This is the single biggest gap for an ALife audience. Minimum set: (a) a space–time diagram of the mover+handler healing a wound (this would make §3 land in seconds), (b) the night-3 phase diagram, (c) ρ(t) trajectories, parasite vs. mutator vs. honest-codon, showing crystallization vs. the ρ≈0.2 plateau, (d) the measured residence map R(x) against the frozen-tape curve. You have all the data; this is a rendering task.
+
+M3. One technically false sentence. Page 8: two-point correlations turning negative is "…which no order-1 Markov measure can do." An order-1 two-state chain with negative eigenvalue λ = 1−p01−p10 has C(d) = λᵈ, which is negative at odd lags. The correct statement is conditional: since the measured C(1) > 0 (pairs enriched), any order-1 fit has C(d) = C(1)ᵈ > 0 at all lags, so C(3) < 0 excludes it. §9.4 nearly says this ("C(1) matches the Markov value by construction"); make the exclusion explicitly conditional in both places. The conclusion survives; the sentence as written does not.
+
+M4. "Permanent coexistence" and "night 4 had proven impossible" need their one-paragraph proofs. Both are provable-shaped claims about finite Markov chains and the paper should say so precisely: night 4's fixation is a.s. because monocultures are absorbing and reachable (gambler's ruin); the parasite phase's "permanent" should mean the ordered state is not absorbing (F(0) = 1 > 0 — the whole-ring run is readable, so the crystal leaks) and no absorbing state exists in the reachable component — or, if machinery can die back at the collapse edge (you say it can, p. 8), state exactly what "permanent" quantifies over. Right now "proven impossible" and "never crystallize" carry theorem weight on measurement evidence.
+
+M5. Statistics are asserted, not described. The headline proportions (288/288, 240/240, 24/24, 72/72) are clean, but: what test and threshold sits behind "statistically zero at 64 seeds" (timing codon)? What are the uncertainties on ρ* ≈ 0.2, on the 0.08→0.20 fluctuation growth, on P(fix) 0.50 vs 0.69 ("weak drift against sampling noise" — how weak)? One short paragraph in §4 (paired design, test used, CI convention, and a word on the many-arms multiplicity) plus error bars where numbers are compared would close this. Also state explicitly that the mean-field predictions are parameter-free (c_d, c₀, c₁ are never estimated) — as written a reader can't tell whether anything was fitted; that it wasn't is a strength you're currently hiding.
+
+M6. Acknowledge the mean-field's internal tension. §9.3 assumes independent adjacent pairs; §9.4 proves the stationary word has correlations no order-1 measure reproduces. These coexist fine — the reduction only claims the robustness structure — but a sentence noting that the mean-field succeeds despite the measured correlations (and why: the predictions used are structural, not quantitative) would preempt the obvious objection.
+
+M7. Related work: the coexistence claim has a nearest neighbour that is missing. Host–parasite coexistence in spatial replicator/RNA-world models is a developed literature — Takeuchi & Hogeweg's line of work is the closest and should be engaged (their coexistence is usually credited to spatial pattern formation; your claim that coexistence survives on a bare 1D ring because the parasite is order-fueled is a sharper statement, and engaging them makes it sharper still). Also worth considering: the artificial-chemistries review tradition (Dittrich et al.), and self-repairing loop lineages (Langton loops, Sayama's SDSR) next to your night-2 repair census. Verify exact citations before adding — I'm naming candidates from memory. While there: the Ray [2] title looks off; I believe the chapter is "An approach to the synthesis of life" — please check.
+
+M8. Venue fit and authorship policy. At 14 dense pages with (currently) zero figures this is journal-shaped — Artificial Life journal rather than an 8-page conference slot; conference form would need aggressive cuts with nights' details pushed to the companion. Separately: most venues currently prohibit listing an LLM as a co-author; check the target's policy — the honest fallback is a contributions/acknowledgements statement. Flagging as practical, not as opinion on the collaboration.
+
+M9. Two overclaims to trim. (a) "the generating grammar is recoverable from the word statistics alone" (§9.4) — what's shown is that the statistics carry the pair-codon's signature, not that the inverse problem is solved; soften to "the word statistics select the generating grammar's signature" or demonstrate recovery. (b) L5's "Heritable information is exactly the part of pattern whose reading changes what the machinery writes" — derived from two codons; either scope it ("in every codon tested") or present L5 as a definition the data supports rather than a measured biconditional.
+
+M10. Pin the artifact. "branch research" is a moving target; the paper's own exactness ethic demands a commit hash or tagged release (ideally an archived DOI) in the reproduce-it block. I verified the paths and Makefile target exist on the current branch — the instructions are honest today; pin them so they stay honest.
+
+Minor points
+
+1. Night 9 has no home. The cost table lists it ("consolidation, four open questions closed"), and its results are smeared across §6.1, §7.1, and §9 — but the Movement structure jumps 7–8 → 10. One sentence explaining the numbering, or a short §7.3, would spare every reader the same confusion I had.
+2. Subtitle vs. abstract arithmetic. "…in eleven rules" (subtitle) vs. "nine to thirteen uniform rules" (abstract) vs. tape(13) for the parasite (ledger). If eleven is the one-codon world, say so somewhere; as-is the paper's own headline number is unresolvable from the text.
+3. 26,000 (abstract) vs. 25,600 (§4.2). Pick one, or write "≈26k" in both.
+4. Glossary. Run, dwell, stroke, arm, three-probe are all defined implicitly or late. A five-line notation box after §3 would help; "run" especially collides with "a run of the experiment" — I tripped on "run sites" in §7.2.
+5. "Reproduction for free" (night 3). A skeptic will say multiplication of activity centers without heritable variation is proliferation, not reproduction. You handle heredity properly in night 4 — one clause anticipating the objection ("multiplication without heredity; heredity is night 4's addition") closes the door.
+6. Abstract length. It's a full page of dense claims; consider cutting the middle third — the arc table (§2) carries that load better.
+7. §9.6 is charming but "we leave the resonance at that" will read as self-indulgent to about half of reviewers. Keep it; just know the cost.
+
+What I did not check
+
+I did not run the drivers or the replay verifier; I verified only that the entry points, configs, and Makefile target named in the paper exist. The exactness claims are taken on the paper's word — which is precisely why M10 (pinning) matters.
+
+---
+
+Bottom line for you as authors: nothing here attacks the results — M3 is the only actual error and it's one sentence; the rest is self-containedness, figures, statistical reporting, and claim-calibration. The science I'd defend to a committee; the manuscript needs a revision pass before a stranger can.
