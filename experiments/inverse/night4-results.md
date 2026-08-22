@@ -61,7 +61,7 @@ strength rising with damage." Wrong in this geometry — repair is a
 private good on a 1-D ring. For repair-rate selection to bind, the
 wound itself must be contested (rival matter adjacent to the same
 hole): 2-D fronts or boundary-clustered damage would create that.
-Filed as the night-5-shaped question.
+Filed as the night-5-shaped question. **CLOSED (night 9, section D):** with claims contested from both sides of a hole, the same handicap that was bit-identically invisible uncontested becomes 24/24 lethal — see night9-results.md.
 
 **4. Coexistence is always transient here.** No COEXIST outcome in
 600 runs at the 24k horizon; drift-arm fixation completes in

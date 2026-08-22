@@ -93,8 +93,11 @@ def body(rule):
     if rule.kind == "wreqwrite":
         # arg = WCX: require W west and C east, write X east
         return rule.arg[0] + "@" + rule.arg[1] + "@@" + rule.arg[2]
-    # gapwrite, arg = WX: require W west + holes at +1,+2; write XX
-    return rule.arg[0] + "@~~@@" + rule.arg[1] * 2
+    if rule.kind == "gapwrite":
+        # arg = WX: require W west + holes at +1,+2; write XX
+        return rule.arg[0] + "@~~@@" + rule.arg[1] * 2
+    # westclaim, arg = X: require hole west, write X into it
+    return "~@@" + rule.arg + "@"
 
 
 def rule_id(rule):
@@ -148,6 +151,8 @@ def reqs(rule):
         return [(-1, _ch(rule.arg[0])), (1, _ch(rule.arg[1]))]
     if rule.kind == "gapwrite":
         return [(-1, _ch(rule.arg[0])), (1, " "), (2, " ")]
+    if rule.kind == "westclaim":
+        return [(-1, " ")]
     return []
 
 
@@ -162,6 +167,8 @@ def writes(rule):
         w.append((1, _ch(rule.arg[2])))
     elif rule.kind == "gapwrite":
         w += [(1, _ch(rule.arg[1])), (2, _ch(rule.arg[1]))]
+    elif rule.kind == "westclaim":
+        w.append((-1, _ch(rule.arg)))
     return w
 
 

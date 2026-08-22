@@ -67,12 +67,14 @@ measured right.
 ## Open questions (named, not hidden)
 
 - The moderate s rise at m=8 on ring 24 (0.35→0.52) with both
-  per-event flows neutral: candidate = partial-collapse episodes
-  (min_tape 12) importing the shelter effect transiently. Needs
-  wipe-count statistics over longer horizons.
-- Scaling of the shelter effect with the structural cost (a
-  3-stroke s should raise residence further — testable with one
-  glyph addition).
+  per-event flows neutral. **CLOSED (night 9, A): relaxation to the
+  glyph-symmetric 0.50 equilibrium from an s-depleted init — not
+  selection; drift is mean-reverting.**
+- Scaling of the shelter effect with the structural cost.
+  **CLOSED (night 9, B): dwell-3 s raises residence 0.55→0.68 and
+  the equilibrium follows residence almost exactly — even in a
+  living commons (s-share 0.69 at m=8). The tragedy exists above a
+  stroke-cost threshold; equilibrium ≈ residence is the law.**
 - Head density: r48 runs 3 heads/48 vs r24's 2/24 (init positions
   limit deterministic placement to l/c/r) — density is a lurking
   variable in the ring comparison.

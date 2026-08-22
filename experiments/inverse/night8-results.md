@@ -82,5 +82,6 @@ touches it.
   variants — a codon writing the OTHER glyph (mutator/parasite
   sequences exploiting pair-yield) — are the natural night-9
   ecology, and the first place open-ended dynamics could appear.
-- Effects measured at one ring size and one s0; the m=2 rescue
-  suggests a codon-dependent collapse boundary worth a phase sweep.
+- Effects measured at one ring size and one s0. **Collapse boundary
+  CLOSED (night 9, C): fine m-grid puts base collapse at m*≈3.5 and
+  pair at m*≈2.5 — the content-codon buys one full damage step.**
