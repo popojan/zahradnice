@@ -210,3 +210,14 @@ M5 forced a re-power of P(fix): at 64 seeds 0.47±0.12 (dwell 2) vs
 fig_nights.py → paper/figs/. Pin: commit 460f9f0; tag + Zenodo DOI
 deferred to merge (author's call). M8 (venue, authorship policy)
 left to the author.
+
+## 8. Review v4-01: ACCEPT (2026-08-22)
+
+Reviewer verified the census arithmetic from the new appendix
+(42+C(42,2)=903, 96+C(96,2)=4,656 — both check) and the pooled
+z from stated proportions. Four minor items fixed same day:
+tape law numbered 1-9 with the wound-pair convention explicit;
+rho* arm-specified at both blanket mentions; fail/half-recover
+wording harmonized; erase family generalized to Sigma_w with the
+tape world's restriction stated. Open by design: actual tag + DOI
+into the reproduce block at merge (Zenodo; CITATION.cff ready).
