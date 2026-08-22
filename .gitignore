@@ -33,3 +33,4 @@ sounds/vsup/
 # working notes / backlog (kept on disk, not committed; friction journals live here too)
 backlog/
 
+*.swp
