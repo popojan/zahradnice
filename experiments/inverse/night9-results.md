@@ -43,7 +43,7 @@ special case.
 
 ## C. Codon-dependent collapse boundary — one damage step of robustness
 
-Fine grid m ∈ {2,3,4,5,6,8}, 24 seeds (mean tape / collapsed≤6
+Fine grid m ∈ {2,3,4,5,6,8}, 64 seeds (mean tape / collapsed≤6
 fraction): base dies between m=4 and m=3 (0.23 → 0.67 collapsed);
 pair between m=3 and m=2 (0.02 → 0.72). The content-codon buys the
 commons one full damage step (m* ≈ 3.5 → ≈ 2.5), extending
@@ -82,9 +82,11 @@ buildable when needed.
 
 ## Ledger of remaining opens
 
-- Head-density confound (night 7): workaround exists (wall/marker
-  one-shot deterministic placement) but is UNTESTED; the r24-vs-r48
-  comparison still carries it.
+- Head-density confound (night 7): **scoped (night11_gaps.py)** —
+  at equal density the living-commons results are ring-robust;
+  collapse-REMNANT composition depends on absolute machinery count
+  (remnant ~ covered glyphs), so those claims are stated
+  per-configuration in the paper.
 - Codon-table-in-matter and deceptive codons: promoted to night-10
   candidates with a clean slate; everything else from nights 1–8 is
   either closed or explicitly superseded.

@@ -74,7 +74,13 @@ lineage die out; those that crop it persist.
   (night-6's, now pattern-driven).
 - Oscillations characterized by second-half sd only; period
   structure unexamined (spectral analysis on longer horizons).
-- Ring 24 only; whether the parasite phase survives larger rings
-  (more room for pure-crystal domains) is open.
+- Ring 24 only in the main sweep. **CLOSED (paper gap,
+  night11_gaps.py): at equal machinery density (1 head/24 cells,
+  rings 24 vs 48) the parasite plateau is ring-intensive — rho
+  0.19-0.27 at both sizes for m>=4, plain crystallizing at both.
+  New corner: at m=2 a SINGLE polymerase cannot sustain the phase
+  (collapse to a pure-s remnant, rho=0, s=1.00); two heads can
+  (rho 0.16-0.20) — the phase has a machinery floor at the
+  collapse edge.**
 - The 2-D remove (codon table in matter, germline/soma) remains
   queued; tonight showed 1-D still had this much left in it.

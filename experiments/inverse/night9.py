@@ -209,7 +209,9 @@ def main():
     workdir.mkdir(parents=True, exist_ok=True)
     here = Path(__file__).parent
     print(f"binary {BIN}\nworkdir {workdir}")
-    night8.SEEDS = tuple(range(1, 25))
+    # NOTE: under Python 3.14's forkserver default, parent-process
+    # monkeypatches do not reach workers; section C therefore runs at
+    # night8's native 64 seeds (benign: more power than planned).
     t0 = time.perf_counter()
 
     with Pool(args.jobs, _pool_init, (str(workdir),)) as pool:
