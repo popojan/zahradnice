@@ -403,3 +403,23 @@ only matches from the intended copy (e.g. `>` at (1,0) pins the top
 bracket). Audit *all* rules on that lhs, including passive ones — two
 anchorings with disjoint footprints can even co-fire in one multithreaded
 batch (a tax rule double-charged this way).
+
+---
+
+## 24. Score/weight tail requires the full field block — truncated header + tail misparses silently
+
+**Symptom.** A rule authored as `==DTC 0 0.25` (short field block, then
+score/weight tail) runs with weight 1 — and worse, the tail bytes are
+consumed as header fields: ctx becomes `' '`, ctxrep `'0'`, and the
+remainder parses as a bogus reward. No warning; sampling and scoring are
+silently wrong.
+
+**Cause.** Header fields are positional. Omission works only by
+*truncation* (stopping early); there is no way to skip middle fields. A
+tail after a short block lands in the ctx/ctxrep positions.
+
+**Avoid.** When attaching ` <score> <weight>`, always emit all nine field
+positions first, e.g. `==DTC78   0 0.25` (fg `7`, bg `8`, blank
+ctx/ctxrep). Verify with `zahradnice-check explain --head '...'` — it
+prints the parsed weight. (Caught this way in the night-4 generator,
+2026-08-22.)
