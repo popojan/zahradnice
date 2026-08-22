@@ -184,3 +184,15 @@ lessons; the two-timescale structure is a new open observable
    (item 4 above); language-order result (item 3) as a short
    subsection or note.
 6. "Two rules, read slowly" STAYS (author's decision).
+
+
+## 6. Status: v3 SHIPPED (2026-08-22)
+
+All queue items above landed in paper/zahradnice-nights-v3.tex
+(commit follows): drift-law L4 with self-refutation narrated,
+critical-pair proposition, measured current (+aliasing lesson in
+methods), language-order subsection, no-variables abstinence,
+semi-Thue paragraph (+Newman, Book-Otto refs), contested/
+uncontested definition, phrasing fixes; "read slowly" retained per
+author. Deferred to paper #3: axiom ablations, hierarchy
+formalization, residence renewal calculation.
