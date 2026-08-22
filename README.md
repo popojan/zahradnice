@@ -37,3 +37,11 @@ Access programs through the main menu (`programs/index.cfg`) or run directly:
 ## Grammar
 
 See [GRAMMAR.md](GRAMMAR.md) for grammar programming intro.
+## License
+
+Everything here is dedicated to the public domain under
+[CC0 1.0](LICENSE) — no conditions. One non-binding request from
+the authors: this garden was grown as a commons; if it proves
+useful, tend it in that spirit. (Per the repository's own night-10
+result, a rule could not enforce this anyway — what persists is
+decided by what the commons feeds.)

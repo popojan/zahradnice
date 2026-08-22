@@ -5,6 +5,7 @@ type: software
 authors:
   - family-names: Popelka
     given-names: Jan
+license: CC0-1.0
 repository-code: "https://github.com/popojan/zahradnice"
 abstract: >-
   A terminal game engine whose programs are weighted stochastic 2D
