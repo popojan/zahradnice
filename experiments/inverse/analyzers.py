@@ -174,3 +174,30 @@ def repair_verdict(states, applies, h_est, h_rec, rounds):
     else:
         out["outcome"] = "DEGRADED"
     return out
+
+
+def sustain_verdict(states, applies, h_est, h_final):
+    """Night 3: sustained bombardment. Protocol: establish, then many
+    [p + T*m] blocks, then a T*h_final recovery window. Returns pre
+    behaviour, damage tolerated, population statistics sampled at the
+    instant before each poke, and whether the pre behaviour
+    re-establishes once the bombardment stops."""
+    pokes = [j for j, a in enumerate(applies) if a[4] == "p"]
+    j1 = pokes[0] if pokes else len(applies)
+    pre_cls, pre_p, _ = classify(states[:j1 + 1], h_est)
+    pops = [pop(states[j]) for j in pokes]
+    jlast = pokes[-1] if pokes else j1
+    fin_cls, fin_p, _ = classify(states[jlast + 1:], h_final)
+    alive = any(c in "AB" for c in states[-1])
+    n = len(pops)
+    return {
+        "pre": (pre_cls, pre_p),
+        "pokes_landed": len(pokes),
+        "alive": alive,
+        "final": (fin_cls, fin_p),
+        "recovered": alive and fin_cls == pre_cls and fin_p == pre_p,
+        "meanA": sum(a for a, b in pops) / n if n else 0.0,
+        "meanB": sum(b for a, b in pops) / n if n else 0.0,
+        "min_total": min((a + b for a, b in pops), default=0),
+        "max_total": max((a + b for a, b in pops), default=0),
+    }
