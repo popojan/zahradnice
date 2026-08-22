@@ -83,16 +83,18 @@ def fig_spacetime():
             grid[ro - 1][(co + dc) % RING] = ch
         if trig == "p":
             poked = True
-        if (i + 1) % 4 == 0:
+        if (i + 1) % 6 == 0:
             row = "".join(grid[2]).replace(" ", ".")
-            mark = " <- wound" if poked else ""
-            lines.append(f"ev{i+1:3d}  {row}{mark}")
+            mark = "  <-- wound" if poked else ""
+            lines.append(f"ev {i+1:3d}   {row}{mark}")
             poked = False
     if "\n".join("".join(r_) for r_ in grid) != "\n".join(
             analyzers.parse_dump(WORK / "r.txt", 6, RING)):
         sys.exit("EXACT-FAIL spacetime")
-    (FIGS / "spacetime.txt").write_text("\n".join(lines) + "\n")
-    print(f"spacetime.txt: {len(lines)} rows")
+    body = "\n".join(lines)
+    (FIGS / "spacetime.tex").write_text(
+        "\\begtt\n" + body + "\n\\endtt\n")
+    print(f"spacetime.tex: {len(lines)} rows")
 
 
 # --- Fig 2: night-3 phase diagram ----------------------------------
@@ -100,27 +102,32 @@ def fig_spacetime():
 def fig_phase():
     rows = list(csv.DictReader(open(HERE / "night3_sustain.csv")))
     fig, ax = plt.subplots(figsize=(4.6, 3.0))
-    series = [("A>B.writeA|B>A.req~", 6, "adjacent-respawn, ring 6"),
-              ("A>B.writeA|B>A.req~", 12, "adjacent-respawn, ring 12"),
-              ("A>~.writeB|B>A.reqwrite~B", 6, "walk-to-wound, ring 6"),
-              ("A>~.writeB|B>A.reqwrite~B", 12, "walk-to-wound, ring 12")]
-    for (gid, ring, label), (c, ls, mk) in zip(series, STYLES):
+    series = [
+        ("A>B.writeA|B>A.req~", 6, "adjacent-respawn, ring 6",
+         dict(color="#4477AA", ls="-", marker="o", ms=4, lw=1.6)),
+        ("A>B.writeA|B>A.req~", 12,
+         "adjacent-respawn, ring 12 (identical)",
+         dict(color="#CC3311", ls="none", marker="s", ms=8,
+              mfc="none", mew=1.3)),
+        ("A>~.writeB|B>A.reqwrite~B", 6, "walk-to-wound, ring 6",
+         dict(color="#228833", ls="-.", marker="^", ms=5, lw=1.4)),
+        ("A>~.writeB|B>A.reqwrite~B", 12, "walk-to-wound, ring 12",
+         dict(color="#66666E", ls=":", marker="D", ms=6, mfc="none",
+              mew=1.2, lw=1.4))]
+    for gid, ring, label, kw in series:
         sub = sorted((r for r in rows if r["gid"] == gid
                       and r["ring"] == str(ring)),
                      key=lambda r: int(r["m"]))
         xs = [int(r["m"]) for r in sub]
         ys = [float(r["recovery"]) for r in sub]
-        ax.plot(xs, ys, ls, color=c, marker=mk, ms=4, lw=1.4,
-                label=label)
+        ax.plot(xs, ys, label=label, **kw)
     ax.set_xscale("symlog", linthresh=1)
     ax.set_xticks([0, 1, 2, 3, 5, 8, 12, 20, 40])
     ax.set_xticklabels(["0", "1", "2", "3", "5", "8", "12", "20", "40"])
     ax.set_xlabel("damage interval m  (events between wounds)")
     ax.set_ylabel("recovery fraction")
     ax.set_ylim(-0.05, 1.05)
-    ax.legend(loc="center right", fontsize=8)
-    ax.annotate("collapse", xy=(1, 0.02), fontsize=8, color="#555555")
-    ax.annotate("repair", xy=(14, 0.9), fontsize=8, color="#555555")
+    ax.legend(loc="upper left", fontsize=8)
     fig.tight_layout()
     fig.savefig(FIGS / "phase.pdf")
     plt.close(fig)
@@ -161,13 +168,33 @@ def fig_rho():
         n = min(len(cv) for cv in curves)
         mean = [statistics.mean(cv[i] for cv in curves)
                 for i in range(n)]
+        se = [statistics.stdev(cv[i] for cv in curves)
+              / len(curves) ** 0.5 for i in range(n)]
+        W = 5   # display smoothing only
+        sm = [statistics.mean(mean[max(0, i - W // 2):i + W // 2 + 1])
+              for i in range(n)]
+        ss = [statistics.mean(se[max(0, i - W // 2):i + W // 2 + 1])
+              for i in range(n)]
         xs = [100 * (i + 1) for i in range(n)]
-        ax.plot(xs, mean, ls, color=c, lw=1.4, label=label,
-                marker=mk, ms=3, markevery=20)
+        if arm in ("para", "paraonly"):
+            ax.fill_between(xs, [a - b for a, b in zip(sm, ss)],
+                            [a + b for a, b in zip(sm, ss)],
+                            color=c, alpha=0.25, lw=0)
+        ax.plot(xs, sm, ls, color=c, lw=1.5, label=label)
+        if arm == "paraonly":
+            ax.annotate("parasite only", xy=(24200, sm[-1] + 0.022),
+                        fontsize=8, color=c, ha="right")
+        if arm == "para":
+            ax.annotate("honest + parasite", xy=(24200, sm[-1] - 0.038),
+                        fontsize=8, color=c, ha="right")
+        if arm == "mut":
+            ax.annotate("no codon, mutator: crystal",
+                        xy=(6000, 0.035), fontsize=8, color="#555555")
     ax.set_xlabel("events")
     ax.set_ylabel(r"boundary density  $\rho$")
-    ax.set_ylim(0, 0.52)
-    ax.legend(loc="upper right", ncols=2, fontsize=8)
+    ax.set_ylim(0, 0.56)
+    ax.set_xlim(0, 24500)
+    ax.legend(loc="upper right", ncols=2, fontsize=7.5)
     fig.tight_layout()
     fig.savefig(FIGS / "rho.pdf")
     plt.close(fig)
