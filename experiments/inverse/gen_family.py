@@ -36,8 +36,9 @@ ARG = "AB~"
 
 # kind: self|write|req|reqwrite; arg is None (self), one char (write/req)
 # or two chars CX (reqwrite: require C east, write X east). trig 'T' for
-# all genotype rules; harness rules (poke) use their own trigger.
-Rule = namedtuple("Rule", "lhs rep kind arg trig", defaults=("T",))
+# all genotype rules; harness rules (poke) use their own trigger. w is
+# the engine rule weight (sampling bias; replay-irrelevant).
+Rule = namedtuple("Rule", "lhs rep kind arg trig w", defaults=("T", 1))
 
 
 def menu():
@@ -65,15 +66,19 @@ def menu2():
     return rules
 
 
-def poke_rules():
+def poke_rules(glyphs="AB"):
     """Harness law, not part of any genotype: byte 'p' erases one
-    weight-uniformly random matter cell (A or B anchor)."""
-    return [Rule("A", "~", "self", None, "p"),
-            Rule("B", "~", "self", None, "p")]
+    weight-uniformly random matter cell (any listed glyph)."""
+    return [Rule(g, "~", "self", None, "p") for g in glyphs]
 
 
 def head(rule):
-    return "==" + rule.lhs + rule.trig + rule.rep
+    h = "==" + rule.lhs + rule.trig + rule.rep
+    if rule.w != 1:
+        # header fields are positional (omission = truncation only), so
+        # a score/weight tail needs the full field block: fg bg ctx ctxrep
+        h += f"78   0 {rule.w:g}"
+    return h
 
 
 def body(rule):
@@ -88,7 +93,8 @@ def body(rule):
 
 def rule_id(rule):
     tail = "" if rule.arg is None else rule.arg
-    return f"{rule.lhs}>{rule.rep}.{rule.kind}{tail}"
+    wtag = "" if rule.w == 1 else f"*{rule.w:g}"
+    return f"{rule.lhs}>{rule.rep}.{rule.kind}{tail}{wtag}"
 
 
 def canonical(rules):
@@ -99,11 +105,12 @@ def genotype_id(rules):
     return "|".join(rule_id(r) for r in canonical(rules))
 
 
-def compile_cfg(rules, name, extra=()):
+def compile_cfg(rules, name, extra=(), init="^Acc"):
     """Genotype rules in canonical order, then harness rules (extra)
     verbatim — so genotype (lhs, idx) pairs are independent of the
-    harness and harness rules take the trailing per-lhs indices."""
-    lines = [f"#!{name}", "#threads 1", "^Acc"]
+    harness and harness rules take the trailing per-lhs indices.
+    init may hold several ^-lines separated by newlines."""
+    lines = [f"#!{name}", "#threads 1"] + init.split("\n")
     for r in list(canonical(rules)) + list(extra):
         lines.append(head(r))
         lines.append(body(r))
