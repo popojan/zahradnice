@@ -75,19 +75,23 @@ def fig_spacetime():
     applies = analyzers.parse_trace(WORK / "r.trace")
     imap = gf.idx_map(rules, extra)
     grid = [list(r_) for r_ in s0]
+    # curated, event-aligned snapshots: sparse establishment, then
+    # the frames around each wound (hole visible by construction)
+    shots = {6: "", 24: "", 42: "",
+             79: "  <-- wound", 82: "", 85: "",
+             106: "  <-- wound", 109: "", 112: ""}
+    gaps_after = {42, 85}
     lines = []
-    poked = False
     for i, (lhs, idx, ro, co, trig) in enumerate(applies):
         rule = imap[(lhs, idx)]
         for dc, ch in gf.writes(rule):
             grid[ro - 1][(co + dc) % RING] = ch
-        if trig == "p":
-            poked = True
-        if (i + 1) % 6 == 0:
+        ev = i + 1
+        if ev in shots:
             row = "".join(grid[2]).replace(" ", ".")
-            mark = "  <-- wound" if poked else ""
-            lines.append(f"ev {i+1:3d}   {row}{mark}")
-            poked = False
+            lines.append(f"ev {ev:3d}   {row}{shots[ev]}")
+            if ev in gaps_after:
+                lines.append("          ...")
     if "\n".join("".join(r_) for r_ in grid) != "\n".join(
             analyzers.parse_dump(WORK / "r.txt", 6, RING)):
         sys.exit("EXACT-FAIL spacetime")
