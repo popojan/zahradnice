@@ -77,12 +77,21 @@ std::string emit_header(const Header& h) {
     out.push_back(static_cast<char>(h.trigger));
     out.push_back(write_glyph(h.replace));
 
-    bool need_ext = h.fore || h.back || h.ctx || h.ctxrep;
+    // The engine reads score/weight positionally from column 10, so a
+    // score/weight tail requires the full fg bg ctx ctxrep block before it.
+    bool need_tail = h.score != 0 || h.weight != 1;
+    bool need_ext = h.fore || h.back || h.ctx || h.ctxrep || need_tail;
     if (need_ext) {
         out.push_back(h.fore ? *h.fore : '7');
         out.push_back(h.back ? *h.back : '8');
         out.push_back(h.ctx ? static_cast<char>(*h.ctx) : ' ');
         out.push_back(h.ctxrep ? static_cast<char>(*h.ctxrep) : ' ');
+    }
+    if (need_tail) {
+        out.push_back(' ');
+        out += std::to_string(h.score);
+        out.push_back(' ');
+        out += std::to_string(h.weight);
     }
     return out;
 }
