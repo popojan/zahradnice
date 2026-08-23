@@ -172,6 +172,58 @@ def copier_decay(glyph, eps_d, trig="T"):
     return ([(f"=={glyph}{trig}~78   0 {eps_d:g}", [(0, 0, " ")])], "@@@")
 
 
+def translator_tabled(glyph, tables, drift_w=0.1, trig="T"):
+    """EW-7: the codon table read from matter. One execute body per
+    table glyph s — s as a LITERAL at (−1,0), the codon at (−2,0)
+    via ctx — with headers giving s's mapping. The frozen rule set
+    holds the SPACE of mappings; matter selects which is live,
+    column by column: even a universal code must be physically
+    instantiated everywhere it is used."""
+    groups = []
+    for s, mapping in sorted(tables.items()):
+        heads = [("==" + glyph + trig + "~78" + c + prod,
+                  [(0, 0, " "), (0, 1, prod), (0, 2, glyph)])
+                 for c, prod in sorted(mapping.items())]
+        groups.append((heads, "&\n" + s + "\n@~~@@&" + glyph))
+    groups.append(([(f"=={glyph}{trig}~78   0 {drift_w:g}",
+                    [(0, 0, " "), (0, 1, glyph)])], "@~@@" + glyph))
+    return groups
+
+
+def table_copier(glyph, table_glyphs, drift_w=0.1, trig="T"):
+    """EW-7: maintain code uniformity — copy the table glyph below
+    ((−1,0)) east into an EMPTIED table cell, advancing; a single
+    surviving cell can reseed the row west-to-east."""
+    heads = [("==" + glyph + trig + "~78" + s + s,
+              [(0, 0, " "), (0, 1, glyph), (-1, 1, s)])
+             for s in sorted(table_glyphs)]
+    repair = (heads, "&~  &\n@~@@" + glyph)
+    drift = ([(f"=={glyph}{trig}~78   0 {drift_w:g}",
+               [(0, 0, " "), (0, 1, glyph)])], "@~@@" + glyph)
+    return [repair, drift]
+
+
+def transcriptase_rules(glyph, codons, drift_w=0.1, trig="T"):
+    """EW-6: two-copy description redundancy. BACKUP — copy the
+    codon above ((−1,0)) into an empty backup slot at (−2,0);
+    RESTORE — copy the backup at (−2,0) into an emptied code cell
+    at (−1,0): the heal. One header per codon each; the wound rules
+    anchor on codon glyphs wherever they stand, so both copies are
+    wounded uniformly and content dies only when both copies of a
+    column are lost between visits."""
+    backup = ([("==" + glyph + trig + "~78" + c + c,
+                [(0, 0, " "), (0, 1, glyph), (-2, 0, c)])
+               for c in sorted(codons)],
+              "~  &\n&\n@~@@" + glyph)
+    restore = ([("==" + glyph + trig + "~78" + c + c,
+                 [(0, 0, " "), (0, 1, glyph), (-1, 0, c)])
+                for c in sorted(codons)],
+               "&\n~  &\n@~@@" + glyph)
+    drift = ([(f"=={glyph}{trig}~78   0 {drift_w:g}",
+               [(0, 0, " "), (0, 1, glyph)])], "@~@@" + glyph)
+    return [backup, restore, drift]
+
+
 def translator_rules(glyph, codons, drift_w=0.1, trig="T"):
     """The description rung's executor (EW-5): read the codon below
     ((−1,0), ctx), build its product east ((0,+1), ctxrep), land
