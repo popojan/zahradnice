@@ -84,3 +84,13 @@ lineage die out; those that crop it persist.
   collapse edge.**
 - The 2-D remove (codon table in matter, germline/soma) remains
   queued; tonight showed 1-D still had this much left in it.
+- **CLOSED (growth-law audit, night10_exponent.py /
+  night10-exponent-results.md): the coexistence is NOT parabolic
+  ("survival of everybody") kinetics in disguise — births occur at
+  x=0 (all via the deceptive pair; order-arm control: 0 in 2.07M
+  extinct events), extinction is non-absorbing (up to 7,276
+  resurrections/condition), minority production is cross-dominated
+  (up to 8:1) with negative naive growth exponents, and no
+  mesoscopic spatial refuges exist. Refinement: at m=2 the phase is
+  a resurrection ecology — permanence of the mixture, not of
+  uninterrupted lineages.**
