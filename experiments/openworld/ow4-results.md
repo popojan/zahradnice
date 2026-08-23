@@ -108,3 +108,7 @@ The sweeps: ε × wound-rate phase map for the 4-allele system
 polite-α arm, handler-weight intervention — testing whether
 night-4's contested/uncontested law predicts which weights matter
 at a law frontier).
+
+Watch it live: `./zahradnice demos/openworld/lawsoup.cfg` — random
+six-law soup each load; B-laws wake when an A-law manufactures their
+substrate (niche construction).

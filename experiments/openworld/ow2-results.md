@@ -106,3 +106,6 @@ monoculture (γ-uniform) and ask whether the world climbs to the
 censused repairers; δ-uniform documents an evolvability dead end
 (no expansion → no stamps → no mutation channel). ε=0 is the
 control.
+
+Watch it live: `./zahradnice demos/openworld/lawwar.cfg` — β vs γ
+frontier war, wounds ambient, p/q to wound by hand.

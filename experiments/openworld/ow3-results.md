@@ -76,3 +76,7 @@ climbs to the censused peak, mutation load can regenerate the
 parasite, and evolvability itself is matter-bound. All of it with
 **zero engine changes**, exact accounting on every run, and A4
 literally intact — the rule table never changed once.
+
+Watch it live: `./zahradnice demos/openworld/lawclimb.cfg` — cyan
+γ-monoculture, magenta mutation flashes, red α sweeps (or the world
+dies first).
