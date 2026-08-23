@@ -1,0 +1,864 @@
+% compile: OSFONTDIR=~/.fonts// optex zahradnice-openworld.tex
+% (f-equity.opm alongside; Equity by Matthew Butterick, not in repo)
+% Paper #3 of the set. Self-contained by design: everything the
+% argument uses from the prior arc is either restated (one page of
+% axioms) or re-derived inside this paper's own experiments (OW-1
+% re-runs the census it calibrates against).
+\fontfam[Equity]
+\hyperlinks \Blue \Blue
+\report
+\margins/1 a4 (2.4,2.4,2.4,2.6)cm
+\typosize[11/13.8]
+\raggedbottom
+
+\def\repo#1{{\tt #1}}
+\def\lawname#1{{\bf #1.}}
+\def\g#1{{\tt #1}}
+\def\sqr{\sqcup}
+\def\la{$\alpha$}
+\def\lb{$\beta$}
+\def\lc{$\gamma$}
+\def\ld{$\delta$}
+\def\lnull{$\beta'$}
+\verbchar`
+
+\tit Law Made of Matter
+
+\centerline{\it An open world under a frozen rule table: selection,
+evolution, and economics among the laws themselves}
+\medskip
+\centerline{Jan Popelka \& Claude (Anthropic) --- August 2026}
+\centerline{\tt github.com/popojan/zahradnice \quad branch {\tt research}
+\quad \repo{experiments/openworld/}}
+\bigskip
+
+\noindent{\bf Abstract.}
+No genome edits physics. Biology's famous loop --- gene to enzyme to
+changed dynamics of genes --- closes {\it inside} the bottom layer:
+matter builds structures that modulate what frozen law permits.
+We build that channel into a minimal artificial physics and then
+let it run. The construction is one new object: a {\it regulatory
+row} of glyphs beside an ordinary matter tape, where a rewriting
+rule fires at a position only if its {\it gate} glyph stands there.
+The rule table never changes --- the frozen-law axiom of the parent
+arc holds to the letter --- yet which laws act where becomes
+ordinary, woundable, copyable, evolvable matter. Nine experiments
+follow the consequences up a ladder: gated worlds are
+distributionally {\it identical} to their plainly-compiled
+counterparts (the calibration is exact, not approximate); laws
+compete, and selection ranks them consistently with a prior
+exhaustive census while refining its ties; mutation, expressed as
+nothing but a rule weight, climbs to the censused peak, and a
+lineage that cannot reach that peak converts the world's matter and
+finds the peak of the landscape it made instead --- niche
+construction from four axioms. Where inheritance of law is
+severed, every world dies; where a law does not expand, it cannot
+mutate; a law that consumes its own substrate has a median 62-event
+mutation budget. A second season adds a currency (expansion pays a
+fuel token) and then varies the economy itself, ending in a causal
+dose--response: {\it an economy selects among laws by which
+invasion channels it funds}. Every quantitative claim is verified
+by exact accounting --- independently replaying each run's event
+log reconstructs its final state byte-for-byte (about 14{,}400
+runs plus 880 certification re-runs, zero mismatches) --- and the arc's pre-registered predictions
+are scored where they failed as well as where they held.
+
+\medskip
+\noindent{\it This is the third paper of a set, and it is written
+to be read alone. The substrate companion \cite[substrate26]
+documents the engine; the census arc \cite[nights26] mapped the
+rule families this paper sets in motion. Everything used from
+either is restated below in one page, or re-derived inside this
+paper's own runs. Every table regenerates from}
+\repo{experiments/openworld/ow*.py} {\it and the CSV files beside
+them.}
+
+\sec The question
+
+Physics does not evolve; organisms do. Yet the sharpest trick of
+living matter is to make frozen law behave as if it were mutable:
+an enzyme does not amend chemistry, it stands in a particular place
+and thereby decides which of chemistry's permissions is exercised
+there. Regulation --- operators, repressors, chromatin --- is the
+same move one level up \cite[jacob61]: the genome's rule set is
+fixed, and a layer of ordinary molecules decides which rules apply
+at which locus. The back-arrow that would let a run rewrite its own
+law does not exist in nature, and biology never needed it.
+
+The parent arc of this project \cite[nights26] measured what
+evolution needs from law by deletion: five axioms with no
+evolutionary vocabulary, plus configurations, sufficed for
+selection, heredity, adaptation, rescue, catastrophe, and
+parasitism --- with one honest limit standing at the end: the codon
+tables were still law-side. Matter could not touch law at all. This
+paper builds the missing channel {\it without weakening the
+axioms}: no rule table is ever edited; instead, every rule is
+gated by a glyph that is itself matter. The questions then answer
+themselves in the running: Do laws compete? Does law evolve? What
+does an economy do to a competition among laws? And --- the
+methodological question underneath --- can any of it be measured
+with the same exactness the census enjoyed, now that the object of
+study is the lawfulness of places rather than the behaviour of
+things?
+
+\sec The physics, and the one new object
+
+The substrate is the execution model of the Zahradnice engine
+\cite[substrate26], used unmodified --- the entire paper required
+{\it zero} engine changes. Its abstract form:
+
+\begitems
+* \lawname{A1 Locality} Space is a small grid of cells wrapped
+into a torus; the worlds here use a playfield of two or three
+rows of 24 to 96 columns (screens add a status row). A rule reads and writes a bounded neighbourhood and
+applies identically at every position.
+* \lawname{A2 Exclusion} Each cell holds exactly one symbol from a
+finite alphabet, or is empty.
+* \lawname{A3 Serialized choice} Time is a sequence of events. In
+each event, all (rule, position) pairs whose pattern currently
+matches are collected, and {\it exactly one} is applied, chosen at
+random in proportion to rule weight. A “rate” can only ever be a
+share of the currently applicable activity: all processes pay from
+one budget.
+* \lawname{A4 Frozen law} The rule table is fixed before the world
+starts and nothing in the world can change it.
+* \lawname{A5 Drive} The world is open: external trigger bytes
+inject wounds (erase one uniformly random cell of a stated class)
+and, in the priced worlds of Sections 8--9, food. The drive is
+part of the declared physics, never of the evolving content.
+\enditems
+
+One abstinence carries over: {\it the law has no variables.} Every
+symbol a rule writes is a constant of that rule; copying, where it
+exists, is assembled in matter as a case-split and is therefore
+priced and mutable \cite[nights26].
+
+{\bf The rule family.} The parent arc's family F2 is the complete
+cube of one-dimensional neighbour rules over two matter symbols:
+anchor $a\in\{\g{A},\g{B}\}$ rewritten to
+$\{\g{A},\g{B},\sqr\}$, optionally requiring a symbol east
+($\{$none$,\g{A},\g{B},\sqr\}$), optionally writing a symbol east
+($\{$none$,\g{A},\g{B},\sqr\}$) --- $2\cdot3\cdot4\cdot4=96$
+rules. The census \cite[nights26] graded every rule and pair of
+rules under a wound protocol; the verdicts this paper leans on are
+three, and each is {\it re-derived} inside our own calibration
+(Section 3): the unique one-rule repairer \la\ (=
+\g{A${>}$A.writeA}, the blind spawner: every \g{A} writes \g{A}
+east); the two-rule dynamic-repair archetype \lb\ (a walker
+\g{A${>}$B.writeA} plus a wound handler \g{B${>}$A.req$\sqr$},
+dormant until damage); the one-rule lottery walker \lc\
+(\g{A${>}$B.writeA} alone), which repairs trail wounds but dies to
+head wounds; and the inert self-loop \ld\ (\g{A${>}$A.self}), which
+holds its cell and can do nothing else.
+
+{\bf The new object.} Beside the matter tape runs a {\it
+regulatory row}. Every rule in the world's table carries a gate: it
+fires at a position only if its gate glyph stands in the
+regulatory row at that position. The construction fits the
+existing rule language --- a gate is one context cell read one row
+above the anchor --- so A4 is not bent: the table, gates included,
+is frozen; what changes is only which of it matter permits, where.
+A three-track world of Section 8, drawn as the engine displays it:
+
+\medskip
+\begtt
+A A B B A A B A B B A A     matter tape (rules act here)
+o . o o . o o . o o . o     fuel row (tokens o, empty slots .)
+a a a a a b b b b b b b     regulatory row (the law at each place)
+\endtt
+\medskip
+
+\noindent A cell of the regulatory row names the {\bf law allele}
+in force at that column: a glyph stands for one censused genotype
+(one rule, or a small fixed set such as \lb's pair), and every rule
+of the allele is gated on that glyph. The reachable law space of a
+world is the set of allele strings --- pre-censused ground, which
+is the point: the arc walks {\it dynamically} through a space whose
+every point has a known static grade.
+
+Three further pieces make the row live, all inside the frozen
+table:
+
+\begitems
+* {\bf Inheritance.} Expansion carries law: a rule that creates
+matter at a neighbouring cell also stamps its own allele glyph
+onto that cell's regulatory position (one extra write in the same
+rule). Inheritance rides matter {\it creation} --- an erasing rule
+stamps nothing. Severing this channel is the arc's first control.
+* {\bf Mutation.} Copying law is imperfect by declared weight: for
+each stamping rule, mutant variants exist that stamp a {\it
+different} allele, at weight $\varepsilon$. Mutation is a number
+in the frozen table --- no operator, no generator, no schedule.
+* {\bf Wounds.} The drive wounds both tracks: byte \g{p} erases a
+random matter cell, byte \g{q} a random regulatory glyph.
+Information damage of both kinds; Section 9 adds energy damage.
+\enditems
+
+\sec Exactness first: the gated world is the censused world
+
+Before any open-world claim, the instrument must be calibrated,
+and here the calibration is not a fit but an identity. Under a
+{\it uniform} regulatory row (every column the same allele), every
+rule of that allele passes its gate everywhere and every other
+rule of the table fails it everywhere, so the applicable
+(rule, position) set --- and with it the entire sampling
+distribution of A3 --- is equal, state by state, to that of a
+world compiled with the allele's rules alone. The gated union is
+the same stochastic process as the plain world; any statistical
+divergence is a geometry bug, not a tolerance.
+
+The claim was tested three ways (driver \repo{ow1.py}; 1{,}612
+runs, replay-vs-screen exact on every one):
+
+\begitems
+* {\bf Verdict identity.} Four alleles $\times$ 200 seeds under
+the census wound protocol, plain versus gated arms: \la, \lb, \ld\
+agree 200/200 each; the lottery walker \lc\ agrees
+distributionally (122 vs 116 REPAIR of 200, $z=0.61$). The plain
+arm at seeds 1--3 reproduces the census's published \lc\ verdict
+verbatim (DIED, DIED, REPAIR): the calibration target is the prior
+paper's own experiment, re-executed.
+* {\bf Forced-trajectory identity.} \lb\ and \lc\ have singleton
+applicable sets in the intact phase, so the undamaged trajectory
+is forced. Plain and gated runs agree {\it step-for-step over all
+201 states with different random seeds per arm} (6/6 pairs): the
+gated world cannot even use randomness to differ.
+* {\bf The union tax.} Gating is not free of cost, only of bias:
+with all 96 rules of F2 in one gated table (worst case: one live,
+95 dead), the marginal event cost rises from $1.1$ to
+$43\,\mu$s at ring 64 --- a scan tax, flat in outcome, fine to
+$10^6$-event runs.
+\enditems
+
+Method notes that hold throughout. {\it Exact accounting}: every
+run's event log is replayed by an independent Python
+implementation of the rule semantics and the final state compared
+byte-for-byte with the engine's own screen dump; the arc total is
+about 14{,}400 primary runs plus 880 certification re-runs with
+zero mismatches, and mechanism-level
+probes (ledgers, frontier tracking) are computed from the same
+replays. {\it Pre-registration}: each experiment's predictions
+were written into its driver's docstring before the first run and
+are scored below --- the failures are reported with the same
+prominence as the confirmations, because several of them are the
+better findings; the appendix scoreboard lists every one.
+
+{\it Statistics, stated once.} Outcomes are raw counts; shares are
+compared by two-proportion $z$ (against one half, or between
+arms); intervals are 95\% normal approximations; per-cell $n$ is
+stated at every table. Frontier velocities are per-seed means with
+standard errors, and $w^*_{\rm det}$ is the linear zero crossing
+of $\mu(w)$ between the bracketing grid points, its error
+propagated from theirs. Sweeps are exploratory and uncorrected for
+multiplicity; the headline claims are saturated proportions
+(60/60, 400/400) or effects at $|z|>4$, robust to any correction.
+Nothing is fitted anywhere; no model has adjustable coefficients.
+Total engine time for the arc is a few minutes of wall clock on an
+eight-core laptop.
+
+{\it The deflationary reading, embraced.} A skeptic will note
+that the regulatory row is just a second matter track and its
+gate just one more context cell --- that calling the glyphs {\it
+laws} is interpretation. Both observations are correct, and they
+are the thesis. The identity above is what upgrades the vocabulary
+from metaphor to measurement: each glyph provably denotes a whole
+censused physics --- place it somewhere, and that place behaves,
+distributionally exactly, as a world governed by the genotype the
+glyph names. “Law made of matter” is not a claim that the row is
+more than matter; it is the demonstration that nothing more than
+matter is needed for a world to have local, heritable, mutable
+law. The gate is a one-bit rule description read from the world;
+the ladder from one-bit descriptions to descriptions with content
+is the road onward (Section 13).
+
+\sec Selection among laws
+
+The first open-world experiment (driver \repo{ow2.py}) puts two
+laws on one ring: the regulatory row is built in two blocks, the
+tape starts full, wounds strike both tracks, and the arms differ
+in one thing only --- whether inheritance stamps exist.
+
+\medskip
+\noindent\table{lcc}{
+pairing & control (no inheritance) & treatment \crl\noalign{\smallskip}
+\la+\lb & DEAD 50/50 & \la\ 35, \lb\ 15 \cr
+\la+\lc & DEAD 50/50 & \la\ 39, DEAD 10, \lc\ 1 \cr
+\la+\ld & DEAD 50/50 & \la\ 50 \cr
+\lb+\lc & DEAD 50/50 & \lb\ 32, DEAD 18 \cr
+\lb+\ld & DEAD 50/50 & \lb\ 50 \cr
+\lc+\ld & DEAD 50/50 & DEAD 50/50 \cr
+\lb+\lnull\ (null) & DEAD 50/50 & \lb\ 28, \lnull\ 22 \cr
+melee \la\lb\lc\ld & DEAD 50/50 & \la\ 36, \lb\ 8, DEAD 6 \cr
+}
+\smallskip
+\noindent{\it (50 seeds per cell; the \la+\lb\ and \lb+\lnull\
+pairings were additionally re-run at 200 seeds for the sharpened
+splits quoted below. The null allele \lnull\ is \lb's genotype
+under a second glyph; the drivers spell it $\varepsilon$.)}
+\medskip
+
+\noindent Three facts, in rising order of interest. First, {\bf
+inheritance of law is load-bearing}: with gates read-only, every
+world of every pairing dies --- erosion wins wherever law cannot
+travel with matter. Second, {\bf selection ranks laws consistently
+with the census, above a measured drift null}: repairers beat
+non-repairers everywhere; a world with no repairer always dies;
+and the null pairing \lb+\lnull\ --- the same genotype under two
+glyphs --- splits 102:98 over 200 seeds ($z=+0.28$), while
+\la+\lb\ splits 135:65 ($z=+4.95$). Third, the census's tie is
+refined: it graded \la\ and \lb\ equally (both verified
+repairers); competition ranks them, and the trivial blind spawner
+beats the elegant mover-plus-handler two to one. Statics said
+equivalent; dynamics says not.
+
+The matrix's asymmetry between \lc\ and \ld\ is the first
+open-world echo of the parent arc's parasite theme: {\bf a
+contested non-repairer is worse for the world than a dead law.}
+\lb+\ld\ never dies; \lb+\lc\ dies 18/50 at the same wound rate.
+Replay ledgers show why: invasion is a two-way war (cross-stamps
+1{,}397 against 1{,}482 over 20 seeds), so the walker holds
+law-space $2.6\times$ longer than the inert \ld\ (median rival
+extinction 304 versus 116 events), and every column under \lc's
+law is repair-dead load while the war lasts. The channel that
+makes group survival possible --- colonisation --- is exactly the
+channel a non-viable law uses to persist. The parent arc found
+this law for matter \cite[nights26]; it lifts intact to law.
+
+\sec The climb, and the landscape that moved
+
+Mutation enters as a weight (driver \repo{ow3.py};
+$\varepsilon=0.01$, about $3\%$ of stamps miscopy). From a uniform
+\lc\ world --- viable but doomed --- under sustained wounds:
+
+\medskip
+\noindent\table{lcc}{
+start & $\varepsilon=0$ & $\varepsilon=0.01$ \crl\noalign{\smallskip}
+\lc\ (worst viable) & 0/50 survive & 33/50: \la\ 27, \lc\ 4, \lb\ 2 \cr
+\la\ (the peak) & 50/50, all \la & 37/50: \la\ 30, \lc\ 5, \lb\ 2 \cr
+\ld\ (inert) & 0/50 & 0/50 \cr
+}
+\medskip
+
+\noindent The world climbs: every surviving \lc-start reaches
+\la-majority within the first tenth of the horizon, and the modal
+outcome is the censused peak. The same $\varepsilon$ that rescues
+below the peak kills at the peak --- 13 of 50 \la-starts die of
+mutation load, at least 5 of them with the parasite \lc\ dominant
+before death: the mutant spectrum contains an invasive
+non-repairer, so load occasionally cascades into takeover. And
+\ld\ answers a question of principle: {\bf evolvability is
+matter-bound}. Mutation rides the stamp channel; a law that does
+not expand cannot mutate, at any $\varepsilon$. Evolvability here
+is not a parameter of the world but a consequence of the law's own
+material activity \cite[wagner96].
+
+Scaling the law space to the full 96-cube (driver \repo{ow4.py};
+every F2 rule its own allele, point mutation = change one slot of
+the cube, degree 9) hardens both results and adds the arc's
+biggest surprise. Discovery outruns rescue: from \lc, the peak is
+found in 22 of 40 worlds at $\varepsilon=0.01$ but only 9 survive
+--- finding is one race, sweeping before wounds win is another.
+The mutation budget becomes a clock: the walker variant
+\g{A${>}$B.writeB} sits two mutation steps from \la\ but {\it
+consumes its own substrate} (every fire turns an \g{A} into
+\g{B}), dies at a median of 62 events, and in 120 runs never
+found the peak at all.
+
+What its five survivors found instead is the surprise: the
+B-mirror \g{B${>}$B.writeB} --- a rule the census graded dead,
+because the census ran on \g{A}-matter. The lineage had flooded
+the ring with \g{B}; in the world its own matter made, the
+B-spawner {\it is} the repairer, one mutation step away. One
+survivor even ends in a two-niche partition:
+\g{B${>}$B.writeB} territory beside \g{B${>}$A.writeB} territory
+(a B-anchored walker leaving an A-trail), each region under the
+law matched to the matter it maintains --- on a one-dimensional
+ring where the parent arc proved that {\it pure overwrite}
+competitors never coexist (its night-10 parasite coexists by
+feeding on the order it attacks; these laws coexist by
+partitioning substrate niches they themselves produce). The
+criterion, honestly scoped: the partition is read from the final
+state at the 10.8k-event horizon, in one of the five surviving
+runs; extended replays show a slow war rather than an equilibrium
+--- by 16k events the spawner had absorbed the walker, by 22k the
+walker law dominated in turn, and the world died near 33k events
+under the sustained wounds. The census-dead B-peak sustained a
+living, internally structured world for over ten thousand events;
+it did not sustain it forever.
+
+\medskip
+\input figs/ow-niche.tex
+\smallskip\noindent{\bf Figure 1.} The B-mirror niche
+construction, run 20: tape snapshots ({\tt.}\ = empty), then the
+final regulatory row. From uniform \g{A}-matter the walker2
+lineage floods the ring with \g{B} within twenty events; mutation
+then finds the B-spawner, and the horizon state is the two-niche
+partition --- \g{g} = \g{B${>}$B.writeB} law over the B-block,
+\g{e} = \g{B${>}$A.writeB} law over the A-blocks its walkers
+maintain ({\tt\char183} = other mutant gates).
+\medskip
+
+This is niche construction
+\cite[odlingsmee03] from four axioms: {\bf viability is
+matter-relative, and the world manufactures its own matter}, so a
+static census measures one landscape while the walk moves through
+many.
+
+\sec Where mutation points, and what a weight buys
+
+A phase map over mutation rate and wound rate (driver
+\repo{ow5_phase.py}; 1{,}200 runs) inverted both of its
+pre-registered predictions. Rescue from below the peak is
+monotone in $\varepsilon$ up to $0.03$ --- no error catastrophe in
+range \cite[eigen71] --- and {\it improves} with heavier
+bombardment (47/60 versus 34/60 at the two extremes, pooled high
+$\varepsilon$): mutation rides stamps, stamps ride expansion,
+expansion needs empty cells, and wounds manufacture them. Damage
+funds adaptation. Retention of the peak inverts the same way:
+mutation load is deadliest where wounds are {\it rarest} (30/30
+retained falling to 18/30 as $\varepsilon$ grows at the gentlest
+wound rate; nearly immune at the harshest). {\bf Wounds are the
+peak's immune system}: the same damage that kills a \lc-world
+defends an \la-world, punishing the degenerate laws mutation keeps
+seeding --- a disturbance-mediated effect an ecologist would
+recognise \cite[connell78].
+
+\medskip\centerline{\picw=12.6cm \inspic{figs/ow-phase.pdf}}
+\smallskip\noindent{\bf Figure 2.} The phase map (worlds
+surviving of 30 per cell). Left: rescue of the doomed \lc-start
+rises with mutation and, at high $\varepsilon$, with damage ---
+wounds manufacture the empty cells that expansion, and therefore
+variation, rides on. Right: retention of the \la-peak is
+weakest where wounds are rarest --- the immune-system inversion.
+\medskip The ledger prices the load: per fire
+the three mutant targets are equiprobable by construction; the
+measured landing pattern is what the firing distribution makes of
+that --- one third on the inert \ld\ (fossils), one third on the
+parasite \lc, and rarest of all on the peak itself, since the
+peak's own fires only stamp away from it.
+
+The \la-over-\lb\ ranking then got its dissection (driver
+\repo{ow5_duel.py}). Two hypotheses --- \la\ overwrites matter
+\lb\ cannot reclaim, versus \la\ simply fires more --- and four
+arms: the baseline (\la-share $0.660$); a polite \la\ that writes
+only into empty cells ($0.000$ --- total collapse); \lb\ with its
+{\it mover} weight quadrupled ($0.000$ --- total flip); and \lb\
+with its {\it handler} weight quadrupled ($0.650$ --- nothing).
+The replay ledger settles it: cross-invasion is symmetric per
+stamp (1{,}318 against 1{,}201), but \la\ buys $2.28\times$ the
+stamps. {\bf The duel's currency is law-painting throughput,
+bought with event share} --- and the parent arc's sharpest
+dichotomy survives the lift: the contested rate (painting) is
+decisive, while the uncontested one (repair of private wounds)
+stays invisible at any weight, even during a war between laws
+\cite[nights26].
+
+\sec The shape of the war
+
+How sensitive is the duel to that contested rate? A coarse sweep
+suggested a cliff; a fine grid (drivers \repo{ow8.py},
+\repo{ow9.py}) dissolved it into something better. The \la-share
+against \lb's mover weight $w$, at three ring sizes:
+
+\medskip
+\noindent\table{lccc}{
+$w$ & ring 24 & ring 48 & ring 96 \crl\noalign{\smallskip}
+1.00 & 0.675 & 0.880 & 0.983 \cr
+1.05 & 0.600 & 0.750 & 0.950 \cr
+1.10 & 0.405 & 0.700 & 0.950 \cr
+1.15 & 0.310 & 0.600 & 0.950 \cr
+1.20 & 0.270 & 0.450 & 0.817 \cr
+1.25 & 0.190 & 0.450 & 0.883 \cr
+}
+\smallskip
+\noindent{\it (200, 100, and 60 seeds per cell by ring; 95\%
+intervals in Figure 3. The ring-96 upturn between $w=1.20$ and
+$1.25$ is within noise, $z\approx1.0$.)}
+\medskip
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ow-sigmoid.pdf}}
+\smallskip\noindent{\bf Figure 3.} The war curve: \la-share
+against \lb's mover weight at three ring sizes (bars are 95\%
+intervals). A smooth sigmoid, not a cliff --- and the whole curve
+lifts with system size as drift stops rescuing the underdog.
+\medskip
+
+\noindent The response is a steep but smooth sigmoid (no
+discontinuity), and the whole curve shifts with system size: the
+underdog's win probability at $w=1$ falls geometrically in ring
+size ($0.325$, $0.120$, $0.017$). A frontier instrument (driver
+\repo{ow9_frontier.py}) measures the walk itself: the mean
+frontier velocity crosses zero at $w^*_{\rm det}=1.147\pm0.017$
+(ring 48; per-seed standard errors, linear crossing), and the naive gambler's-ruin model
+\cite[kimura62,moran58] built from the pooled step rates {\it
+fails informatively} --- it under-predicts the underdog's
+fixations, and the conditional bias shows why: the drift is
+state-dependent, weakening (and at ring 24 reversing) once the
+underdog holds most of the ring, because {\bf the favourite's
+advantage is proportional to its own standing mass}. The
+paint-buys-territory-buys-paint feedback, measured as
+size-dependent drift. The finite-size honesty matters for
+everything above: small worlds elect underdogs; the competition
+tables of Section 5 are small-world numbers, and the large-world
+limit is more deterministic than they look.
+
+\sec Currency: expansion pays rent
+
+The second season prices the world (driver \repo{ow6.py}). A fuel
+row joins the tracks: tokens \g{o} on slots \g{.}, an influx byte
+that feeds a random empty slot ($k$ tokens per wound cycle), and
+one pricing rule compiled into every matter-{\it creating} law
+rule --- it requires and consumes the token below its anchor.
+Conversion (the handler's wound response) stays free. The floor
+is sharp: at $k=0$ everything dies, the repairers included ---
+{\bf unpaid repair is no repair}. Solo, on a scarce budget, the
+frugal \lb\ outlives the profligate \la\ (27/30 versus 16/30 at
+$k=2$): thrift is real. In competition it buys nothing:
+
+\medskip
+\noindent\table{lcccc}{
+$k$ & \la\ wins & \lb\ wins & DEAD & standing fuel \la\ / \lb \crl\noalign{\smallskip}
+1 & 0 & 0 & 60 & 4.3 / 4.4 \cr
+2 & 22 & 22 & 16 & 2.2 / 3.1 \cr
+4 & 55 & 5 & 0 & 3.2 / 2.1 \cr
+8 & 59 & 1 & 0 & 4.8 / 0.9 \cr
+16 & 59 & 1 & 0 & 8.0 / 0.6 \cr
+}
+\medskip
+
+\noindent Scarcity neutralises the spendthrift's edge to an exact
+tie but never inverts it, because {\bf the hoard is lootable}:
+\lb's territory banks tokens its head cannot reach, and every
+column \la\ conquers comes with the savings underneath. Wealth
+then amplifies \la\ {\it beyond} its free-matter share (0.66
+unpriced, 0.98 flush): fuel falls uniformly, and \la's whole
+territory is catchment while \lb\ collects on one cell --- {\bf
+catchment beats efficiency}. Pricing also re-ranks the knobs of
+Section 7: the mover weight that flips the free war at $w=1.25$
+moves the priced war from $0.983$ to only $0.750$ at $w=16$ ---
+weight buys event share, and the priced world's binding
+constraint, a token under the head, is not in the event lottery
+at all. The economy decides {\it which knob governs}.
+
+Evolution feels the economy too: the mutation climb from \lc\
+under scarcity ends pluralistic (\la\ 11, \lb\ 6, \lc\ 2 among 19
+survivors), under wealth monistic (\la\ 36/36). {\bf Scarcity
+flattens the peak; wealth sharpens it.}
+
+\sec Economies as selectors
+
+The last movement varies the economy itself (drivers
+\repo{ow7.py}, \repo{ow9.py}) --- five feed geographies crossed
+with the side of payment, every variant a harness rule, the law
+tables untouched. Rain (anywhere), harvest (only under living
+matter --- income earned by standing crop), carrion (only under
+wounds --- a disturbance subsidy \cite[polis97]), diffusing
+tokens, priced conversion; and payment by the writer (token under
+the firing cell) or at the worksite (token under the written
+cell).
+
+Two pure-carrion traps frame the space. Under writer-pays the
+meals are unreachable --- tokens sit under holes, payers must pay
+from under themselves, and 120/120 worlds starve amid food: a
+bootstrap trap. Under worksite-pays the repair strokes are funded
+but {\it upkeep} earns nothing; gates erode unrestamped, activity
+ceases, and the world dies with its fuel row completely full ---
+a granary in a graveyard. {\bf A disturbance economy cannot pay
+for peacetime.}
+
+Between the traps, the duel moves with the economy: diffusing
+wealth favours the spender ($0.800$ --- savings leak to whoever
+can spend); pricing the handler favours \la\ ($0.684$); the
+payment side alone is neutral ($0.525$); and the mixed economy
+--- half rain, half carrion, under writer-pays --- produces the
+arc's first \lb-favouring world ($16{:}7$ at scarcity). The spend
+ledger convicts the mechanism: the wound-fed half redistributes
+total purchasing power to whoever repairs (the \la-share of
+spending drops from $0.537$ to $0.468$ and of hole-fills from
+$0.510$ to $0.429$), the first-quarter carrion-capture leader
+goes on to win about $80\%$ of decided duels, and \la's looting
+advantage evaporates. Harvest leans the other way, and its ledger
+isolates a channel: under harvest \lb's looted spends collapse
+twenty-eight-fold while \la's are untouched --- \lb\ invades {\it
+through wounds}, and harvest is precisely the economy that never
+feeds a wound; \la\ invades by overwriting living matter, which
+harvest happily keeps funding.
+
+All of it condenses into one causal experiment: fixed influx
+$k=4$, the wound-fed fraction swept from 0 to 1 {\it by drive
+bytes alone} --- the rule table identical across every cell:
+
+\medskip
+\noindent\table{lcc}{
+wound-fed fraction & \la\ / \lb\ / DEAD & \la-share \crl\noalign{\smallskip}
+0/4 & 55 / 5 / 0 & 0.917 \cr
+1/4 & 50 / 10 / 0 & 0.833 \cr
+2/4 & 43 / 16 / 1 & 0.729 \cr
+3/4 & 7 / 16 / 37 & {\bf 0.304} \cr
+4/4 & 0 / 0 / 60 & --- \cr
+}
+\medskip
+
+\noindent Monotone disarmament of the overwriter, inversion at
+three quarters, collapse at one. The zero-fraction arm is the
+rain benchmark {\it re-derived}: the mix table's wound-fed rule is
+filtered out before candidate gathering whenever its byte does not
+arrive, so at equal seeds the playfields are bit-identical to the
+OW-6 runs (verified) --- a pipeline identity check, not an
+independent replication. {\bf An economy selects among laws by
+which invasion channels it funds.}
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ow-dose.pdf}}
+\smallskip\noindent{\bf Figure 4.} The causal dose--response
+(60 seeds per cell; bars are 95\% intervals on the decided-duel
+share). Sliding a fixed influx from standing crop to wounds
+disarms the overwriter monotonically, inverts the duel at three
+quarters, and starves the world at one --- with the rule table
+identical in every cell.
+\medskip Feed the
+standing crop and you arm the overwriter; feed the wounds and you
+arm the repairer; feed only the wounds and you starve the peace
+that repair defends. A null completes the season: energy damage
+(a drive byte erasing random tokens) is, to first order, pure
+influx subtraction --- a matched design (influx 4 with energy
+wounds against influx 3 without) is indistinguishable in every
+arm, refuting the pre-registered hoarder-exposure effect.
+
+\sec The laws, substrate-free
+
+Stated without the substrate's vocabulary, with their evidence:
+
+\begitems
+* \lawname{O1 Law must be inherited to persist} Where the copying
+of regulation onto newly made matter is severed, every world
+dies; selection among laws has nothing to act on (Section 4,
+400/400 control deaths).
+* \lawname{O2 Dynamics refines statics} Competition reproduces an
+exhaustive static census's ranking and breaks its ties; the
+tie-breaking currency is regulatory-copy throughput, not quality
+of repair (Sections 4, 6).
+* \lawname{O3 Evolvability is matter-bound} Variation rides the
+same channel as inheritance, so a law that does not expand cannot
+mutate, and a law that consumes its own substrate has a finite
+mutation budget --- reach in law space is bounded by the lifetime
+of the matter a law maintains (Section 5).
+* \lawname{O4 Niche construction is generic} Viability is
+relative to matter, matter is a product of law, and lineages
+reach peaks of landscapes their own activity created --- peaks a
+fixed-substrate census grades as dead (Section 5).
+* \lawname{O5 Disturbance defends the adapted} Mutation load
+kills where selection is weakest; damage both funds adaptation
+(variation needs the room wounds make) and polices its failures
+(Section 6).
+* \lawname{O6 Repair stays a private good} The
+contested/uncontested rate dichotomy of the parent arc survives
+the lift to law: boosting a wound-handler's rate is invisible at
+every level yet tested, while the contested expansion rate is
+hypersensitive --- until an economy moves the binding constraint
+out of the event lottery entirely (Sections 6, 8).
+* \lawname{O7 Small worlds elect underdogs} The duel outcome is
+selection velocity plus size-dependent drift; the favourite's
+advantage scales with its own standing mass, so finite worlds are
+pluralistic and large ones deterministic; the separatrix is an
+absolute remnant count (two or three cells), not a rational
+share, so the feedback's rescue zone shrinks as $1/N$ (Section 7;
+the size-arithmetic driver \repo{ow10_arith.py} in the ledger).
+* \lawname{O8 Wealth flows to catchment} Under pricing, the hoard
+is lootable, thrift is a solo virtue, and whoever can spend
+anywhere converts influx to conquest fastest; scarcity flattens
+evolutionary peaks, wealth sharpens them (Section 8).
+* \lawname{O9 Economies select invasion channels} Which law wins
+is set causally by which routes of expansion the influx pattern
+funds --- shown by a dose--response in which nothing varied but
+where food lands (Section 9).
+\enditems
+
+\sec Honest limits
+
+The worlds are small (rings 24--96) and one-dimensional; O7 says
+explicitly that several competition numbers are finite-size
+quantities, and we report the size scans rather than a limit. The
+allele model puts one glyph per column: per-locus law is a choice
+among authored alleles, not an arbitrary rule subset (the
+$2^{96}$ reading holds per-world along the row, not per-place);
+multi-row gate stacks are the designed lift. Inheritance,
+mutation, and pricing are authored channels --- the paper's claim
+is what follows from them under frozen law, not that they
+self-assemble; the parent arc's summit question (machinery that
+{\it earns} these channels) stands. The mix-economy inversion
+occurs at heavy world mortality, so survivorship conditioning
+applies to its ledger; the invasion-channel law's decisive test
+is the dose--response, not the ledger alone. Wound and feed
+schedules are periodic drive strings, not Poisson clocks; the
+parent arc's aliasing cautions were applied (coprime strides,
+final-state judgments). Energy damage was probed at two doses
+and matched influx only. A matter wound leaves a law ghost at the
+emptied column; coupling death (the wound erases the gate too, the
+chromatin intuition) changes no qualitative claim --- a 480-run
+ablation reproduces every key cell with rate shifts only --- while
+the decoupling itself is load-bearing exactly once, for the
+Section~3 identity, whose calibration target's law is eternal;
+ghost gates otherwise model ecological inheritance, legacies that
+outlive their makers \cite[odlingsmee03]. The frontier analysis measures drift and
+velocity but fits no state-dependent model; the ruin comparison
+is deliberately naive. And one number kept us honest twice: of
+the arc's pre-registered predictions, roughly half failed as
+stated --- each failure is reported above where its replacement
+finding stands.
+
+\sec Related work
+
+The construction inherits von Neumann's separation of frozen
+physics from constructive content \cite[vonneumann66], but moves
+the evolving layer: in the loop lineages of Langton and Sayama
+\cite[langton84,sayama99] and in digital-evolution systems from
+Tierra to Avida \cite[ray91,ofria04], structures and programs
+evolve {\it under} a fixed chemistry, while here the object of
+evolution is the mapping from places to permitted rules --- a
+regulation layer in Jacob and Monod's sense \cite[jacob61], made
+of the same matter it governs. Artificial chemistries with
+compositional reactants \cite[fontana94,dittrich01,hutton02,hickinbotham21] buy law-like evolvability by making law implicit
+in matter's structure; we keep law explicit, finite, and censused,
+which is what makes “where did the walk go” an answerable
+question. Two nearer neighbours evolve regulation itself:
+Banzhaf's artificial regulatory networks \cite[banzhaf03] evolve
+genomes whose binding sites regulate expression, but under an
+external genetic algorithm; structurally dynamic cellular automata
+\cite[ilachinski87] make the lattice--rule coupling itself
+dynamical, though by uniform law rather than heritably per place.
+Here regulation is in-world matter, inherited, wounded, and
+mutated by the world's own events. The niche-construction results are the formal
+counterpart of the ecological literature's core claim
+\cite[odlingsmee03] in a system small enough to enumerate; the
+disturbance and subsidy results connect to intermediate
+disturbance \cite[connell78] and spatially subsidised food webs
+\cite[polis97]; the drift-versus-selection decomposition is
+classical population genetics \cite[moran58,kimura62] applied to
+a frontier between jurisdictions rather than between alleles of
+organisms. The parent papers \cite[substrate26,nights26] supply
+the substrate and the census; no result here requires reading
+them, but every imported verdict is theirs.
+
+\sec Where this leaves the arc
+
+The parent arc ended with its codon tables still law-side. The
+gate is the first object on the other shore: a one-bit rule
+description read from matter. The ladder above it is visible from
+here. Gates that name rule {\it subsets} per place (multi-row
+regulatory stacks); descriptions with content (an interpreter in
+frozen law reading rule-encodings from a designated region --- the
+von Neumann move, for which the gated world is the affordable
+first rung); and the summit unchanged: machinery that earns, in
+matter, the channels this paper authored --- inheritance of
+regulation, its miscopying, and its price. What the paper adds to
+the summit map is a warning and a promise from the economy
+season: the channels are not neutral plumbing. Every one of them
+--- who copies law, what copying costs, where the food falls ---
+is itself a selective force with laws of its own, and an open
+world will be shaped as much by its economy as by its chemistry.
+
+\sec Appendix: the gated family, formally
+
+{\bf State.} A configuration is a map
+$c:{\bf Z}_R\times{\bf Z}_N\to\Sigma\cup\{\sqr\}$ on $R$ rows and
+$N$ columns, toroidal in both axes. Row 1 is the tape (symbols
+\g{A},\g{B}), the bottom row the regulatory row (allele glyphs),
+and in the priced (three-row) worlds row 2 the fuel row (\g{o},
+\g{.}). The gate read at $(-1,0)$ reaches the regulatory row from
+the tape through the vertical wrap in both layouts --- two-row
+competition worlds (tape 1, regulation 2) and three-row priced
+worlds (tape 1, fuel 2, regulation 3) alike; the fuel read at
+$(+1,0)$ is direct adjacency.
+
+{\bf Gated rules.} An allele is a pair $(g, S)$: a glyph $g$ and
+a finite set $S$ of F2 rules. For each $r\in S$, with $r$'s read
+set $P_r$ and write set $O_r$ as in the parent formalism, the
+gated table contains $r^g$ with read set
+$P_r\cup\{((-1,0),g)\}$; with inheritance,
+$O_{r^g}=O_r\cup\{((-1,d),g):((0,d),x)\in O_r,\,x\ne\sqr,\,
+d\ne0\}$; with mutation, for each allele glyph $g'\ne g$ of the
+world a variant $r^{g\to g'}$ stamping $g'$ instead, at weight
+$\varepsilon$; with pricing, matter-creating rules additionally
+read $((+1,0),\g{o})$ and write $((+1,0),\g{.})$ (writer-pays; the
+worksite-pays variant reads and writes at $(+1,d)$). The harness
+contributes wounds \g{p} (tape), \g{q} (regulatory row), \g{r}
+(fuel), and feed rules gated on the economy's geography. The
+engine encoding uses one context field per header, so an
+allele-gated rule is one header line per allele over a shared
+body; everything above compiles to the unmodified engine.
+
+{\bf The experiment ledger.} All drivers live under
+\repo{experiments/openworld/}; every counted run passed the
+replay-versus-screen identity, and each results file
+(\repo{ow$n$-results.md}) carries its raw CSVs beside it.
+
+\medskip
+\noindent\table{lrl}{
+driver & runs & subject \crl\noalign{\smallskip}
+\repo{p0_gate_probe.cfg} & --- & gate mechanics \cr
+\repo{ow1.py} & 1{,}612 & calibration \cr
+\repo{ow2.py} & 1{,}600 & selection among laws \cr
+\repo{ow3.py} & 300 & the climb \cr
+\repo{ow4.py} & 320 & the 96-cube \cr
+\repo{ow5_phase.py}, \repo{ow5_duel.py} & 1{,}600 & sweeps \cr
+\repo{ow6.py} & 740 & currency \cr
+\repo{ow7.py} & 1{,}680 & economies \cr
+\repo{ow8.py} & 1{,}240 & dose--response \cr
+\repo{ow9.py}, \repo{ow9_frontier.py} & 3{,}340 & consolidation \cr
+\repo{ow9_dose.py} & 300 & the causal dose--response \cr
+\repo{ow10_arith.py} & 1{,}200 & size arithmetic (O7's separatrix) \cr
+\repo{ow11_coupled.py} & 480 & coupled-wound ablation (limits) \cr
+certification re-runs & (880) & re-runs of earlier cells, not new \cr
+}
+\medskip
+
+\noindent Four live demonstrations accompany the arc under
+\repo{demos/openworld/}: \repo{lawwar.cfg}, \repo{lawclimb.cfg},
+\repo{lawsoup.cfg}, \repo{lawrent.cfg}.
+
+\medskip
+{\bf The pre-registration scoreboard.} Every prediction written
+into a driver docstring before its first run, with its verdict and
+the section where it is scored:
+
+\medskip
+\noindent\table{lll}{
+prediction (abridged) & verdict & \S \crl\noalign{\smallskip}
+\lc\ climbs the 96-cube, below the 4-allele rate & held & 5 \cr
+walker2 climbs to \la\ at a lower rate & failed: niche-constructs & 5 \cr
+soup survivors \la-dominant; $\varepsilon{=}0$ luck-only & held & 5 \cr
+fossil burden $\gg$ useful mutation & deferred, then measured & 6 \cr
+rescue non-monotone in $\varepsilon$ & failed: monotone & 6 \cr
+load worst at heavy wounds & failed: inverted & 6 \cr
+\la's per-capita event edge decisive & partial: territory dominates & 6 \cr
+\la\ invades onto B-matter & held; asymmetry failed & 6 \cr
+polite \la\ loses its edge & held (0:100) & 6 \cr
+mover boost flips the duel & held (0:100) & 6 \cr
+handler boost helps \lb & failed: null & 6 \cr
+war response threshold-like & held, then refined: smooth & 7 \cr
+$w^*$ between 1.5 and 2.5 & failed: 1.08 & 7 \cr
+$w^*(24)=1.08\pm0.02$ & held: 1.076 & 7 \cr
+size sharpens at fixed $w^*$ & failed: drift shifts it & 7 \cr
+scarcity inverts the priced duel & failed: tie, hoard looted & 8 \cr
+$k{=}0$ kills everything & held & 8 \cr
+priced crossing comes later & held, stronger: knob impotent & 8 \cr
+carrion is \lb's best economy & vindicated as the mix & 9 \cr
+harvest $\approx$ rain & failed: deadlier, \la-leaning & 9 \cr
+diffusion helps the spender & held & 9 \cr
+pricing conversion hurts \lb & held & 9 \cr
+energy damage exposes the hoard & failed: pure subtraction & 9 \cr
+\lb's carrion spend-share higher & failed as formulated & 9 \cr
+early carrion capture predicts winner & held ($\sim$80\%) & 9 \cr
+looting is \la's tool, gone in mix & held & 9 \cr
+}
+\medskip
+
+\noindent The tally: eleven held, ten failed as stated, five
+partial, refined, or redirected --- the “roughly half” of the
+abstract, on the record.
+
+\sec References
+
+\usebib/c (simple) zahradnice-nights
+
+\bye
