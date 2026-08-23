@@ -122,6 +122,50 @@ zahradnice-check: build/check.o build/libgrammar-speed.a
 clean:
 	rm -rf build zahradnice
 
+# --- screen-dump regression tests ---
+# Layout: tests/<prog>/<case>.input + tests/<prog>/<case>.expected.
+# <prog> resolves to programs/<prog>/index.cfg if it's a directory,
+# otherwise programs/<prog>.cfg. Optional sidecar tests/<prog>/<case>.seed
+# overrides the default --seed 1. Compares plain-text screen dumps with
+# `diff -u`; non-zero exit on any mismatch. `make update-tests` rewrites
+# the .expected files in place — review the diff before committing.
+
+TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
+
+.PHONY: test update-tests
+
+test: zahradnice-headless
+	@pass=0; fail=0; tmp=$$(mktemp); trap 'rm -f $$tmp' EXIT; \
+	for t in $(TESTS); do \
+	  base=$${t%.input}; \
+	  prog=$$(echo "$$t" | cut -d/ -f2); \
+	  if [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
+	  else cfg="programs/$$prog.cfg"; fi; \
+	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
+	  ./zahradnice-headless "$$cfg" --seed "$$seed" \
+	    --input "@$$t" --dump-screen -.txt 2>/dev/null > $$tmp; \
+	  if diff -u "$$base.expected" $$tmp >/dev/null; then \
+	    echo "PASS $$base"; pass=$$((pass+1)); \
+	  else \
+	    echo "FAIL $$base"; fail=$$((fail+1)); \
+	    diff -u "$$base.expected" $$tmp || true; \
+	  fi; \
+	done; \
+	echo "----"; echo "$$pass passed, $$fail failed"; \
+	[ $$fail -eq 0 ]
+
+update-tests: zahradnice-headless
+	@for t in $(TESTS); do \
+	  base=$${t%.input}; \
+	  prog=$$(echo "$$t" | cut -d/ -f2); \
+	  if [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
+	  else cfg="programs/$$prog.cfg"; fi; \
+	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
+	  ./zahradnice-headless "$$cfg" --seed "$$seed" \
+	    --input "@$$t" --dump-screen -.txt 2>/dev/null > "$$base.expected"; \
+	  echo "wrote $$base.expected"; \
+	done
+
 # --- release packaging (unchanged) ---
 
 RELEASE_DIR=release
