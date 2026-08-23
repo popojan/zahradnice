@@ -157,15 +157,65 @@ real and measured), but in final-outcome distribution given enough
 events; report the event-inflation factor. (P1-3) exactness
 (trace-replay == dump) holds in all arms, every run.
 
-**EW-2 machinery economy.** Copiers priced (machinery-row fuel
-consumed per copy... variant A) or build-priced only (variant B),
-copiers mortal (decay ε_d). Dose–response: machinery-fuel influx vs
-law-frontier velocity and allele survival. Predictions: (P2-1) law
-velocity rises with machinery fuel and saturates at the matter
-growth rate; (P2-2) at zero influx the world reverts to EW-1(c)
-frozen-law death after standing copiers starve/decay; (P2-3) fuel
-placement steers WHERE law gets copied (O9's dose–response
-instrument pointed at the inheritance channel itself).
+**EW-2 machinery economy.** Original registration: copiers priced,
+dose–response of fuel influx vs law velocity (P2-1), starvation
+reversion (P2-2), placement steering (P2-3). P2-1's bandwidth
+dose–response was absorbed by EW-1's cadence sweep (time-priced
+bandwidth). **Concrete fuel protocol (registered session 9, before
+ew2.py ran):** 5 playfield rows — tape 1, MARKER 2, fuel 3,
+machinery 4, regulatory 5 (all toroidal relations preserved; the
+copier's fuel read (−1,0) lands on row 3). Copying costs one fuel
+token `o` at the copier's own column, consumed back to the `.`
+background; walks stay free; machinery is ETERNAL (no decay/build —
+EW-3 owned demography; this isolates the fuel economy). The marker
+row is static: `<` over the left half, `>` over the right; feed
+rules anchored on markers drop `o` at (+1,0) under a weight-uniform
+random marker of their half — so WHERE fuel lands is set by drive
+byte composition (f = left, g = right): O9's instrument pointed at
+the inheritance channel. Fuel is positional: a copy can occur only
+at a fueled column, so stamps can leak at most one cell east of the
+fed region (the stamp lands at anchor+1). Uniform-α world, ring 24,
+copiers density 1/2, cad 4, EST 100, M 10, BLOCKS 150, feed 2
+tokens after each wound, 100 seeds/arm. Arms: starve (no feed),
+left (ff), right (gg), both (fg). Predictions:
+  P2-2' (starve): ZERO copy events ever; wounds freeze; the world
+    erodes toward the EW-3 none-arm endgame — an unpaid channel is
+    an absent channel.
+  P2-3' (steering): copy events anchor exclusively in fed columns
+    (unfed-half copies = 0 exactly, up to the registered ≤1-cell
+    stamp leak); the fed half stays alive/active, the unfed half
+    approaches the starve arm; left and right arms mirror; both-arm
+    symmetric.
+Metrics per run: per-half copy counts (by anchor column), per-half
+alive/active/`?`, fuel standing per half, exact accounting.
+  **Amendment 5 (post-smoke, pre-sweep): the pass rule.** With
+  eternal machinery the smoke run deadlocked: a wound repair can
+  re-de-regulate the gate under a standing copier, which then can
+  neither copy (no template) nor walk (guard wants a stamped
+  target); east-only exclusion jams the whole convoy behind it and
+  the economy dies. EW-3/EW-4 never saw this because mortal
+  machinery melts jams (mortality is a jam-clearing service — noted
+  as a finding in its own right). Fix, registered here: copiers may
+  PASS — step east over an unstamped (`?`) locus without stamping
+  it (literal `?` body cell, no ctx conflict); repair of a ?-run
+  then proceeds west→east as templates become available. Also
+  fixed pre-sweep: the world bootstrap now anchors on a dedicated
+  glyph at reg col 0 (`^Zll`), pinning the marker halves to
+  absolute columns (the smoke's random-α anchor rotated the layout
+  against the analysis halves).
+  **Amendment 6 (post-smoke, pre-sweep): two horizons.** The fixed
+  smoke showed the steering claim holding exactly (0 unfed-half
+  copies) but BOTH single-fed arms dead at the 150-block horizon,
+  fed half included: east-only regrowth on a ring means a dead arc
+  is not a static frontier but a PURSUER — wounds at the fed half's
+  west edge cannot be repaired (west neighbour dead), so death
+  advances at the wound rate and eventually laps the ring. The
+  alive-contrast of P2-3' is therefore transient. Registered
+  measurement: every arm runs at BOTH horizons, 60 blocks
+  (mid-game, where the fed/unfed contrast should be visible) and
+  150 (endgame). The pursuit itself is reported as a finding
+  (an economy fed locally cannot survive embedded in a dead world
+  under one-handed regrowth).
 
 **EW-3 who pays for the polymerase (the summit test).** Two alleles
 with IDENTICAL matter law (the spawner A>A.writeA); α owns the
@@ -229,11 +279,85 @@ copier count, tape alive, exact accounting.
   (alive-count asymmetry between the initial halves); P3-1b
   (both = drift null) should hold in every regime.
 
-**EW-4 evolvable fidelity (deferred unless time permits).** Π vs π
-with copier replication breeding true (needs a replication rule —
-deferred with it), static vs wound-driven environments; does the
-world select its own mutation rate (K-vs-k, error threshold
-dose–response)?
+**EW-4 miscopy rescues the world (earning the mutation channel).**
+Registered 2026-08-23 session 9, replacing the earlier
+evolvable-fidelity sketch (copier replication stays deferred; the
+machine trait is inherited through the LAW lineage instead: the
+builder allele decides which machine type it funds). Setup: ring
+24; allele α = spawner only, allele μ = spawner + build-copier;
+world starts all-α with machinery bootstrapped at density 1/2 and
+decaying (ε_d) — μ exists NOWHERE and is reachable only through a
+sloppy copier's miscopy at a repair site. If μ is discovered before
+the bootstrap machinery dies, μ-land funds new machinery, becomes
+self-sustaining, and annexes the frozen α-land (EW-3 scarce
+dynamics); if not, the world erodes to death (EW-3 none-arm
+endgame). Machine error is thereby the world's ONLY source of law
+novelty, and its evolvability lives in a destroyable matter
+population. This is the first full matter→law→matter closure: the
+sloppy copier's errors create the lineage that feeds copiers.
+Arms: faithful (bootstrap Π, ε=0), sloppy ×3 (bootstrap π, ε ∈
+{0.01, 0.05, 0.2}; build writes π — arm-uniform machine type),
+nowound control (π, ε=0.05, drive without pokes). Constants
+(smoke-tuned BEFORE the registered sweep; tuning scan over
+ε_d ∈ {0.001,0.003,0.01} × M ∈ {5,10} at the middle dose put the
+race where the dose curve spreads — 10-seed rescue rates 0/4/7 of
+10 across the three ε doses): cad 4, M 5, EST 200, BLOCKS 200,
+ε_d 0.01, 100 seeds/arm. Predictions:
+  P4-1 (faithful): machinery decays; wounds freeze; the world
+    erodes toward death — no rescue, ever (μ unreachable).
+  P4-2 (sloppy, directional): rescue (final alive ≥ ring/2 AND
+    copiers ≥ 1) occurs in a substantial fraction of seeds and
+    vastly exceeds the faithful arm; rescued worlds end
+    μ-majority.
+  P4-3 (dose): rescue probability increases with ε across
+    {0.01, 0.05, 0.2} (time-to-first-μ decreases).
+  P4-4 (repair coupling): with no wounds there is no repair
+    traffic, hence no `?` targets, hence ZERO μ ever — mutation is
+    repair-coupled (mutagenesis is a metabolic service, exercised
+    only where inheritance is exercised).
+Metrics per run: rescue flag, final alive, gates α/μ/`?`, copiers,
+apply-index of first μ stamp (mutant-header write onto a non-μ
+gate), exact accounting.
+
+## P2 probe — the description rung (registered session 9)
+
+The ladder's next rung above the earned channels: descriptions with
+CONTENT — an interpreter in frozen law reading rule-encodings from
+matter (the von Neumann move). The affordable kernel, noticed while
+building F4: the (ctx, ctxrep) header pair IS a codon table. Three
+mechanics, all reusing proven geometry, probed in one cfg
+(`p2_interpreter_probe.cfg`, screen 8×14; code row 3, heads row 2,
+product row 1, daughter-strand row 4):
+
+1. **Translation (execution)**: constructor head Ω reads the code
+   glyph below itself (`&` LHS, ctx) and writes the ENCODED product
+   above itself (`&` RHS, ctxrep), advancing east under exclusion.
+   Codon table registered: A→A (matter), b→Π (a MACHINE — the
+   description encodes machinery). One header per codon; the
+   description is matter; the table stays law-side (the honest
+   limit, now one level up).
+2. **Transcription (heredity)**: strand-copier Π reads the code
+   glyph below itself and writes it to a `?` slot on the daughter
+   row below the code row ((+2,0)) — string replication with no
+   offset constant, semiconservative-shaped. The machine codon is
+   copied UNINTERPRETED (von Neumann's duality: the same
+   description is executed by one machine and blindly copied by
+   another).
+3. **Mutagenesis of descriptions**: sloppy transcriptase π carries
+   (A,b)/(b,A) headers at ε=0.25 — a flipped codon in the daughter
+   changes what a future translation CONSTRUCTS, machine glyphs
+   included; mutation reaches machinery through its description
+   (composition with mechanic 1 is transitive and is not re-probed).
+
+Exit criteria: (i) product row = codon-mapped image of the code
+string, including a constructed Π; (ii) translator stalls at
+end-of-tape (extra byte no-ops); (iii) daughter strand = faithful
+copy under Π, ε-flipped under π across seeds; (iv) parked machines
+jam successors (exclusion) until erased — phases must clear the
+track (v byte); (v) event accounting reconciles. The full
+self-reproduction loop (translate the transcriptase's own
+description, integrate constructed machines into a living F4 world)
+is the NEXT experiment, not this probe.
 
 ## Instruments
 

@@ -157,6 +157,17 @@ def copier_walk(glyph, alleles, trig="T", w=1):
     return heads, "@~@@" + glyph + "\n %"
 
 
+def copier_pass(glyph, trig="T"):
+    """Step east over an UNSTAMPED (`?`) locus without stamping it —
+    no template needed. Without this, a wound repair that
+    re-de-regulates the gate under a standing copier deadlocks the
+    whole east-only convoy behind it (EW-2 Amendment 5; mortal
+    machinery masks the jam by melting it)."""
+    return ([("==" + glyph + trig + "~78",
+              [(0, 0, " "), (0, 1, glyph)])],
+            "@~@@" + glyph + "\n ?")
+
+
 def copier_decay(glyph, eps_d, trig="T"):
     return ([(f"=={glyph}{trig}~78   0 {eps_d:g}", [(0, 0, " ")])], "@@@")
 
