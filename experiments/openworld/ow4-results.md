@@ -112,3 +112,11 @@ at a law frontier).
 Watch it live: `./zahradnice demos/openworld/lawsoup.cfg` — random
 six-law soup each load; B-laws wake when an A-law manufactures their
 substrate (niche construction).
+
+## Addendum (review revision): the two-niche run, extended
+
+Replays of the partition run (walker2, seed 20) at longer horizons:
+partition stands at the 11k-event horizon (12 spawner / 9 walker
+gates), the spawner absorbs the walker by 16k, the walker law
+dominates in turn by 22k, and the world dies near 33k events. A
+slow war, not an equilibrium — the paper's §5 now says so.
