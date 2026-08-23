@@ -1,0 +1,601 @@
+% compile: OSFONTDIR=~/.fonts// optex zahradnice-earned.tex
+% (f-equity.opm alongside; Equity by Matthew Butterick, not in repo)
+% Paper #4 of the set. Self-contained by design: the one page of
+% axioms restates everything used from the parent papers, and the
+% F3 control arms re-derive the verdicts this paper calibrates
+% against inside its own runs.
+\fontfam[Equity]
+\hyperlinks \Blue \Blue
+\report
+\margins/1 a4 (2.4,2.4,2.4,2.6)cm
+\typosize[11/13.8]
+\raggedbottom
+
+\def\repo#1{{\tt #1}}
+\def\lawname#1{{\bf #1.}}
+\def\g#1{{\tt #1}}
+\def\sqr{\sqcup}
+\def\la{$\alpha$}
+\def\lb{$\beta$}
+\def\lc{$\gamma$}
+\def\ld{$\delta$}
+\def\lm{$\mu$}
+\def\Pc{$\Pi$}
+\def\pc{$\pi$}
+\def\Om{$\Omega$}
+\def\eps{$\varepsilon$}
+\verbchar`
+
+\tit Machinery That Earns the Channels
+
+\centerline{\it Inheritance, mutation, and price as mortal matter,
+and a self-reproducing kernel, under a frozen rule table}
+\medskip
+\centerline{Jan Popelka \& Claude (Anthropic) --- August 2026}
+\centerline{\tt github.com/popojan/zahradnice \quad branch {\tt research}
+\quad \repo{experiments/openworld/}}
+\bigskip
+
+\noindent{\bf Abstract.}
+The predecessor paper built a world where law is made of matter: a
+regulatory row of glyphs decides which rules of a frozen table act
+where, and that row is inherited, mutated, and priced. It closed on
+a confession --- all three channels were {\it authored}. Every
+matter-creating rule stamped its law onto its offspring for free;
+mutation was a weight in the table; price was a header. Nothing in
+the world could lose, relocate, or degrade a channel, so nothing
+could be said about what a channel costs or why one would persist.
+This paper moves the channels' exercise into matter and lets
+selection decide their fate. The single new object is a {\it
+copier}: a mortal glyph on a machinery row that reads the law
+below itself and stamps it one cell east --- inheritance happens
+only where such a machine stands. Five experiment families follow.
+The authored channel turns out to be exactly the {\it
+infinite-bandwidth limit} of the earned one: given enough
+machinery events per matter event, earned worlds walk the parent
+paper's orbits step for step, down to a lottery allele's seed
+mixture. Whether anyone {\it pays} for the machinery is then a
+question with a two-regime answer: when machinery saturates
+demand, gate dynamics are provably indifferent to who builds
+(free-riding is perfect, and funding is neutral); when machinery
+is scarce, the lineage that funds it beats the free-rider 99:1 by
+letting the unfunded land freeze, erode, and be annexed. Mutation
+becomes machine error --- a world whose only path to a superior
+allele runs through a sloppy copier's mistake is rescued in
+proportion to that machine's error rate, and not at all by perfect
+machinery, and not at all without the repair traffic that
+expresses the errors. Price becomes fuel a copy must eat: an
+unpaid channel performs zero copies, ever, and where the food
+lands is exactly where law can be inherited. The last experiment
+closes the loop the parent arc left open: a description row whose
+codons a translator machine executes --- one codon builds copiers,
+one builds the translator itself --- sustains a machinery
+population through twenty-six generations of turnover, and the
+self-reference codon alone is worth two thirds of the world's
+survival probability. About 9{,}900 registered runs; every one
+replayed from its event log byte-for-byte, zero mismatches; zero
+engine changes; predictions pre-registered and scored where they
+failed as well as where they held.
+
+\medskip
+\noindent{\it This is the fourth paper of a set, written to be
+read alone. The substrate companion \cite[substrate26] documents
+the engine; the census arc \cite[nights26] graded the rule
+families; the open-world paper \cite[openworld26] built the gated
+worlds this paper takes as its control arms --- and its control
+arms re-derive what they use. Every table and figure regenerates
+from} \repo{experiments/openworld/ew*.py} {\it and the CSV files
+beside them.}
+
+\sec The question
+
+The parent paper ended one sentence short of its own summit. It
+had made law into matter --- a regulatory row deciding, cell by
+cell, which rules of a frozen table may act --- and it had given
+that row the three channels every evolutionary substrate needs:
+the row was {\it inherited} (expansion stamped the parent's law
+onto new matter), {\it mutable} (stamping miscopied at a declared
+weight), and {\it priced} (expansion could be made to pay fuel).
+But all three were gifts. The stamp was a free side effect of
+every matter-creating rule; the mutation rate was a constant of
+the table; the price was a constant of the table. The paper's
+honest-limits section said it plainly: the claim is what follows
+from the channels under frozen law, not that they self-assemble
+--- machinery that {\it earns} these channels is the summit
+question, and it stands.
+
+“Earned” needs an operational meaning before it can be tested.
+The frozen-law axiom is not for sale: some rule table must permit
+copying, as chemistry permits polymerization. What can move is
+the {\it exercise} of the permission. In biology the copying of
+regulatory state is not a free side effect of growth; it is work
+done by machines --- polymerases, ribosomes, chromatin remodelers
+--- that are themselves matter: built at a cost, positioned
+somewhere and not elsewhere, error-prone by construction, and
+mortal. Whether, where, how fast, how faithfully, and at what
+price inheritance happens depends on a machine population subject
+to the same wounds and the same economy as everything else. That
+is the sense in which this paper earns the channels: their
+throughput, fidelity, location, cost, and persistence become
+properties of mortal matter, and we then ask the only question
+that matters about such a construction --- {\it will selection
+keep it?}
+
+\sec The physics, and the two new objects
+
+The substrate is the Zahradnice engine \cite[substrate26], used
+unmodified; the entire paper again required zero engine changes.
+The axioms A1--A5 of the parent paper hold verbatim: locality on
+a toroidal grid (A1), one symbol per cell (A2), serialized
+weight-proportional choice --- one event at a time, all processes
+paying from one budget (A3), a frozen rule table (A4), and an
+external drive of wound and food bytes that is declared physics,
+never evolving content (A5). The no-variables abstinence also
+carries over: every symbol a rule writes is a constant of that
+rule, so anything resembling copying must be assembled as a
+case-split over the alphabet --- which is precisely what makes it
+priced and mutable.
+
+The worlds are rings of 6 to 24 columns stacked into four or five
+rows: a matter tape (the censused F2 rules act here), a fuel row,
+a {\it machinery row}, and the regulatory row of the parent paper,
+with a {\it code row} added in the final section. Alleles are
+censused genotypes as before --- the static repairer \la\
+(\g{A${>}$A.writeA}), the dynamic repair pair \lb, the lottery
+walker \lc, the inert \ld\ --- each gated on its glyph in the
+regulatory row.
+
+{\bf First object: de-regulated creation.} The parent paper's
+inheritance channel is deleted. A matter-creating rule no longer
+stamps its allele; it writes a placeholder \g{?} at the created
+column's regulatory cell. An unstamped column gates nothing ---
+no rule can anchor there --- so growth outruns law by exactly one
+cell and stalls. Two refinements were forced by the first smoke
+runs and registered before any sweep. {\it Conquest is content
+change}: a rule that rewrites a cell with the symbol already there
+performs no identity event and leaves the gate standing (matter is
+anonymous; the census idiom of idempotent spawners would otherwise
+de-regulate their own neighbours forever). The unconditional write
+splits into three mutually exclusive east-content variants, so
+exactly one is applicable in any state at the rule's own weight
+--- the split is lottery-equivalent to the original rule.
+{\it Erasure still leaves ghosts}: only creation de-regulates;
+wounds keep the parent paper's ecological inheritance.
+
+{\bf Second object: the copier.} On the machinery row lives a
+glyph \Pc. Its law, entirely inside the frozen table: read the
+allele below itself (the rule's context pair does the reading),
+require \g{?} east-below, stamp the allele there, and advance
+east into an empty machinery slot. One body, one header per
+allele --- the parent paper's stamp machinery re-anchored on a
+machine instead of on matter. A copier may also walk east over
+already-stamped ground, and pass over unstamped ground without
+stamping (the pass rule --- added when a wound under a standing
+copier deadlocked an entire east-bound convoy; mortal machinery
+had masked the jam by melting it, an unadvertised service of
+death). Copiers are excluded like all matter: a machinery row
+filled solid gridlocks, so “saturated” means density one half. A
+sloppy variant \pc\ carries, in addition, mutant headers that
+stamp the {\it wrong} allele at weight \eps: fidelity is a trait
+of the machine standing there, not of the world. Machinery is
+mortal (a decay rule at weight $\varepsilon_d$) and buildable (a
+gated rule lets matter write a copier into an empty slot above
+itself, so machines are born where their builders stand).
+
+Machinery runs on its own drive byte: the drive interleaves one
+matter byte \g{T} with $c$ machinery bytes \g{C}, and $c$ --- the
+{\it cadence} --- is the world's machinery bandwidth. This is a
+measurement choice with teeth (the parent census's classifier
+counts matter events against a budget, and copier events on a
+shared trigger read as starvation), but it also purchases the
+paper's cleanest independent variable, and trigger-filtered rules
+provably leave the shared random stream untouched.
+
+Exactness discipline is unchanged: every run's trace is replayed
+by an independent Python model of every rule's writes ---
+de-regulation, stamps, machine motion, decay, construction ---
+and the reconstructed final screen is diffed against the engine's
+dump. About 9{,}900 registered runs across the five experiment
+families; zero mismatches.
+
+\sec The authored channel is a limit
+
+The first question is calibration's: is the earned world the same
+world, given enough machinery? Four uniform-allele worlds (ring
+6) run three arms under the census wound protocol: the parent
+paper's authored stamps; the earned world with free, faithful,
+immortal copiers at density one half; and the earned world with
+no copiers at all. The machinery cadence sweeps 1 to 32.
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ew-bandwidth.pdf}}
+\medskip
+
+Three results, in ascending order of surprise. First, {\bf
+necessity}: with no copiers, no world ever regains an allele
+beyond its initially stamped ground --- growth halts one cell out,
+wounds freeze, and the census verdicts collapse (mean active loci
+0.1 of 6). Law must be inherited by machinery to persist at all.
+Second, {\bf starvation is real}: at low cadence the dynamic
+alleles' matter waits on the machinery --- a fork cannot advance
+until stamped --- and the classifier correctly reads worlds
+starving below their event budget; the walker de-regulates the
+very cell it moves into, so its own law chases it like a
+replication fork. Machinery latency is a tax on matter that no
+free-stamp world ever paid. Third, {\bf convergence is exact, not
+approximate}: at cadence 16 the dynamic repairer \lb\ does not
+merely survive --- it walks the authored world's own orbit
+(translation class, period 6, transient 5) in 200 of 200 seeds,
+and the lottery walker \lc\ reproduces not its modal verdict but
+its whole seed mixture (repair:died 115:85 against the authored
+117:83, $|z|\le0.4$). The static \la\ matches at every cadence;
+the inert \ld\ is cadence-invariant.
+
+The theorem-shaped summary: {\it the authored channel is the
+infinite-bandwidth limit of the earned channel.} Everything the
+parent paper proved about gated worlds is the $c\to\infty$ face
+of a family whose finite members pay for inheritance in time.
+
+\sec Who pays for the polymerase
+
+Now make the machinery worth something and ask who keeps it
+alive. Two alleles with {\it identical} matter law share a ring
+of 24 (half each); \la\ owns the rule that builds copiers, \lb\
+free-rides. Copiers decay; the machinery row starts empty; both
+alleles' matter is the same symbol, so nothing ever conquers by
+growth --- all territorial change is wound-mediated: a poke
+erases a cell, the west neighbour regrows it (de-regulating it),
+and whichever allele's glyph stands west gets stamped in by the
+first copier to arrive. Territory moves only where wounds are
+repaired, from the west, machinery permitting. Arms: nobody
+builds; both build (the drift null); the funder builds at no cost
+(“free”); the funder builds on the {\it matter} byte, each build
+displacing one of its own matter events (“taxed”). Three regimes
+scale machinery scarcity against wound demand.
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ew-scarcity.pdf}}
+\medskip
+
+The pre-registered directional claim --- the funder wins ---
+{\bf failed in the abundant regime}, and the failure is the
+better finding. When bandwidth saturates demand, the gate
+dynamics of the “both build” and “free” arms are not merely
+similar: they are {\it bit-identical in 190 of 200 seeds}. The
+reason is structural. A stamp's content is always the west
+template; machinery composition can only ever influence stamp
+{\it timing}; and when every wound is repaired before the next
+one lands, timing carries no selective information. Saturated
+machinery is a global public good, free-riding is perfect, and
+funding is neutral --- the drift null everywhere
+\cite[moran58,kimura62]. The tragedy of the commons
+\cite[hardin68] is not that the funded good is stolen; it is that
+abundance makes funding invisible.
+
+Scarcity changes everything. At one machinery byte per matter
+byte, high decay, and frequent wounds, an unstamped west
+neighbour cannot regrow the next wound: unrepaired ground does
+not wait, it {\it erodes}. Copiers are born above their builders
+and decay in transit, so repair is local; the free-rider's land
+freezes, dies, and is annexed from the west by the lineage that
+pays. The funder wins 99:1 ($z=+9.8$), holding 8.1 of the
+free-rider's 12 original columns against 1.1 lost --- and the
+taxed arm, which pays for every build in its own scarcest
+currency, still wins 95:3. The tax's only visible bite is in the
+middle regime, where the benefit is marginal and the sign flips
+weakly negative. (One survivorship note, reported because the
+ledger shows it: the winner's land ends {\it less} alive than the
+loser's --- wounds target living matter, so the lineage that
+keeps repairing keeps absorbing them while the free-rider's
+frozen corpse is spared.)
+
+The two-regime law echoes the parent paper's economy season one
+level up: scarcity does not merely shape evolution {\it on} the
+channels --- it decides whether a channel is anyone's to keep.
+Spatial structure is load-bearing exactly as in the replicator
+literature \cite[boerlijst91,takeuchi12]: locality of birth and
+decay-in-transit are what convert “who funds” into “whose
+neighbourhood survives.”
+
+\sec Error is a machine
+
+The parent paper's mutation was a weight; here it is a machine's
+trait, and the question is what that trait is worth. A ring of
+non-builders (\la) starts fully stamped, with bootstrapped
+machinery that decays and nothing to replace it: the world is
+mortal by default. A second allele \lm\ --- identical matter law
+{\it plus} the build rule --- exists nowhere. The only path to
+\lm\ runs through a copier stamping the wrong allele at a repair
+site. Arms: faithful machinery (\Pc, $\varepsilon=0$); sloppy
+machinery (\pc) at \eps\ $\in\{0.01,0.05,0.2\}$; and sloppy
+machinery with no wounds at all.
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ew-rescue.pdf}}
+\medskip
+
+Perfect copying is lethal: 0 of 100 faithful worlds survive ---
+the machinery decays, wounds freeze, erosion finishes the rest,
+and the recipe for salvation is unreachable. Sloppy worlds are
+rescued in dose: 4, 13, and 40 of 100 across the three error
+rates, with discovery accelerating in \eps\ and {\it nearly
+sufficient} --- once the builder allele exists, it establishes in
+about 93\% of cases. And the no-wound control is the sharpest
+edge: zero \lm\ in 100 runs, because a mutation can only be
+expressed where a repair is performed. Mutation here is not a
+background rate; it is {\it repair-coupled machine error}, a
+metabolic service exercised exactly where inheritance is
+exercised --- the substrate's cartoon of stress-induced
+mutagenesis \cite[galhardo07], with the error threshold's other
+face \cite[eigen71]: below the needed error rate the world dies
+not of mutational meltdown but of mutational famine.
+
+One registered sub-claim failed, instructively: rescued worlds do
+{\it not} end \lm-majority (9 of 40 at the highest dose). The
+reason is the previous section's own law recursed. The moment
+\lm's funding restores machinery abundance, saturation invariance
+returns, the free-rider \la\ rides the public good, and
+annexation stops favouring the funder. {\it The rescuer's
+advantage is self-limiting}: rescue re-creates the abundance that
+neutralizes it, and the world settles into funder--free-rider
+coexistence --- a negative frequency dependence on the builder,
+not a takeover.
+
+\sec The price of copying law
+
+The parent paper priced matter expansion; here the {\it copy
+itself} eats. A copy consumes one fuel token standing above the
+copier, and fuel exists only where the drive drops it: two static
+marker glyphs split the ring into halves, and feed rules drop
+tokens under a random marker of their half --- so where food
+lands is a drive-composition dial, the parent paper's
+dose--response instrument aimed at the inheritance channel
+itself. Machinery is immortal here (demography was the previous
+sections' business); walks are free; only stamping costs.
+
+Two exact results and one structural one. {\bf An unpaid channel
+is an absent channel}: the starved arm performs zero copies in
+200 runs --- not few, zero --- and the world erodes to death with
+its machinery intact and idle. {\bf Placement steers exactly}:
+across 400 single-fed runs the unfed half's copy count is 0.0
+(fuel is positional; a copy can anchor only at a fueled column,
+and the only cross-boundary effect is the one-cell stamp leak of
+the east-handed geometry); at the mid-game horizon the fed half
+is alive and active while the unfed half matches starvation. The
+structural result is the endgame: on a ring with one-handed
+regrowth, a dead arc is not a border but a {\it pursuer} ---
+wounds at the fed half's west edge can never be repaired, so
+death advances at the wound rate, laps the ring, and the fed arm
+dies with 11.9 unspent tokens standing over its corpse. A law
+economy cannot buy survival with local wealth if its
+neighbourhood is dead: the parent paper's granary-graveyard trap,
+re-derived at the level of the channel that feeds on it.
+
+\sec The description rung, and a self-reproducing kernel
+
+Everything so far earns the {\it exercise} of channels whose
+content is one symbol: a gate activates law, a stamp copies a
+glyph. The parent arc's ladder had a next rung --- descriptions
+with content, read by an interpreter in frozen law: the von
+Neumann move \cite[vonneumann66]. The affordable kernel turned
+out to be sitting in the construction already. The context pair
+that stamps a gate is, structurally, a {\it codon table}: read
+symbol $x$ here, write symbol $f(x)$ there. Re-aim it across
+rows and the copier becomes a {\it translator}.
+
+A code row joins the stack. On it, a description: codon \g{b} at
+a column means “a copier belongs east of here”; codon \g{w}
+means “a translator belongs east of here.” The translator \Om\
+lives on the machinery row itself, shared habitat with the
+copiers under the same exclusion, the two machine types reading
+different rows --- \Om\ the code row above (message), \Pc\ the
+regulatory row below (genome). Its execute rule reads the codon
+below, requires the two slots east empty, writes the encoded
+machine into the first, and lands in the second; a built copier
+is a live copier the moment it is written, and codon \g{w}
+building \Om\ is the self-reference. A weight-0.1 drift keeps
+convoys deadlock-free. Both machine types decay; {\it nothing
+else builds machines} --- machinery homeostasis flows only
+through translation, and rebuilding-into-emptiness places
+machines exactly where death made room. A probe first certified
+the mechanics in isolation (translation with a machine codon;
+transcription of a description to a daughter row that copies the
+machine codon {\it uninterpreted} --- the copy/interpret duality
+--- and mutagenic transcription at the declared rate); then the
+kernel went live inside a wounded, earning world.
+
+\medskip\centerline{\picw=10.5cm \inspic{figs/ew-kernel.pdf}}
+\medskip
+
+The kernel survives: 77 of 100 worlds, with a standing machinery
+of 18 at the horizon against 12 seeded --- and 315 construction
+events per run, meaning the population turned over about
+twenty-six times, every generation flowing through the
+description. The ablations die in the registered order. With no
+executor, the description is inert scripture: zero constructions,
+machinery decays to nothing, the world dies with the recipe for
+its salvation written above it and nothing able to read it ---
+the seed constructor is irreducible, von Neumann's given. With
+the executor but {\it no self-reference codon} --- one symbol
+changed in the description --- translators decay unreplaced,
+rebuild capacity is transient, and survival collapses to 10 of
+100: the \g{w} codon alone is worth 67 points of survival
+probability. {\bf Machinery that rebuilds its rebuilder outlasts
+machinery that does not.} And wounding the description kills in
+dose (8, 0, 1 of 100 as description wounds quicken; lifetime
+construction counts fall monotonically, 125 to 87 to 65): the
+machine population is now a {\it phenotype of a matter string},
+and the string, in this paper, still cannot heal --- its
+replication is the registered next increment.
+
+\sec The laws, substrate-free
+
+\begitems
+* \lawname{E1 Inheritance requires standing machinery} Where no
+copier stands, law is never inherited: growth stalls one cell
+past its stamped ground and every wound freezes (Section 3).
+* \lawname{E2 The authored channel is the infinite-bandwidth
+limit} At sufficient machinery events per matter event, earned
+worlds reproduce the authored worlds' trajectory classes,
+periods, transients, and seed mixtures exactly; the gifted
+channel is the $c\to\infty$ face of a paid one (Section 3).
+* \lawname{E3 Machinery latency taxes matter} Below the needed
+bandwidth, matter waits on its law --- forks cannot advance until
+stamped, and a mover's own law chases it; the tax is structural,
+before any price (Section 3).
+* \lawname{E4 Saturation makes the public good global} When
+machinery saturates wound demand, gate dynamics are invariant to
+machinery composition (bit-identical seeds): stamp content is
+always the west template, so only stamp timing is selective, and
+saturated timing selects nothing. Funding is neutral; free-riding
+is perfect (Section 4).
+* \lawname{E5 Scarcity makes the channel anyone's to keep}
+Under scarce machinery, unrepaired ground erodes and is annexed;
+the funding lineage beats the free-rider 99:1, robust to paying
+for builds in its own event budget; the tax bites only where the
+benefit is marginal (Section 4).
+* \lawname{E6 Mutation is repair-coupled machine error} Fidelity
+is a trait of the machine standing there; error is expressed only
+where repair is performed; a world with perfect machinery, or
+with no repair traffic, cannot evolve at all (Section 5).
+* \lawname{E7 The rescuer's advantage is self-limiting} Rescue
+restores the abundance that neutralizes funding (E4), so
+discovery ends in funder--free-rider coexistence, not takeover:
+negative frequency dependence on the builder (Section 5).
+* \lawname{E8 An unpaid channel is an absent channel} Priced
+copying performs zero copies without fuel, and copies exactly and
+only where fuel lands: the economy's placement dial steers
+inheritance itself (Section 6).
+* \lawname{E9 A dead neighbourhood pursues a living economy}
+Under one-handed regrowth a dead arc advances at the wound rate;
+local wealth cannot buy survival embedded in a corpse --- the fed
+half dies with its granary full (Section 6).
+* \lawname{E10 Self-reference is load-bearing} A machine system
+maintained by translating a description survives in proportion to
+the description encoding the translator itself; one codon of
+self-reference separates persistence (77\%) from collapse (10\%)
+(Section 7).
+\enditems
+
+\sec Honest limits
+
+The channels' {\it possibility} remains law-side: copy, walk,
+build, decay, translate are rules of the frozen table, as
+chemistry is not for sale in biology either; what matter earns is
+their exercise, fidelity, location, cost, and persistence. The
+codon table of Section 7 is authored --- content flows from
+matter, but the mapping is frozen; the same honest residue as the
+parent paper's, one level up. Descriptions do not yet replicate
+(transcription exists and was probed, but daughters are not
+promoted to working descriptions; a wounded codon never heals ---
+E10's q-dose measures exactly this gap). The first translator is
+given, not assembled. Copying and construction are east-handed,
+which breaks annexation symmetry by construction (both alleles
+equally) and makes E9's pursuit possible in the first place; the
+bidirectional family is future work. Machinery cadence is a drive
+dial, not an evolved allocation --- the honest cost of keeping
+the census classifier's event-budget semantics; the shared-budget
+regime is measured (E3) but not selected over. Fidelity is not
+yet heritable through a machine lineage (the sloppy machine's
+trait rides the law lineage that builds it). Rings are small
+(6--24); several numbers are finite-size quantities, and the
+survivorship caveats of Sections 4--5 are stated where they
+apply. Of the pre-registered predictions, two failed as stated
+and three needed pre-sweep amendment; the appendix scores all of
+them, and both failures became the paper's two best findings
+(E4, E7).
+
+\sec Related work
+
+The construction stays within von Neumann's separation of frozen
+physics from constructive content \cite[vonneumann66], and
+Section 7 is a deliberately minimal instance of his architecture:
+a description both {\it interpreted} (translation) and {\it
+copied uninterpreted} (transcription), with the interpreter
+encodable in the description. Self-reproducing loops
+\cite[langton84,sayama99] and digital-evolution systems
+\cite[ray91,ofria04] realize replication under fixed chemistries,
+but their inheritance and mutation are engine services ---
+mutation in particular is an external operator with a global
+rate. Here all three channels are performed by mortal in-world
+machines, so their throughput, error rate, location, and price
+are ecological variables, and the paper's laws are about when
+selection maintains them. Artificial chemistries with
+compositional reactants \cite[fontana94,dittrich01,hutton02,hickinbotham21]
+make law implicit in structure; we keep law explicit and censused
+and move only its exercise into matter. The scarcity results
+join the public-goods and spatial-cooperation literature
+\cite[hardin68,boerlijst91,takeuchi12]: the good here is the
+inheritance channel itself, and abundance --- not exploitation
+--- is what erases the funder's advantage. Repair-coupled machine
+error is the substrate's reading of stress-induced mutagenesis
+\cite[galhardo07] and of evolvability as an evolvable property
+\cite[wagner96]; the rescue dose inverts the error-threshold
+intuition \cite[eigen71] at the low end. The description-driven
+kernel is a machinery-limited cousin of the major-transitions
+view of inheritance systems \cite[msz95]: what changes at the
+transition is not what is copied but what does the copying, and
+E10 prices the difference at one codon.
+
+\sec Where this leaves the arc
+
+The summit the parent paper named is climbed: inheritance,
+mutation, and price are exercised by mortal, buildable, fallible,
+hungry machines, and selection's verdict on each is measured
+rather than assumed. What the climb found on top is a pair of
+laws that no authored-channel world could have shown ---
+abundance neutralizes a channel and scarcity makes it worth
+funding (E4/E5), and error is a service whose absence is fatal
+(E6/E7) --- plus a kernel in which the machinery of inheritance
+flows through a description that includes its own maker (E10).
+The ladder continues visibly from here: descriptions that
+replicate and heal (transcription is built and probed; promotion
+is not), machine lineages that inherit their own fidelity, an
+evolved rather than driven machinery budget, and, standing where
+the summit used to be, the codon table itself --- the one mapping
+still granted. Every arc so far has ended by naming the next
+gift to revoke. This one does too.
+
+\sec Appendix: the scoreboard
+
+Pre-registrations from \repo{ew-design.md}, scored. “Amended”
+marks a registration rewritten {\it before} its sweep ran, with
+the smoke run that forced it narrated in the results file.
+
+\medskip
+\halign{\it #\hfil\ &#\hfil\ &\hfil #\cr
+{\bf prediction} & {\bf verdict} & {\bf section}\cr
+\noalign{\smallskip}
+no copiers: law never propagates & held & 3 \cr
+earned $=$ authored at equal budget & failed; amended to bandwidth
+limit & 3 \cr
+bandwidth limit, monotone approach & held (exact orbit at $c=16$) & 3 \cr
+exactness, every run & held (9{,}900/9{,}900) & 2--7 \cr
+no builders: symmetric freeze & held & 4 \cr
+both build: drift null, all regimes & held & 4 \cr
+funder wins when abundant & {\bf failed} (saturation invariance) & 4 \cr
+funder advantage grows with scarcity & held (99:1) & 4 \cr
+time tax preserves the sign & held; bites at the margin & 4 \cr
+faithful machinery: world dies & held (0/100) & 5 \cr
+sloppy machinery rescues & held & 5 \cr
+rescued worlds end \lm-majority & {\bf failed} (self-limiting
+advantage) & 5 \cr
+rescue is dose-monotone in \eps & held & 5 \cr
+no wounds: no mutation ever & held (0 in 100) & 5 \cr
+no fuel: zero copies ever & held (0 in 200) & 6 \cr
+placement steers copies exactly & held (0.0 unfed-half copies) & 6 \cr
+fed half outlives unfed & partial (transient; pursuit endgame) & 6 \cr
+kernel reaches turnover steady state & held (77/100) & 7 \cr
+no executor: zero constructions & held (0/100) & 7 \cr
+kernel $>$ no-w $>$ no-executor & held (77/10/0) & 7 \cr
+description wounds degrade survival & held in dose; saturation
+caveat & 7 \cr
+}
+\medskip
+
+\noindent The tally: seventeen held, two failed as stated, one
+partial, plus one registration reformulated before its sweep ---
+and both outright failures are the paper's two best findings.
+
+\sec References
+
+\usebib/c (simple) zahradnice-nights
+
+\bye
