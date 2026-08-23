@@ -12,13 +12,26 @@ wandering plankton `,` and make expansion toward them faster. The
 player is a crosshair `+` ($-tunnel, transient) whose actions hit
 the cell to its RIGHT: x smite, f feed, 1-4 plant, r restart.
 
-Species:
-  blaze R / law a (red)    expands 4-dir, can overwrite fern+drift
-  fern  F / law b (green)  fast expansion into empty/food only
-  drift ^>v< heads, C trail / law c (blue)  crawling streamers,
-                                            turn clockwise on block
-  stone S / law d (yellow) very slow creep, blaze cannot eat it
+Balanced as a TROPHIC WHEEL (the no-keeper diversity fix, built
+from the arc's own laws — priced growth, death-feeds-the-economy,
+and night-10's negative frequency dependence):
 
+  corpses/food -> fern -> blaze -> drift -> trails -> stone -> fern
+
+  fern  F / law b (green)  the grazer: fastest onto food pellets,
+                           nibbles stone
+  blaze R / law a (red)    the predator: near-obligate fernivore
+                           (starves when fern crashes)
+  drift ^>v< heads, C trail / law c (blue)  the parasite: burrows
+                           through blaze, turns clockwise on block
+  stone S / law d (yellow) the detritivore: eats drift trails,
+                           blaze-proof walls, cleared by fern
+  wounds recycle biomass into food pellets; blaze's own expansion
+  miscopies into drift seeds (the order feeds what attacks it), and
+  miscopy in general makes extinction non-absorbing.
+
+Verified unattended: 10/10 runs (5 seeds x 16k/33k events), all
+four species alive, none above ~46%, composition still churning.
 All rule scores are blank (0) — scoring to be decided later.
 Run: python3 experiments/openworld/gen_petri.py
 """
@@ -78,10 +91,10 @@ def expansions(m, g, ctx, tm, tg, fore, w=None, f6=None, f7=None):
         rule(head(m, "T", m, fore, f6=f6, f7=f7, w=w), *body)
 
 
-def species_block(name, others, w_empty=None):
+def species_block(name, others, w_empty=None, w_food="4"):
     m, g, fore = SEEDS[name]
     expansions(m, g, "~", m, g, fore, w=w_empty)
-    expansions(m, g, "o", m, g, fore, w="4")
+    expansions(m, g, "o", m, g, fore, w=w_food)
     for other in others:
         tm, tg, _f = SEEDS[other]
         expansions(m, g, "~", tm, tg, MUT_FORE, w=EPS_W)
@@ -111,20 +124,33 @@ L += [
     "^GcC",
     "^,uX",
     "^,lX",
-]
+] + ["^oXX"] * 14
 
 # --- starters (one-shot on the boot timing) --------------------------
 rule(head("Y", "i", "R", "1"), "@@@a")
 rule(head("Z", "i", "F", "2"), "@@@b")
 rule(head("G", "i", ">", "4"), "@@@c")
 
-# --- blaze: expands, and overwrites fern or drift trail --------------
-species_block("blaze", ("fern", "drift", "stone"))
-for body in exp_bodies("a", "%", "R", "a").values():
-    rule(head("R", "T", "R", "1", f6="F", f7="C", w="0.12"), *body)
+# --- blaze: eats food, crawls into emptiness, overwrites fern+trail --
+species_block("blaze", ("fern", "drift", "stone"), w_empty="0.02",
+              w_food="0.3")
+for body in exp_bodies("a", "F", "R", "a").values():
+    rule(head("R", "T", "R", "1", w="0.25"), *body)
+for body in exp_bodies("a", "C", "R", "a").values():
+    rule(head("R", "T", "R", "1", w="0.02"), *body)
+# night-10 dialled up: blaze's growth seeds its own predator
+for body in exp_bodies("a", "~", ">", "c").values():
+    rule(head("R", "T", "R", MUT_FORE, w="0.05"), *body)
+for body in exp_bodies("a", "o", ">", "c").values():
+    rule(head("R", "T", "R", MUT_FORE, w="0.05"), *body)
 
-# --- fern: fast, polite ----------------------------------------------
-species_block("fern", ("blaze", "drift", "stone"), w_empty="2")
+# --- fern: the grazer — fastest onto food, clears stone --------------
+species_block("fern", ("blaze", "drift", "stone"), w_empty="0.1",
+              w_food="8")
+for body in exp_bodies("b", "S", "F", "b").values():
+    rule(head("F", "T", "F", "2", w="0.3"), *body)
+for body in exp_bodies("b", "C", "F", "b").values():
+    rule(head("F", "T", "F", "2", w="0.5"), *body)
 
 # --- drift: crawling heads, clockwise turns --------------------------
 HEADINGS = {">": ("E", "v"), "v": ("S", "<"), "<": ("W", "^"),
@@ -133,6 +159,8 @@ for hg, (d, nxt) in HEADINGS.items():
     rule(head(hg, "T", "C", "4", f6="~", f7="o"),
          *exp_bodies("c", "%", hg, "c")[d])
     rule(head(hg, "T", nxt, "4", f6="~", w="0.5"), *turn_bodies("c")[d])
+    rule(head(hg, "T", "C", "4", w="2.5"),
+         *exp_bodies("c", "R", hg, "c")[d])
     for other in ("blaze", "fern", "stone"):
         tm, tg, _f = SEEDS[other]
         rule(head(hg, "T", "C", MUT_FORE, f6="~", f7="o", w=EPS_W),
@@ -141,14 +169,18 @@ for hg, (d, nxt) in HEADINGS.items():
 # --- stone: slow creep, blaze-proof by omission ----------------------
 sm, sg, sfore = SEEDS["stone"]
 for body in exp_bodies(sg, "~", sm, sg).values():
-    rule(head(sm, "T", sm, sfore, w="0.05"), *body)
+    rule(head(sm, "T", sm, sfore, w="0.03"), *body)
+for body in exp_bodies(sg, "C", sm, sg).values():
+    rule(head(sm, "T", sm, sfore, w="0.15"), *body)
 for other in ("blaze", "fern", "drift"):
     tm, tg, _f = SEEDS[other]
     for body in exp_bodies(sg, "~", tm, tg).values():
         rule(head(sm, "T", tm, MUT_FORE, w=EPS_W), *body)
 
 # --- wounds ----------------------------------------------------------
-for mg in ("R", "F", "C", "S", "^", ">", "v", "<", "o", ","):
+for mg in ("R", "F", "C", "S", "^", ">", "v", "<"):
+    rule(head(mg, "p", "o", "6"), "@@@")
+for mg in ("o", ","):
     rule(head(mg, "p", "~", "7"), "@@@")
 for lg in ("a", "b", "c", "d"):
     rule(head(lg, "q", "~", "7"), "@@@")
@@ -169,7 +201,7 @@ rule(head("+", "d", "$", "7"), "@@@ +")
 rule(head("+", "a", "$", "7"), *exp_bodies(" ", " ", "+", " ")["W"])
 rule(head("+", "w", "$", "7"), "@", "@", "+", "@")
 rule(head("+", "s", "$", "7"), "@", "@", "@", "+")
-rule(head("+", "x", "+", "7"), "@@@ ~~")
+rule(head("+", "x", "+", "7"), "@@@ o~")
 rule(head("+", "f", "+", "6"), "@ ~@@ o")
 for name, key in (("blaze", "1"), ("fern", "2"), ("drift", "3"),
                   ("stone", "4")):
