@@ -111,3 +111,25 @@ Opens worth their own nights: the frontier-subsidy intervention
 instrument (position of the α/β boundary over time → drift vs
 selection decomposition); deterministic-parity weight estimate.
 The paper #3 spine now spans P0 → OW-9.
+
+## Post-script — the killer test, run (same session)
+
+The interventional dose-response: fixed influx k=4, wound-fed
+fraction c swept 0→1 by input bytes alone (both feed rules present
+in every cfg — the rule table is IDENTICAL across cells; 60 seeds
+per cell, exact accounting 300/300):
+
+| carrion fraction | α / β / DEAD | α-share |
+|---|---|---|
+| 0/4 | 55 / 5 / 0 | 0.917 |
+| 1/4 | 50 / 10 / 0 | 0.833 |
+| 2/4 | 43 / 16 / 1 | 0.729 |
+| 3/4 | 7 / 16 / 37 | **0.304** |
+| 4/4 | 0 / 0 / 60 | — |
+
+Monotone disarmament of the overwriter as influx slides from
+standing crop to wounds, inversion at c=3/4, viability collapse at
+c=1 (the granary-graveyard limit). The invasion-channel law is
+causal, not correlational: nothing varied but where the tokens
+land. (c=0 also replicates OW-6's rain k=4 share of 0.917 to the
+third decimal — the instrument is stable.)
