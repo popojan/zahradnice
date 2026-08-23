@@ -547,6 +547,20 @@ not merely weak." Credibility gained exceeds novelty lost.
 
 ### Night-11 design brief (compartments vs the order-fueled parasite)
 
+**EXECUTED 2026-08-23** (night11.py, night11-results.md; 912 runs
+exact). Outcome: the ranked new-claim #3 (L6 inversion) LANDED —
+compartments never suppress the parasite (flat at m=8), and at
+collapse RAISE it (+0.054/+0.058, t≈8–12, dose-response in K), via
+commons rescue (tape +56–58%) whose order/matter is parasite fuel;
+the group-selection differential cov(contribution, ρ) is POSITIVE
+at m=2 (t up to 18, 24/24 seeds) — classical TC selection favors
+infection because the parasite is a matter-benefactor. Night law:
+"group selection cannot suppress a parasite that pays its rent" —
+the classical suppression result is the special case of positive
+virulence. Claim #1 (Price partition) realized as the measured
+S = ρ̄_w − ρ̄ differential; claims #2 (budget-priced walls) and the
+germline/soma arm remain open follow-ups.
+
 What the literature knows: (1) variance generation, not isolation, is
 the mechanism (stochastic corrector); (2) compartment size has an
 interior optimum (assortment load at small n, parasite ubiquity at
