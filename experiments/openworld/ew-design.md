@@ -430,6 +430,109 @@ type, exact accounting.
   even q16 erodes most of it — the dose is effectively
   time-of-death of the description).
 
+## EW-6 — description replication and healing (registered session 11)
+
+EW-5's registered gap: a wounded codon never heals, so the machine
+population is a phenotype with a countdown (q-dose collapse). EW-6
+gives the description heredity and repair via two-copy redundancy.
+Geometry: EW-5's stack with row 2 = BACKUP row (tape 1, backup 2,
+code 3, mach 4, reg 5). New machine, the transcriptase Φ, on the
+machinery row (shared habitat, same exclusion/decay), with two
+symmetric rule groups, one header per codon each:
+BACKUP — read the codon above ((−1,0)), write it into an empty
+backup slot at (−2,0), advance east; RESTORE — read the backup at
+(−2,0), write it into an EMPTIED code cell at (−1,0) (the heal),
+advance east. Plus the standard weight-0.1 drift. The q-wound
+rules anchor on codon glyphs wherever they stand, so q wounds
+BOTH copies uniformly; a column's content is lost only when both
+copies die between Φ visits (classic redundancy reliability).
+The codon table gains `t` → Φ: the machine that heals the
+description is itself encoded in the description — E10's
+self-reference extended to the repair layer. D layout (ring 24,
+even cols): w at 0/6/12/18, t at 8/20, b at the remaining six;
+machines seeded at codon+1 (4 Ω, 2 Φ, 6 Π; density 1/2).
+Constants otherwise EW-5's (cad 4, M 5, EST 200, BLOCKS 200,
+ε_d 0.005, drift 0.1); the EST phase doubles as the initial
+backup pass (Φ fills the empty backup row before wounds begin).
+Arms (100 seeds each): healed (no q), healed-q16/q8/q4, bare-q8
+(no Φ, no t codons — the EW-5 configuration under q8), no-t-q8
+(Φ seeded but no t codon: the repair machinery decays
+unreplaced). Predictions:
+  P6-1 (healing): healed-q8 survival is at least half of the
+    healed no-q rate — against EW-5's 0/100 at q8. Description
+    wounds stop being lethal when the description can be copied
+    back.
+  P6-2 (the machine is the healer): bare-q8 reproduces EW-5's
+    collapse (~0).
+  P6-3 (infrastructure tax): healed (no q) ≤ EW-5 kernel's 77/100
+    (backup machinery crowds the habitat and dilutes the C
+    lottery), and the tax buys robustness: healed-q8 ≫ bare-q8.
+  P6-4 (self-reference again): no-t-q8 lands between bare-q8 and
+    healed-q8 — repair capacity is transient when the repairer is
+    not encoded (E10 at the repair layer).
+Metrics: survival, alive, machinery Π/Ω/Φ, constructions by
+type, restores and backups performed, codons standing (code row
+and backup row separately), exact accounting.
+
+## EW-7 — the codon table into matter (registered session 11)
+
+The last authored mapping. In EW-5/6 the translation table (codon
+→ product) is header content: matter spells constructions, but
+what the spelling MEANS is frozen. EW-7 moves the mapping's
+existence, locality, and persistence into matter, by the F3 gate
+move applied to translation: the frozen table holds the SPACE of
+mappings — one translation body per table glyph, with the glyph as
+a literal read from a TABLE row — and matter selects which mapping
+is live, column by column. There is no global anything in this
+substrate (A1): even a “universal” code must be physically
+instantiated at every column where it is used, and its uniformity
+is a maintained condition, not a given — which is precisely the
+experiment.
+
+Geometry (ROWS=6): tape 1, code 2, TABLE 3, mach 4, reg 5. The
+translator reads the codon at (−2,0) and the table glyph at
+(−1,0) (contiguous body); execute/build/land as in EW-5. Two
+authored tables live in the frozen rule set: table `1` = {b→Π,
+w→Ω}; table `2` = the swap {b→Ω, w→Π} (compiled in every arm;
+worlds without `2` on screen never fire it — the space of
+mappings is the honest residue). New machine, the table-copier Ξ
+(mach row, same exclusion): read the table glyph below, copy it
+east into an EMPTIED table cell, advance; plus drift. Ξ is
+IMMORTAL and seeded at two empty even-column slots (registered
+scaffolding — the x-codon closure “the code encodes the machine
+that maintains the code” is the named next increment, as is the
+table-1-vs-table-2 mosaic competition, evolution of the genetic
+code proper). Byte r erases one uniformly random table glyph.
+World otherwise = EW-5 kernel exactly (ring 24, D = w×4 + b×8,
+8 Π + 4 Ω seeds, ε_d 0.005, cad 4, M 5, EST 200, BLOCKS 200,
+p wounds), 100 seeds/arm. Arms: live (uniform table-1, no r);
+no-code (table row EMPTY); wounded (r every 4th block, no Ξ);
+maintained (same r, Ξ×2). Predictions:
+  P7-1 (inert when whole): live ≈ EW-5 kernel (|z| ≤ 2 against
+    77/100) — an intact uniform code changes nothing.
+  P7-2 (the code must exist): no-code performs ZERO constructions
+    and collapses to the no-executor endgame — translation
+    without a physically present mapping is not slow, it is
+    absent.
+  P7-3 (per-column code death): wounded-code survival collapses
+    as table cells erode; every lost cell silences translation at
+    that column, and machinery decays unreplaced there.
+  P7-4 (maintained universality): with Ξ, survival is restored to
+    at least half of live — code uniformity is maintainable by a
+    machine at wound rates that kill the unmaintained code.
+Metrics: survival, alive, machinery counts, constructions, table
+cells standing, repairs by Ξ, exact accounting.
+  **Amendment 8 (post-smoke, pre-sweep): keepers must keep
+  moving.** At drift 0.1 the maintained arm died (0/5) WITH a
+  perfectly repaired code (49.6 repairs, 23.6/24 cells): two
+  slow immortal keepers are standing obstacles in the machinery
+  traffic — their parking columns are translator landing slots,
+  and construction fell 60% (EW-6's maintenance-rent law,
+  amplified by immortality). Registered fix: keeper drift weight
+  1.0 (fast transit; 8-seed scan: Ξ×2 drift 1.0 → 5/8 with
+  builds restored to 233 and table 19.6/24 — fast keepers trade
+  a little repair latency for the traffic they stop blocking).
+
 ## Instruments
 
 Compiler `gen_earned.py` (family-separation doctrine: gen_gated.py
