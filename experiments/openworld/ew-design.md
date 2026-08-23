@@ -359,6 +359,77 @@ self-reproduction loop (translate the transcriptase's own
 description, integrate constructed machines into a living F4 world)
 is the NEXT experiment, not this probe.
 
+## EW-5 — the self-reproduction kernel (registered session 10)
+
+The description rung goes live: constructed machines must WORK, and
+the description must encode the machinery that executes it.
+Geometry (ROWS=6): tape 1, fuel 2 (unused — the price channel is
+earned and rests), CODE 3, machinery 4, regulatory 5. All F4
+relations preserved (tape reads reg at toroidal (−1,0) and mach at
+(−2,0); copiers read reg at (+1,0)). The translator Ω lives ON the
+machinery row — shared habitat with copiers under the same
+exclusion; the two machine types read different rows (Ω the code
+row at (−1,0), Π the regulatory row at (+1,0)): message and genome.
+
+Translator law (one body + codon-table headers, gen_earned.
+translator_rules): EXECUTE — read codon c below, require (0,+1)
+and (0,+2) empty, write product(c) at (0,+1), land at (0,+2); a
+built Π is a live copier the moment it is written, and codon w →
+Ω is the self-reference (machine begets machine through the
+description). DRIFT — unconditional advance-1 at weight 0.1
+(deadlock-free passage over full slots and junk; execution becomes
+statistical, the ring's circulation catches missed codons next
+lap). Both machine types decay (ε_d, byte C). Translation builds
+only into emptiness — rebuild happens exactly where death made
+room: machinery HOMEOSTASIS through the description.
+
+World: ring 24, uniform α spawner, p wounds (matter), EW-4's
+economy (cad 4, M 5, EST 200, BLOCKS 200, ε_d 0.01, 100
+seeds/arm). Description D on the code row: codon at even col j
+builds the machine at j+1 — `b` (→Π) everywhere except `w` (→Ω)
+at cols 6 and 18. Seeds: Π at the other odd cols (10) + Ω at 7,
+19. Description wounds: byte q erases one random codon (b/w).
+Arms:
+  kernel      — full D, 10 Π + 2 Ω, decay both, p wounds;
+  no-executor — same D, 12 Π, NO Ω (nothing reads the
+                description; conservative extra 2 copiers);
+  no-w        — D all-b (no self-reference codon), 10 Π + 2 Ω;
+  q-dose      — kernel + one q per wound block.
+Predictions:
+  P5-1 (kernel): machinery reaches turnover steady state —
+    construction events ≫ seeded machines, both product types;
+    survival ≫ no-executor at the same decay.
+  P5-2 (no-executor): zero constructions ever; machinery decays
+    to nothing; the world dies (EW-4's faithful endgame). The
+    seed constructor is irreducible — von Neumann's given.
+  P5-3 (ORDERING, the kernel claim): kernel > no-w > no-executor
+    in survival and final machinery. Without the w codon,
+    translators decay unreplaced and rebuild capacity is
+    transient: the self-reference codon is load-bearing —
+    machinery that rebuilds its rebuilder outlasts machinery
+    that does not.
+  P5-4 (q-dose): survival degrades under description wounds;
+    every lost codon is a permanent machinery hole (no D-repair
+    in EW-5 — description replication is the registered next
+    increment, EW-6).
+Metrics per run: survival (alive ≥ 12 AND machinery ≥ 1), alive,
+active, final copiers/translators, construction counts per product
+type, exact accounting.
+  **Amendment 7 (smoke-tuned, pre-sweep).** At the registered
+  ε_d 0.01 / 2 w-codons the kernel died everywhere: the translator
+  population (n=2) is a gambler's ruin, and its extinction takes
+  the rebuild chain with it. Tuning scan (8 seeds, kernel vs no-w):
+  ε_d 0.005 with w at {0,6,12,18} gives kernel 6/8 vs no-w 1/8;
+  ε_d 0.0025 destroys the separation (no-w 6/8 — translators
+  outlive the horizon on seed capital, the self-reference codon
+  never gets to matter). Registered constants: ε_d 0.005, w-codons
+  ×4 at cols 0/6/12/18 (Ω seeds at 1/7/13/19, Π at the other 8 odd
+  cols). The q-dose arm becomes a THREE-POINT dose: one description
+  wound every 16th / 8th / 4th block (12 / 25 / 50 q bytes; the
+  12-codon description saturates fast under uniform erasure, so
+  even q16 erodes most of it — the dose is effectively
+  time-of-death of the description).
+
 ## Instruments
 
 Compiler `gen_earned.py` (family-separation doctrine: gen_gated.py

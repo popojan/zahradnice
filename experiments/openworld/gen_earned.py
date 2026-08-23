@@ -172,6 +172,24 @@ def copier_decay(glyph, eps_d, trig="T"):
     return ([(f"=={glyph}{trig}~78   0 {eps_d:g}", [(0, 0, " ")])], "@@@")
 
 
+def translator_rules(glyph, codons, drift_w=0.1, trig="T"):
+    """The description rung's executor (EW-5): read the codon below
+    ((−1,0), ctx), build its product east ((0,+1), ctxrep), land
+    beyond it ((0,+2)) — a built machine is live the moment it is
+    written, and a codon encoding `glyph` itself is the von Neumann
+    self-reference. Builds only into emptiness (homeostasis: rebuild
+    where death made room). The weight-`drift_w` unconditional
+    advance keeps the convoy deadlock-free past full slots and junk
+    codons. codons: {codon_glyph: product_glyph}."""
+    heads = [("==" + glyph + trig + "~78" + c + prod,
+              [(0, 0, " "), (0, 1, prod), (0, 2, glyph)])
+             for c, prod in sorted(codons.items())]
+    execute = (heads, "&\n@~~@@&" + glyph)
+    drift = ([(f"=={glyph}{trig}~78   0 {drift_w:g}",
+               [(0, 0, " "), (0, 1, glyph)])], "@~@@" + glyph)
+    return [execute, drift]
+
+
 def build_rule(matter, allele, glyph, trig="T", priced=False, w=1):
     """Matter gated on `allele` writes a copier into an EMPTY slot at
     (-2,0) — machinery is born where its builders stand."""
