@@ -133,3 +133,28 @@ c=1 (the granary-graveyard limit). The invasion-channel law is
 causal, not correlational: nothing varied but where the tokens
 land. (c=0 also replicates OW-6's rain k=4 share of 0.917 to the
 third decimal — the instrument is stable.)
+
+## Addendum — the frontier walk, measured (ow9_frontier.py)
+
+480 runs, exact 480/480; raw data `ow9_frontier.csv`. The β-gate
+count b(t) tracked per apply over the active window.
+
+**Selection velocity** (ring 48): μ(w) = −0.0058, −0.0026, +0.0015,
++0.0035, +0.0059, +0.0100 (±≈0.001–0.002 SE) across w = 1…1.5 —
+zero-crossing at **w*_det ≈ 1.16**: the deterministic parity weight,
+now a measurement with error bars rather than a win-rate
+extrapolation. Both step rates p, q rise with w; the velocity is a
+small difference of growing fluxes.
+
+**The homogeneous ruin model fails informatively.** Gambler's-ruin
+predictions from pooled (p, q) undershoot β's observed fixations
+increasingly with N (N=24: 0.269 vs 0.317; N=48: 0.034 vs 0.150;
+N=96: ~0.000 vs 0.017). The tercile-conditioned bias shows why: the
+walk is state-dependent — at N=24 the drift *flips positive* for β
+once it holds the top third of the ring (μ|T2 = +0.0036 vs
+−0.0071/−0.0064 below), and at N=48 it weakens (−0.0035 vs
+−0.0062). α's advantage is proportional to α's own territory
+(stamp-budget ∝ standing mass), so whoever grows large gains the
+feedback — OW-8's paint→territory→mass→paint loop, measured as
+size-dependent drift. β's excess fixations are drift excursions
+that cross into the regime where the feedback switches sides.
