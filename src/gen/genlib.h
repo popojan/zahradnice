@@ -87,6 +87,8 @@ struct Header {
     std::optional<char> back;
     std::optional<wchar_t> ctx;
     std::optional<wchar_t> ctxrep;
+    int score = 0;     // appended after a space iff non-default
+    int weight = 1;    // appended after a space iff score or weight non-default
 };
 
 // Concise factory for the common case (lhs + trigger + replace, no colours / ctx).
