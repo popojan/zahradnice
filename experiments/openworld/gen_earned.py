@@ -120,15 +120,22 @@ def unstamped_groups(rule, glyph, priced=False, matter=MATTER_CHARS):
 # All helpers return ([(header, writes)], body): headers stack over
 # the shared body; writes are [(drow, dcol, ch)] for the replay imap.
 
-def copier_copy(glyph, alleles, eps=0, trig="T", priced=False):
+def copier_copy(glyph, alleles, eps=0, trig="T", priced=False,
+                faith_w=1):
     """Read template below (ctx), require `?` east-below, stamp it
     (ctxrep), advance east into an empty slot. Faithful headers per
     allele; eps > 0 adds the mutant (g, g') headers — miscopy as a
-    property of THIS machine glyph."""
+    property of THIS machine glyph. faith_w < 1 normalizes the
+    total copy mass of a sloppy machine (EW-9 Amendment 10: extra
+    mutant headers otherwise make it MOVE more, and under exclusion
+    the restless breed less — a mobility-fecundity confound)."""
     fuel_w = [(-1, 0, SPENT)] if priced else []
     heads = []
     for g in alleles:
-        heads.append(("==" + glyph + trig + "~78" + g + g,
+        h = "==" + glyph + trig + "~78" + g + g
+        if faith_w != 1:
+            h += f" 0 {faith_w:g}"
+        heads.append((h,
                       [(0, 0, " "), (0, 1, glyph), (1, 1, g)] + fuel_w))
     if eps:
         for g in alleles:
@@ -157,19 +164,49 @@ def copier_walk(glyph, alleles, trig="T", w=1):
     return heads, "@~@@" + glyph + "\n %"
 
 
-def copier_pass(glyph, trig="T"):
+def copier_pass(glyph, trig="T", w=1):
     """Step east over an UNSTAMPED (`?`) locus without stamping it —
     no template needed. Without this, a wound repair that
     re-de-regulates the gate under a standing copier deadlocks the
     whole east-only convoy behind it (EW-2 Amendment 5; mortal
     machinery masks the jam by melting it)."""
-    return ([("==" + glyph + trig + "~78",
-              [(0, 0, " "), (0, 1, glyph)])],
+    h = "==" + glyph + trig + "~78"
+    if w != 1:
+        h += f"   0 {w:g}"
+    return ([(h, [(0, 0, " "), (0, 1, glyph)])],
             "@~@@" + glyph + "\n ?")
 
 
 def copier_decay(glyph, eps_d, trig="T"):
     return ([(f"=={glyph}{trig}~78   0 {eps_d:g}", [(0, 0, " ")])], "@@@")
+
+
+def wall_hop(glyph, w=0.05, trig="T"):
+    """EW-11 Amendment 11: cross a wall `|` into an empty cell two
+    east, rarely. Without this, an east-only machinery economy in a
+    bounded sector is a terminal conveyor — machines make one
+    transit, pile at the wall, the pile grows back over the build
+    sites, and translation dies (the ring's wrap was load-bearing).
+    Only machines hop; stamps, matter, and law stay walled, so the
+    genome stays home while machinery migrates — the island-model
+    dial, and the linkage-decay rate."""
+    return ([(f"=={glyph}{trig}~78   0 {w:g}",
+              [(0, 0, " "), (0, 2, glyph)])],
+            "@|~@@ " + glyph)
+
+
+def copier_replicate(glyph, allele, w=0.05, trig="T"):
+    """EW-9: a machine SPLITS — writes its own glyph east into an
+    empty slot, keeping itself — gated on standing over the given
+    live allele (`&` on the regulatory row below). The gating is
+    load-bearing (Amendment 9): machine reproduction priced on the
+    consequences of the machine's own work is what makes lineage
+    traits like fidelity visible to selection; the per-allele
+    weight is that allele's machine-nurture."""
+    h = "==" + glyph + trig + glyph + "78" + allele + allele \
+        + f" 0 {w:g}"
+    return ([(h, [(0, 0, glyph), (0, 1, glyph)])],
+            "@~@@" + glyph + "\n&")
 
 
 def translator_tabled(glyph, tables, drift_w=0.1, trig="T"):
