@@ -533,6 +533,244 @@ cells standing, repairs by Ξ, exact accounting.
   builds restored to 233 and table 19.6/24 — fast keepers trade
   a little repair latency for the traffic they stop blocking).
 
+## EW-8 — the code's keeper, and the frozen accident (registered
+session 12)
+
+Two of EW-7's named residues in one world: (i) the x-codon
+closure — the code encodes the machine that maintains the code;
+(ii) the table-mosaic competition — does selection freeze the
+code? Geometry: EW-7's stack at ring 32 (the EW-6 lesson: three
+machine species need b×10). D (even cols): w at 0/10/20, x at
+4/14/24, b at the remaining ten; seeds at codon+1 (3 Ω, 3 Ξ,
+10 Π). Tables in frozen law: T1 = {b→Π, w→Ω, x→Ξ}, T2 = the b/w
+swap with x→Ξ conserved (code maintenance is universal across
+codes, like translation's core). Keepers are MORTAL (ε_d 0.005
+like all machinery) and rebuilt only by translation of x. Byte r
+= one table wound; p wounds as always; cad 4, M 5, EST 200,
+BLOCKS 200, 100 seeds/arm.
+
+A structural observation registered up front, because it shapes
+the predictions: in this world machinery is unpriced by matter
+and mixes eastward around the ring, so a locally dysfunctional
+code's cost (wrong build ratios) is borne GLOBALLY — the bad
+code is a commons polluter, and local selection should have
+nothing to grip (night-11's lesson recurring at the code level).
+
+Arms: baseline (pure T1, no r); closure (pure T1, r/4); no-x
+(x cols become b, keepers seeded but unreplaceable, r/4); pure2
+(all T2, no r); mosaic (half T1, half T2, r/4). Predictions:
+  P8-1 (closure): survival(closure) ≫ survival(no-x) — the loop
+    “the code encodes the code's keeper” holds table maintenance
+    up under wounds once keepers are mortal.
+  P8-2 (the dialect): pure-2 COLLAPSES toward the no-code class:
+    the swapped code turns the same description into ten
+    translators and three copiers — D and code are co-adapted,
+    and the code's content matters exactly through the
+    description written in its dialect.
+  P8-3 (the frozen accident): the mosaic boundary drifts WITHOUT
+    directional bias (final T1 share centered on 0.5 across
+    seeds): machinery mixing makes the bad code's cost global,
+    so selection cannot remove it — the code fixes by drift.
+    (Measurement honestly powered: two boundaries, ~50 table
+    wounds; mean share with CI is the registered statistic.)
+  P8-4 (the commons): mosaic survival lands between the pure
+    arms, near the global-ratio expectation — everyone pays for
+    half the world's dialect error.
+Metrics: survival, alive, machinery by type, builds by product,
+keeper repairs, table composition (T1 share), exact accounting.
+
+## EW-9 — heritable machine-lineage fidelity (registered session 12)
+
+The last residue: fidelity has so far ridden the LAW lineage
+(which machine type builders fund); EW-9 makes it a heritable
+trait of machine lineages and asks whether the world selects its
+own mutation rate. New rule (gen_earned.copier_replicate):
+a copier SPLITS — writes its own glyph east into an empty slot,
+keeping itself — at weight w_r, **gated on standing over living
+law** (a `%` cell on the regulatory row below: the machine
+reproduces only where the law it maintains is alive). This
+gating is the load-bearing design decision, registered with its
+reason: without it, a sloppy machine's damage is a commons cost
+(machinery mixes; demography is decoupled from work) and
+fidelity is invisible to selection — the recurring lesson of
+EW-8/night-11. With it, machine fitness = local law health.
+
+World: EW-5 geometry, ring 24, uniform-α start; NO builds, NO
+translation — machinery demography is replication − decay only
+(Π faithful and π sloppy at ε=0.05 breed true; no Π↔π switch:
+pure lineage competition from a 50/50 seed, 6+6 at density 1/2).
+Copy/walk/pass as usual for BOTH types on byte C; replication
+weight w_r smoke-tuned (target standing density ~1/2, logistic
+via slot exclusion — a full row gridlocks). Three environments
+(arms), p wounds M 5 except where stated:
+  neutral — mutant stamp target ν has α's EXACT law under
+    another glyph (the EW-1 neutral-pair trick): miscopy is
+    consequence-free.
+  deleterious — mutant target d owns NO rules: a d-stamped locus
+    is dead law; sloppy machines poison their own pasture.
+  beneficial — mutant target μ = spawner + night-2-style wound
+    handler (dynamic repair, superior under the wound regime);
+    only sloppy machines can create μ, and machines standing
+    over the μ-land they made breed on it.
+Predictions:
+  P9-1 (neutral): lineage share drifts — final Π share centered
+    on 0.5.
+  P9-2 (deleterious): the faithful lineage wins — mutation load
+    is machine-lineage-selectable once reproduction is gated on
+    the machine's own work.
+  P9-3 (beneficial): the sloppy lineage persists or wins, and
+    world survival correlates with π presence — the mutation
+    rate the world keeps is the one its environment pays for.
+Metrics: final Π/π counts and share, α/ν/d/μ gate composition,
+alive, survival, exact accounting; 100 seeds/arm.
+  **Amendment 9 (pre-run): the nurture spectrum.** The registered
+  beneficial target (spawner + wound handler) confounds matter
+  dynamics with machine selection. Refinement: ALL mutant targets
+  carry α's exact matter law (spawner) — except d, which carries
+  none — and differ ONLY in machine-nurture, the weight of the
+  replication gate over that allele: d = 0 (machines cannot breed
+  over dead law), α and ν = 1, μ = 2 (a law that feeds machinery
+  twice as well — the EW-3 builder phenotype translated into the
+  replication economy). One axis, no confounds: P9-2/3 become
+  "machine lineages evolve their fidelity toward the pasture
+  their errors plant." Replication is per-allele-gated (`&` on
+  the regulatory row below, weight w_r × nurture), machines split
+  east into empty slots, w_r smoke-tuned for standing density
+  near 1/2.
+  **Amendment 10 (post-scan, pre-sweep): mass normalization and
+  power.** At ε=0.05 selection events are ~3 per run and drift
+  swamps everything. Worse, the naive sloppy machine carries MORE
+  total copy mass (faithful 1 + mutant ε), and copies are moves:
+  under exclusion the restless queue more and breed less (east
+  slot full) — a mobility-fecundity confound that tilted even the
+  NEUTRAL arm toward the faithful lineage (0.63 at 16 seeds).
+  Fix: the sloppy machine's faithful headers carry weight 1−ε, so
+  total copy mass is 1.0 for both lineages and per-copy error is
+  exactly ε (gen_earned.copier_copy faith_w). Registered sweep
+  constants: ε = 0.2, w_r = 0.02; the registered statistics are
+  the per-arm mean faithful-share against 0.5 AND the between-arm
+  contrasts (deleterious vs neutral, beneficial vs neutral) at
+  100 seeds.
+
+## EW-10 — linkage, or what selection-for-evolvability needs
+(registered session 12)
+
+EW-9's asymmetry law (costs private, gifts public) is biology's
+own verdict on second-order selection — not a defect but a
+derivation. What real mutator dynamics have that EW-9's world
+lacks is LINKAGE: the mutator allele rides the genome its errors
+improve, so the gift is cotransmitted. EW-10 supplies linkage in
+its two separable forms and asks whether either turns selection
+FOR evolvability on:
+  spatial linkage (VISCOSITY) — walk and pass weights drop 1 →
+    0.1: machines stay near their birthplace, offspring are born
+    east-adjacent onto the parent's plantings, and the
+    lineage–pasture association decays slowly instead of within
+    a few laps of the ring;
+  recognitional linkage (KIN pasture) — the μ-nurture replicate
+    rule belongs to π ONLY (full excludability: Π cannot breed
+    over μ-land at all). The linkage is authored in this arm, and
+    that is the point: the experiment tests whether linkage
+    rescues second-order selection, not whether linkage
+    self-assembles (that is the next revocation, named at the
+    end).
+2×2 arms (public/kin × normal/viscous), EW-9's constants
+(ε 0.2, w_r 0.02, mass-normalized), 6+6 seeds, 100 seeds/arm;
+EW-9's neutral (0.499) and beneficial-public (0.492) anchor the
+drift line. Plus the strongest form, INVASION FROM ZERO: arms
+invade-public and invade-kin seed 12 faithful machines and add a
+rare symmetric fidelity switch Π↔π (σ = 0.001, self-rewrite on
+byte C, ~5 switch events per run — low enough that switching
+alone cannot equilibrate shares): does the mutator lineage,
+created only by the switch, invade through the kin channel?
+Predictions:
+  P10-1 (kin): π wins decisively (share_f ≪ 0.5) — privatize the
+    gift and selection FOR evolvability turns on.
+  P10-2 (viscous, public pasture): π gains over the EW-9 public
+    baseline but less than kin — spatial linkage partially
+    privatizes what recognition privatizes fully.
+  P10-3 (interaction): viscous+kin strongest for π.
+  P10-4 (invasion): invade-kin ends π-majority from an all-Π
+    start; invade-public stays near the switch balance — the
+    mutator invades exactly when linkage exists.
+Metrics: share_f, births per lineage, miscopies, switch events,
+μ-land, survival, exact accounting.
+
+## EW-11 — walls are linkage: the unit of selection, re-earned
+(registered session 13)
+
+EW-10's kin channel authored recognition; EW-11 buys the same
+excludability with GEOMETRY. A full-column wall (glyph `|` on
+tape, code, machinery, and regulatory rows at a boundary column)
+isolates a sector with zero new rules: the spawner's east-content
+variants match no wall, the copier cannot stamp across, the
+translator cannot build onto or land past it, machines cannot
+walk through. A sector then holds its own description, its own
+machinery, its own law, and its own matter — and succeeds or
+fails AS A UNIT. The claim under test: individuality is the
+physical form of linkage, and with it, sector-level selection can
+act on genome-encoded fidelity where lineage-level selection
+failed (EW-9) and recognition had to be authored (EW-10). The
+organism, deleted in night 7 as an authored ingredient, re-enters
+earned — as containment.
+
+World: ring 64, ROWS 6 (tape/fuel-idle/code/mach/reg), 4 sectors
+of 16 (walls at cols 15/31/47/63). Per-sector genome on the code
+row (even cols 0..12 within the sector): w-codons at 0 and 8
+(translator self-reference), five machine codons at 2/4/6/10/12 —
+`b` → faithful copier Π in FAITHFUL genomes, `p` → sloppy copier
+π (law-miscopy ε = 0.2, mass-normalized) in SLOPPY genomes.
+Codons stop two short of the wall so builds and landings stay
+inside. Alleles: α = the lottery walker (A>B.writeA; night-2
+MIXED/DIED — fragile), μ = the dynamic repairer (walker + wound
+handler B>A.req~ — robust); only a sloppy machine can create μ
+(miscopy α→μ, back-mutation μ→α at the same ε). Machinery
+cadence 16 (EW-1's requirement for these dynamic alleles),
+ε_d 0.005, M 5, EST 200, BLOCKS 200, 100 seeds/arm.
+
+Arms: walls-mixed (2 sloppy-genome + 2 faithful-genome sectors,
+alternating); open-mixed (identical layout, wall columns empty —
+the leak control; sector bookkeeping by initial column ranges);
+walls-faithful (4 faithful sectors — the baseline death rate);
+walls-sloppy (4 sloppy sectors — the baseline rescue rate).
+Predictions:
+  P11-1 (calibration gradient): walls-sloppy sector survival ≫
+    walls-faithful — the rescue channel (discover the robust
+    allele by machine error) works at sector scale.
+  P11-2 (THE UNIT CLAIM): in walls-mixed, sloppy-genome sectors
+    outlive faithful-genome sectors by a wide margin — selection
+    FOR evolvability at the sector level, with no recognition
+    rule anywhere: the wall is the linkage.
+  P11-3 (the leak control): in open-mixed the per-region gap
+    collapses — μ-land, machinery, and law flow, the gift is
+    socialized, and EW-9's verdict returns.
+  P11-4 (attribution): μ first appears in sloppy-genome sectors
+    (trace-attributable by column).
+Metrics: per-sector alive, μ-gates, machinery, survival (sector
+alive ≥ half its width); world survival; discovery attribution;
+exact accounting.
+  **Amendment 11 (post-smoke, pre-sweep): the hop, and island
+  extinction.** Two instrument findings. (i) Sealed walls
+  deadlock: an east-only machinery economy in a bounded sector is
+  a TERMINAL CONVEYOR — machines make one transit, pile at the
+  wall, the pile grows back over the build sites, translation
+  dies; the ring's wrap was load-bearing for circulation.
+  Registered fix: gen_earned.wall_hop — machines (only) cross a
+  wall into an empty cell two east at weight 0.05; stamps, law,
+  and matter stay walled, so the genome stays home while
+  machinery migrates rarely (the island-model dial; migrating
+  sloppy machines carry mutagenesis with them, so μ can appear in
+  faithful sectors at migration-delayed rates — expected and
+  informative). (ii) With machinery healthy and μ established,
+  walled sectors still all died at the registered wound schedule:
+  a 15-cell isolated matter population is a metapopulation island
+  — extinction is absorbing (no spontaneous generation) and the
+  open ring survives the same schedule by recolonization rescue.
+  Real island biogeography, but it saturates the fidelity signal.
+  Registered rescale: M 5 → 10, BLOCKS 200 → 120, where the
+  8-seed scan gives sloppy 10/32 vs faithful 0/32 sector
+  survival.
+
 ## Instruments
 
 Compiler `gen_earned.py` (family-separation doctrine: gen_gated.py
