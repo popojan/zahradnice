@@ -263,8 +263,11 @@ for v in range(BASE):
 rule({(-1, NDIG + 1): ODO}, {(-1, BACK + 1): '}'}, lhs='\\', rep=LBR, fore='D')
 
 add('# --- controls (engine actions need a rule to fire them: #17) ---')
+add('# A head is only ever in ONE of its many states, so anchoring a control')
+add('# solely on head glyphs makes the key work only sometimes. Anchor it on')
+add('# the seeded scenery too -- that is always on screen.')
 for act, key in (('Z', '~'), ('C', 'c'), ('Q', 'q')):
-    for cur in ('>', '<'):
+    for cur in ('>', '<', FLOOR):
         add(header(sound=act, lhs=cur, trig=key))
 add(' @@@')
 add('')
