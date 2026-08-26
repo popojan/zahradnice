@@ -1,4 +1,5 @@
 #include "grammar.h"
+#include <map>
 #include <cwchar>
 #include <cstring>
 #include <sys/stat.h>
@@ -522,6 +523,34 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs, int so
     rule.rep = lhs.length() > 4 ? lhs[4] : L' ';
     //std::replace(rule.rhs.begin(), rule.rhs.end(), L'@', rule.rep);
     std::replace(rule.rhs.begin(), rule.rhs.end(), L'*', rule.lhs);
+
+    // Walk the body exactly as apply_impl<true> does and remember the first
+    // LHS cell that pins an exact character. `@` is the anchor and matches by
+    // construction; `!` is a negative literal, `%` accepts either of two
+    // characters, and `&` with ctx `?` (stored as -1) accepts anything -- none
+    // of those pins a cell, so scanning continues past them. A rule that pins
+    // nothing keeps probe_ch == 0 and is always dry-run.
+    {
+        const bool horiz = rule.cq > rule.co;
+        int br = 0, bc = 0;
+        for (size_t i = 0; i < rule.rhs.size(); ++i, ++bc) {
+            wchar_t ch = rule.rhs[i];
+            if (ch == L'\n') { ++br; bc = -1; continue; }
+            if (ch == L' ') continue;
+            if (horiz) { if (bc >= rule.cm) continue; }
+            else       { if (br >= rule.rm) break; }
+            wchar_t req = ch;
+            if (req == L'@') continue;
+            if (ch == L'&') req = rule.ctx;
+            if (req == L'!' || req == L'%') continue;
+            if (req == static_cast<wchar_t>(-1)) continue;
+            if (req == L' ') req = L'~';
+            rule.probe_ch = req;
+            rule.probe_dr = br - rule.ro;
+            rule.probe_dc = bc - rule.co;
+            break;
+        }
+    }
     R[s].push_back(rule);
 }
 
@@ -530,6 +559,8 @@ Derivation::Derivation(): memory(nullptr), screen_chars(nullptr), clear_needed(t
 
 void Derivation::reset(const Grammar2D &g, int row, int col) {
     this->g = g;
+    anchor_cache.clear();   // the grammar just changed
+    rule_index.clear();
     if (this->row != row || this->col != col) {
         clear_needed = true;
         this->row = row;
@@ -655,16 +686,82 @@ void Derivation::start() {
     }
 }
 
-bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char src) {
-    //random nonterminal instance
-
-    //nonterminal alterable by rules from group key
+const std::unordered_set<wchar_t>& Derivation::anchors_for(wchar_t key) {
+    auto it = anchor_cache.find(key);
+    if (it != anchor_cache.end()) return it->second;
     std::unordered_set<wchar_t> a;
     for (const auto &rr : g.R) {
         for (const auto &rrr : rr.second) {
             if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
         }
     }
+    return anchor_cache.emplace(key, std::move(a)).first->second;
+}
+
+// The rules that could match at (pr,pc), in plain scan order. Returns a
+// pointer into the index whenever no merge is needed -- copying the list per
+// position costs more than the scan it replaces for small rule families.
+const std::vector<uint32_t>*
+Derivation::candidates(wchar_t anchor, wchar_t key, int pr, int pc) {
+    const RuleIndex &idx = rules_for(anchor, key);
+    const std::vector<uint32_t> *hit = nullptr;
+    if (idx.has_probe) {
+        wchar_t sc = screen_chars[wrap_row(pr + idx.dr) * col + wrap_col(pc + idx.dc)];
+        if (sc == L' ') sc = L'~';
+        auto it = idx.by_char.find(sc);
+        if (it != idx.by_char.end()) hit = &it->second;
+    }
+    if (!hit) return &idx.others;
+    if (idx.others.empty()) return hit;
+    // both ascending: merge so the caller sees the same order a plain scan would
+    cand_.clear();
+    cand_.reserve(hit->size() + idx.others.size());
+    size_t i = 0, j = 0;
+    while (i < hit->size() && j < idx.others.size())
+        cand_.push_back((*hit)[i] < idx.others[j] ? (*hit)[i++] : idx.others[j++]);
+    while (i < hit->size()) cand_.push_back((*hit)[i++]);
+    while (j < idx.others.size()) cand_.push_back(idx.others[j++]);
+    return &cand_;
+}
+
+const Derivation::RuleIndex& Derivation::rules_for(wchar_t anchor, wchar_t key) {
+    uint64_t k = (static_cast<uint64_t>(static_cast<uint32_t>(anchor)) << 32)
+               | static_cast<uint32_t>(key);
+    auto it = rule_index.find(k);
+    if (it != rule_index.end()) return it->second;
+
+    RuleIndex idx;
+    auto res = g.R.find(anchor);
+    if (res != g.R.end()) {
+        const auto &rs = res->second;
+        // Index on the probe cell most of the family shares.
+        std::map<std::pair<int, int>, int> tally;
+        for (const auto &r : rs)
+            if ((r.key == key || r.key == L'?') && r.probe_ch)
+                ++tally[{r.probe_dr, r.probe_dc}];
+        int best = 0;
+        for (const auto &t : tally)
+            if (t.second > best) { best = t.second; idx.dr = t.first.first;
+                                   idx.dc = t.first.second; }
+        idx.has_probe = best > 0;
+        for (size_t i = 0; i < rs.size(); ++i) {
+            const auto &r = rs[i];
+            if (!(r.key == key || r.key == L'?')) continue;
+            if (idx.has_probe && r.probe_ch
+                && r.probe_dr == idx.dr && r.probe_dc == idx.dc)
+                idx.by_char[r.probe_ch].push_back(static_cast<uint32_t>(i));
+            else
+                idx.others.push_back(static_cast<uint32_t>(i));
+        }
+    }
+    return rule_index.emplace(k, std::move(idx)).first->second;
+}
+
+bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char src) {
+    //random nonterminal instance
+
+    //nonterminal alterable by rules from group key
+    const auto &a = anchors_for(key);
     //all nonterminal positions
     std::vector<std::pair<int, int> > xx;
     for (auto nit = x.begin(); nit != x.end(); ++nit) {
@@ -693,15 +790,21 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char sr
         if (res != g.R.end()) {
             //random rule
             auto &rs = res->second;
-            for (auto rit = rs.begin(); rit != rs.end(); ++rit) {
-                if (rit->key == key || rit->key == L'?') {
-                    if (stats_fp) ++stats[stats_key(n, rit - rs.begin())].considered;
-                    bool app = apply_impl<true>(nit->first - rit->ro, nit->second - rit->co, *rit);
-                    if (app) {
-                        if (stats_fp) ++stats[stats_key(n, rit - rs.begin())].applicable_locs;
-                        sumw += rit->weight;
-                        nr.push_back({n, nit - xx.begin(), rit - rs.begin()});
-                    }
+            for (uint32_t ri : *candidates(n, key, nit->first, nit->second)) {
+                const auto &rule = rs[ri];
+                if (rule.probe_ch) {
+                    wchar_t sc = screen_chars[wrap_row(nit->first + rule.probe_dr) * col
+                                              + wrap_col(nit->second + rule.probe_dc)];
+                    if (sc == L' ') sc = L'~';
+                    if (sc != rule.probe_ch) continue;
+                }
+                if (stats_fp) ++stats[stats_key(n, ri)].considered;
+                bool app = apply_impl<true>(nit->first - rule.ro, nit->second - rule.co, rule);
+                if (app) {
+                    if (stats_fp) ++stats[stats_key(n, ri)].applicable_locs;
+                    sumw += rule.weight;
+                    nr.push_back({n, nit - xx.begin(),
+                                  static_cast<std::vector<Grammar2D::Rule>::difference_type>(ri)});
                 }
             }
         }
@@ -955,12 +1058,7 @@ ScreenArea Derivation::calculateRuleArea(int ro, int co, const Grammar2D::Rule &
 std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
     std::vector<RuleApplication> applicable_rules;
 
-    std::unordered_set<wchar_t> a;
-    for (const auto &rr : g.R) {
-        for (const auto &rrr : rr.second) {
-            if (rrr.key == key || rrr.key == L'?') a.insert(rrr.lhs);
-        }
-    }
+    const auto &a = anchors_for(key);
 
     std::vector<std::pair<int, int> > xx;
     for (auto nit = x.begin(); nit != x.end(); ++nit) {
@@ -975,15 +1073,19 @@ std::vector<RuleApplication> Derivation::gatherApplicableRules(wchar_t key) {
         auto res = g.R.find(n);
         if (res != g.R.end()) {
             auto &rs = res->second;
-            for (size_t i = 0; i < rs.size(); ++i) {
-                const auto &rule = rs[i];
-                if (rule.key == key || rule.key == L'?') {
-                    if (stats_fp) ++stats[stats_key(n, i)].considered;
-                    bool app = apply_impl<true>(nit->first - rule.ro, nit->second - rule.co, rule);
-                    if (app) {
-                        if (stats_fp) ++stats[stats_key(n, i)].applicable_locs;
-                        applicable_rules.push_back({*nit, rule, i, rule.weight});
-                    }
+            for (uint32_t ri : *candidates(n, key, nit->first, nit->second)) {
+                const auto &rule = rs[ri];
+                if (rule.probe_ch) {
+                    wchar_t sc = screen_chars[wrap_row(nit->first + rule.probe_dr) * col
+                                              + wrap_col(nit->second + rule.probe_dc)];
+                    if (sc == L' ') sc = L'~';
+                    if (sc != rule.probe_ch) continue;
+                }
+                if (stats_fp) ++stats[stats_key(n, ri)].considered;
+                bool app = apply_impl<true>(nit->first - rule.ro, nit->second - rule.co, rule);
+                if (app) {
+                    if (stats_fp) ++stats[stats_key(n, ri)].applicable_locs;
+                    applicable_rules.push_back({*nit, rule, ri, rule.weight});
                 }
             }
         }

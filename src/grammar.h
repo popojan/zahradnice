@@ -88,6 +88,14 @@ public:
         bool load;
         bool engine_action;
         int source_line = 0;
+        // First LHS cell that pins an exact character, as an offset from
+        // the anchor. Checking it costs one array read and rejects most
+        // rules before the dry run. probe_ch == 0 means the rule pins
+        // nothing (bare `@@@` body, or every cell is `!` / `%` / any-ctx)
+        // and must always be tried.
+        wchar_t probe_ch = 0;
+        int probe_dr = 0;
+        int probe_dc = 0;
     };
 
     typedef std::vector<Rule> Rules;
@@ -242,6 +250,28 @@ public:
 
     std::vector<RuleApplication> gatherApplicableRules(wchar_t key);
 
+    // Anchor characters a trigger key can rewrite. Depends only on the
+    // grammar, so it is computed once per key instead of by walking every
+    // rule on every step.
+    const std::unordered_set<wchar_t>& anchors_for(wchar_t key);
+
+    // Rules for one (anchor, trigger) pair, indexed by the character their
+    // probe cell pins. Most rule sets pin the same cell throughout, so one
+    // screen read picks the handful of rules that can possibly match instead
+    // of walking the whole family. Rules that pin a different cell -- or pin
+    // nothing at all, e.g. a bare `@@@` body -- sit in `others` and are always
+    // tried. Both lists are ascending, so merging them reproduces the plain
+    // scan order exactly.
+    struct RuleIndex {
+        int dr = 0, dc = 0;
+        std::unordered_map<wchar_t, std::vector<uint32_t>> by_char;
+        std::vector<uint32_t> others;
+        bool has_probe = false;
+    };
+    const RuleIndex& rules_for(wchar_t anchor, wchar_t key);
+    const std::vector<uint32_t>* candidates(wchar_t anchor, wchar_t key,
+                                           int pr, int pc);
+
     bool stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbgrule,
                            std::vector<wchar_t> *sounds = nullptr, char src = 0);
 
@@ -284,13 +314,16 @@ public:
     void restart();
 
     inline int wrap_row(int r) const {
-        // Keep row 0 for status line, wrap rows 1 to row-1
-        // Use cached effective height
+        // Keep row 0 for status line, wrap rows 1 to row-1.
+        // The in-range test is not an optimisation of the formula but of the
+        // division: rule matching calls this millions of times and almost
+        // every call is already inside the viewport.
+        if (r >= 1 && r <= effective_max_row) return r;
         return (r - 1 + effective_max_row) % effective_max_row + 1;
     }
 
     inline int wrap_col(int c) const {
-        // Use cached effective column width
+        if (c >= 0 && c < effective_max_col) return c;
         return (c + effective_max_col) % effective_max_col;
     }
 
@@ -314,6 +347,9 @@ private:
     int getColor(char fore, char back);
 
     Grammar2D g;
+    std::unordered_map<wchar_t, std::unordered_set<wchar_t>> anchor_cache;
+    std::unordered_map<uint64_t, RuleIndex> rule_index;
+    std::vector<uint32_t> cand_;   // scratch, reused per position
     int col, row;
     // Cached wrap calculation values
     bool clear_needed;
