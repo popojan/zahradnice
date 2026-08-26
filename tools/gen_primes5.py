@@ -549,8 +549,12 @@ def emit(out):
 
     # ---- controls --------------------------------------------------------
     add('# --- controls (engine actions need a rule to fire them: #17) ---')
+    add('# A head is only ever in ONE of its many states, so anchoring a control')
+    add('# solely on head glyphs makes the key work only sometimes. Anchor it on')
+    add('# the seeded scenery too -- that is always on screen.')
     for act, k in (('Z', '~'), ('C', 'c'), ('Q', 'q')):
-        add(header(sound=act, lhs=HEAD, trig=k))
+        for cur in (HEAD, ORIGIN):
+            add(header(sound=act, lhs=cur, trig=k))
     add(' @@@')
     add('')
 
