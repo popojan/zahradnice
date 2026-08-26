@@ -61,7 +61,12 @@ int run_headless_input(const HeadlessOptions& opts) {
         std::cerr << "Cannot load program: " << opts.config_path << std::endl;
         return 1;
     }
-    if (cfg.thread_count == 0) {
+    if (opts.threads > 0) {
+        // Explicit --threads wins over the program's own #threads: a run
+        // pinned to one worker is reproducible whatever the host's core
+        // count, which is what the fixture tests rely on.
+        cfg.thread_count = opts.threads;
+    } else if (cfg.thread_count == 0) {
         cfg.thread_count = opts.trace_path.empty()
             ? std::thread::hardware_concurrency() : 1;
     }

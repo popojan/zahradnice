@@ -40,6 +40,8 @@ int main(int argc, char* argv[]) {
                 "  --seed N                  RNG seed\n"
                 "  --screen R,C              viewport (default 24,80)\n"
                 "  --max-steps N             stop after N applied rules\n"
+                "  --threads N               worker threads; 1 makes a run\n"
+                "                            reproducible across machines\n"
                 "  --dump-screen PATH        write final screen (default `-` = stdout)\n"
                 "                            `-.ansi`/`-.txt` force stdout format\n"
                 "  --trace PATH              write event trace\n"
@@ -49,6 +51,7 @@ int main(int argc, char* argv[]) {
         else if (a == "--input")       { if (!need(i)) return 1; opts.input_arg = argv[++i]; }
         else if (a == "--seed")        { if (!need(i)) return 1; opts.seed = std::atoi(argv[++i]); }
         else if (a == "--max-steps")   { if (!need(i)) return 1; opts.max_steps = std::strtoull(argv[++i], nullptr, 10); }
+        else if (a == "--threads")     { if (!need(i)) return 1; opts.threads = std::atoi(argv[++i]); }
         else if (a == "--dump-screen") { if (!need(i)) return 1; opts.dump_path = argv[++i]; }
         else if (a == "--trace")       { if (!need(i)) return 1; opts.trace_path = argv[++i]; }
         else if (a == "--stats")       { if (!need(i)) return 1; opts.stats_path = argv[++i]; }
