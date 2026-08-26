@@ -67,8 +67,9 @@ Example (from `emit_signal_rise`): the `^` signal needs to stop at H **or** C. W
 
 - A render rule like `==HfH77` with body `@@@` paints H over H every f-tick — fires once per H cell in the playfield, every tick.
 - A rule whose LHS context is fully satisfied by its own RHS write — it re-creates its trigger condition.
+- A one-shot draw rule (menu, banner, splash) that **paints its own anchor character somewhere in its output**. It correctly consumes the anchor at its own cell, so it looks one-shot — but it now matches at every copy it just painted, drawing the whole picture again offset from each one. Under `#timing T 0` that is an explosion; under a paced timing it is a slow drift. `programs/primes/index.cfg` drew a menu titled `P R I M E S` from an anchor `P`.
 
-**Avoid.** Use **one-shot conversion**: write *lowercase* glyphs in the seed / move RHS, then have a converter rule `==hfH77` that turns lowercase into uppercase + bg=alias. Once converted, the lowercase glyph is gone and the conversion rule never refires.
+**Avoid.** For a draw rule, pick an anchor character the body never writes — that is why `programs/index.cfg` anchors on `Q` and `programs/sokoban/index.cfg` on `1`, neither of which appears in the menus they paint. Otherwise use **one-shot conversion**: write *lowercase* glyphs in the seed / move RHS, then have a converter rule `==hfH77` that turns lowercase into uppercase + bg=alias. Once converted, the lowercase glyph is gone and the conversion rule never refires.
 
 Diagnostic: add `{steps}` to the status line during development. Compare against a known-good reference (original tetris ≈ 2 rule applications per fall step). Anything in the dozens per step is a red flag.
 
