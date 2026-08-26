@@ -208,8 +208,22 @@ for s, sv in (('>', '{'), ('<', '}')):
         rule({(0, 1): hd}, {(1, 0): sv}, lhs=s, rep='$')
 
 add('# --- descending: skip empty rows, enter used ones, stop at home ---')
+add('# Records pack from row 3 down, so everything below the last one is')
+add('# empty and walking it one row per rewrite is pure overhead -- 33 such')
+add('# rows cost 40% of the pass. Skip runs of them instead.')
+add('#')
+add('# The lookahead makes the four cases mutually exclusive, so the engine')
+add('# never has a choice between them, and every row jumped OVER is checked')
+add('# FREE. That is also what keeps a jump from stepping over home: the home')
+add('# row holds a candidate digit there, never a FREE header.')
+JUMPS = [(4, {(1, 1): FREE, (2, 1): FREE, (3, 1): FREE}),
+         (3, {(1, 1): FREE, (2, 1): FREE, (3, 1): '!'}),
+         (2, {(1, 1): FREE, (2, 1): '!'}),
+         (1, {(1, 1): '!'})]
 for s, sv in (('>', '{'), ('<', '}')):
-    rule({(0, 1): FREE}, {(1, 0): sv}, lhs=sv, rep='$')
+    for n, look in JUMPS:
+        rule({(0, 1): FREE, **look}, {(n, 0): sv},
+             lhs=sv, rep='$', ctx=FREE)
     for hd in (USED, FIRST):
         rule({(0, 1): hd}, {(0, W): s}, lhs=sv, rep='$')
 
