@@ -1,6 +1,6 @@
 # GRAMMAR pitfalls
 
-Companion to `GRAMMAR.v2.md`. The reference describes *what the language is*; this document describes *what bites you when you write rules*. Each entry documents an engine quirk or design trap discovered the hard way during the tetris2 sessions, with a concrete symptom, the underlying cause, and how to avoid it.
+Companion to `GRAMMAR.md`. The reference describes *what the language is*; this document describes *what bites you when you write rules*. Each entry documents an engine quirk or design trap discovered the hard way during the tetris2 sessions, with a concrete symptom, the underlying cause, and how to avoid it.
 
 Entries are roughly ordered by how often they recur in practice.
 
@@ -17,7 +17,7 @@ Entries are roughly ordered by how often they recur in practice.
 
 **Avoid.** Any field-6 / field-7 (ctx / ctxrep) that is meant to align with empty space must be `~`, not literal space.
 
-**See also.** GRAMMAR.v2.md §Body line 241: *"Spaces are always no-ops … to match a space cell, use `~`."*
+**See also.** GRAMMAR.md §Body characters: *"Spaces are always no-ops … to match a space cell, use `~`."*
 
 ---
 
@@ -79,14 +79,14 @@ Diagnostic: add `{steps}` to the status line during development. Compare against
 
 **Symptom.** A non-terminal needs to traverse cells without overwriting them. Naive approach (just write the non-terminal at each step) destroys the cells behind it.
 
-**Cause / mechanism.** GRAMMAR.v2.md §Local memory:
+**Cause / mechanism.** GRAMMAR.md §Local memory:
 
-- When a rule writes a **terminal** char, the full struct (char + colours) is saved as the cell's memory.
-- When a rule writes a **non-terminal**, only the *background* of memory is updated; the saved char + colours are preserved.
+- By default **every** rule write saves the full struct (char + colours) as the cell's memory — non-terminals included. Memory is sticky.
+- Chars listed in `#transient <chars>` are the exception: only the *background* of memory is updated; the saved char + colours are preserved. This is what makes a traversing non-terminal harmless.
 - A rule body cell `$` in RHS **restores** the cell to its saved struct.
 - A rule writing a cell with `back='8'` (transparent) displays using the saved bg.
 
-Combined: a rule with `header.replace = $`, `back = '8'`, and body `^` (or whatever) at `(-1, 0)` literally **moves a non-terminal one cell up while restoring the original cell behind it**. The traversed cell is unchanged in display because non-terminal writes don't touch the saved char.
+Combined: a rule with `header.replace = $`, `back = '8'`, and body `^` (or whatever) at `(-1, 0)` literally **moves a non-terminal one cell up while restoring the original cell behind it** — *provided the travelling char is declared `#transient`*. Without that declaration the traversal saves the sprite into memory at each cell, and `$` faithfully restores the sprite, painting a solid trail instead of the scenery. See entry 18.
 
 **Pattern used.** The `^` rise rules in tetris2 (Bug B fix). The signal rises through stack X cells without disturbing them — when `^` moves on, X reappears verbatim.
 

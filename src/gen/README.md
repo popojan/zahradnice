@@ -320,10 +320,12 @@ std::cout << g::emit_rule(h, g::emit_body_vertical(lhs, rhs));
 // Pair with arrival rules (ctx=H/C, replace=R) for stop conditions.
 ```
 
-**Why it works.** GRAMMAR.v2.md §Local memory: writing a non-terminal
-updates only the *background* of memory; the saved char + colours are
-preserved. When the rule's `replace=$` restores the LHS anchor, the
-cell reappears verbatim. The signal moves; the scenery is untouched.
+**Why it works.** GRAMMAR.md §Local memory: a char declared in
+`#transient` updates only the *background* of memory when written; the
+saved char + colours are preserved. When the rule's `replace=$` restores
+the LHS anchor, the cell reappears verbatim. The signal moves; the
+scenery is untouched. The `#transient` declaration is load-bearing —
+without it memory is sticky and `$` restores the signal itself.
 
 **Don't use.** When traversed cells *should* be erased (use
 `replace=erase()` and a normal walker). Or when the signal needs to

@@ -5,7 +5,7 @@
 #include <ios>
 #include <locale>
 
-// Program files are UTF-8 by definition (GRAMMAR.v2.md), so every wide
+// Program files are UTF-8 by definition (GRAMMAR.md), so every wide
 // file stream must carry UTF-8 regardless of the process locale — the
 // classic-locale codecvt dies on the first non-Latin-1 character and
 // silently fail-states the stream (empty dumps). File encoding is a

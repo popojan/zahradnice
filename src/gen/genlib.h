@@ -71,7 +71,7 @@ inline void mark_each(RhsPattern& p, const CellRange& cells, Write w) {
     for (auto& c : cells) p[c] = w;
 }
 
-// Rule header (positional fields per GRAMMAR.v2.md).
+// Rule header (positional fields per GRAMMAR.md).
 //   sound:    field S — sound key char; '=' = no sound (default)
 //   lhs:      field 1 — non-terminal char being matched
 //   trigger:  field 2 — keypress or timing char

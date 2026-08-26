@@ -9,7 +9,7 @@ Zahradnice programs are configuration files in a custom 2D-grammar DSL. The runt
 
 ## Source of truth
 
-Read `GRAMMAR.v2.md` (repo root) end-to-end before writing rules. It is the complete language spec, generated against `src/grammar.cpp` + `src/grammar.h`. Then skim `GRAMMAR-pitfalls.md` — documented engine quirks; check it before re-debugging anything that feels like an engine bug.
+Read `GRAMMAR.md` (repo root) end-to-end before writing rules. It is the single complete language spec, verified against `src/grammar.cpp` + `src/grammar.h` + the running engine. Then skim `GRAMMAR-pitfalls.md` — documented engine quirks; check it before re-debugging anything that feels like an engine bug.
 
 Do not infer header semantics from existing programs alone — many programs exploit defaults or shorthand that obscure the field positions. Cross-check against the spec's field-position table.
 
@@ -47,9 +47,9 @@ Silent failure modes hide here; run through this before considering a rule writt
 4. **Boundary direction.** Third `@` right of the first → horizontal (LHS left, RHS right); otherwise vertical (LHS above, RHS below). Mixed = unsupported. Prefer the direction matching the action (vertical for fall, horizontal for lateral).
 5. **LHS / RHS regions have separate origins** (`@1` and `@3`). A LHS cell at offset Δ from `@1` and a RHS cell at offset Δ from `@3` address the **same screen cell** — align shapes cell-for-cell or writes land off-target.
 6. **Spaces are no-ops both sides.** Match a space with `~`; write a space with `~`. Field 3 default (space) is a no-op write — to erase the anchor use `~` there.
-7. **Context cells (`&`) need fields 6/7** set for non-wildcard behaviour.
+7. **Context cells (`&`) require field 6.** `?` or an omitted field 6 is *not* a wildcard — it leaves the context character undefined, and `&` cells then never match, so the rule silently never fires. (`!` is the opposite: with field 6 unset it matches everything.) One ctx pair per rule, shared by every `&`/`!`/`%` cell.
 8. **`!` and `%` are LHS-only** (RHS writes them literally).
-9. **`$` in RHS restores the cell from local memory** — the sprite-vacates-a-cell idiom.
+9. **`$` in RHS restores the cell from local memory** — the sprite-vacates-a-cell idiom. Memory is **sticky by default**: declare moving glyphs in `#transient <chars>` or the sprite overwrites memory as it travels and `$` restores the sprite, painting a solid trail. Note `^` seeds never populate memory, so `$` over a cell only ever painted by a seed yields blank.
 10. **`#!` status template must be the very first line**; body lines starting with `#`, `^`, or `=` are silently reclassified — indent the whole body one column if the leftmost cell would collide (both `@` anchors shift together, offsets survive).
 11. **Toroidal wrapping is automatic** over the effective area — no edge-handling rules needed, and walkers wrap around rather than freeze.
 

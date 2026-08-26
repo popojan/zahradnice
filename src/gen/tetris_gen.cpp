@@ -425,7 +425,7 @@ static std::string emit_game_over() {
     const char* text = "Game Over";
     for (int i = 0; text[i]; ++i)
         // `put(L' ')` would emit a literal space body cell, which the engine
-        // treats as a no-op (GRAMMAR.v2.md §Body) — leaving piece bg showing
+        // treats as a no-op (GRAMMAR.md §Body) — leaving piece bg showing
         // through the space between "Game" and "Over". Use erase() so the
         // gap is written as a real space terminal with bg=0 (black).
         rhs[{0, 2 + i}] = (text[i] == ' ') ? g::erase()
@@ -543,9 +543,10 @@ static std::vector<std::string> emit_stuck_at_top_game_over(const std::vector<Pi
 //     ! ^                    back=8 (transparent), ctx=`-` (barrier)
 //     @@@            body:   `!` above means "above != ctx"; `^` written above.
 //
-// Why memory restore matters (GRAMMAR.v2.md §Local memory): when a non-
-// terminal is written, only the *background* of memory is updated; the saved
-// terminal char is preserved. So when `^` overwrites an X cell, memory still
+// Why memory restore matters (GRAMMAR.md §Local memory): when a char declared
+// in `#transient` is written, only the *background* of memory is updated; the
+// saved terminal char is preserved. So when `^` overwrites an X cell (and the
+// program declares `#transient ^v`, which it must), memory still
 // holds the X struct (char + colours). When `^` moves on, header `replace=$`
 // restores the X to the screen verbatim — the stack is *unchanged* visually
 // even though `^` tunneled through it.

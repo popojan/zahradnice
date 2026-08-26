@@ -1,105 +1,328 @@
 # Language
 
-## General controls
+Zahradnice programs are configuration files (`.cfg`, optionally gzip-compressed as `.cfg.gz`) interpreted as 2D grammar-driven transformations on a terminal screen. This document is a complete reference. Source of truth: `src/grammar.cpp` and `src/grammar.h`; runtime semantics in `src/zahradnice.cpp`.
 
-Key case matters. **Note:** All control keys must be explicitly declared in programs using `#control` directives. No keys are reserved by default (except ESC for emergency exit).
-
-Example control declarations:
-```
-#control ~ pause      # Space toggles pause/unpause
-#control x restart    # x restarts the program  
-#control q quit       # q quits when paused
-```
-
-* `ESC` ... emergency exit (always available, bypasses all control systems) 
+Companion documents: `GRAMMAR-pitfalls.md` (engine quirks that bite in practice), `HEADLESS.md` (driving the engine without a terminal), `TRACING.md` (instrumentation).
 
 ## Main loop
-1. **load a program** config (processing all `#include` directives)
-1. choose a **trigger key** based either on timing events or user pressed keys 
-1. for the given trigger key find all **applicable rules** in the current state (based on non-terminals and their context)
-1. **choose randomly** rule(s) to apply (sample according to rule weights if unequal):
-   * **Single-threaded mode** (`#threads 1`): Choose exactly one rule
-   * **Multi-threaded mode** (`#threads >1`): Choose up to N non-conflicting rules that can be applied simultaneously
-1. **apply** the chosen rule(s) to change state and optionally alter score and/or play sound
-1. **handle special actions** if the rule triggered any:
-   * Engine actions (pause, restart, reset, quit)
-   * Program switching (load a given program and repeat from 2.)
-1. **repeat** from 2. 
 
-## Syntax
+1. **Load a program**, recursively processing `#include` directives as text substitution. The assembled text is parsed line by line.
+2. **Acquire a trigger**: either a user keypress, or a timing event (when a `#timing` interval has elapsed since last firing), or `0` (no event) when nothing is pending.
+3. **Find applicable rules** whose trigger key matches and whose LHS context matches the screen state at some position.
+4. **Sample one or more rules** (cumulative-weight random selection):
+   - Normally exactly one rule per event.
+   - Only for an *immediate* timing trigger (`#timing <c> 0`) under `#threads >1`: up to N rules whose footprints do not overlap. See [Multi-rule execution](#multi-rule-execution).
+5. **Apply** the chosen rule(s): write replacement cells, update score, queue sounds, fire engine actions, or trigger program switches.
+6. **Repeat** from step 2.
 
-Lines starting with
-* `# ` (space after #) ... comments
-* `#include <filename>` ... include another file (processed as text substitution)
-* `#keyword` (no space after #) ... configuration keywords (#timing, #control, etc.)
-* To comment out keywords: `#timing B 500` → `# #timing B 500`
-* If rule bodies need `#` at start of line, precede with spaces to avoid parsing as keyword/comment
-* `^` ... initial symbol and its position
-* `=` ... rule or special rule header
-* otherwise the line forms a part of body belonging to the preceding rule headers
+Screen row 0 is reserved for the status line. Rule rows are 1..N-1.
 
-**Important:** All `#` declarations must precede their usage. Include files early in the program or ensure included files contain only declarations.
+Key case matters everywhere: triggers, non-terminals, and context characters are compared literally.
 
-### Defining rules
-Rules consist of one or more headers, and a rule body.
+## Lexical structure
 
-For the rule to be **applicable** to a char on screen these conditions must be met:
+Each line of the assembled text is classified by its first character:
 
-* trigger char matches
-* non-terminal char matches with the char on screen at the given position
-* surrounding context matches 
+| First char | Meaning |
+|---|---|
+| `# ` (with space) | Comment — ignored. |
+| `#!` (no space) | Status line template; **must be the very first line** of the program (after include resolution). |
+| `#<keyword> ...` | Configuration directive (see below). |
+| `^` | Initial symbol. |
+| `=` | Rule header. |
+| anything else | Body line, attached to the most recently seen rule header(s). |
 
-#### Rule header
-`=<s-char><nonterminal-char><trigger-char><fore-color-char><bg-color-char><extra-context-char><extra-replacement-char> <rule-score-num> <rule-weight-num>`
+> **Body-line escape**: a body line whose first character is `#`, `^`, or `=` is silently classified as comment / initial symbol / new rule header — its content is *not* added to the rule body. To author body cells whose leftmost column would land on `#`/`^`/`=`, indent the entire body uniformly by one space column (which preserves all anchor-relative offsets, since both `@` markers shift together). This is a load-time concern only; the engine itself never sees the dropped content.
 
-i.e. these chars and tokens left to right `=S1234567 <score> <weight>`
+> **Conversely**, any non-`=` line that *follows* a rule header is swallowed into that rule's body — including `^` seed lines and `#`-less text. Put every `^` initial symbol and every directive **before the first rule header**.
 
-* `S.` `=` for silence, or a sound/program/engine-action char previously defined, i.e. `#sound S sounds/click.wav`, `#control P pause`
-* `1.` LHS non-terminal character (obligatory)
-* `2.` trigger char (a rule is invoked by pressing corresponding key, timing events, or `~` for space key) (obligatory)
-* `3.` RHS non-terminal replacement character (first @ in the rule body to be replaced by this char) (obligatory)
-* `4.` foreground char (`0` black, `1` red, `2` green, `3` yellow, `4` blue, `5` magenta, `6` cyan, `7` white) (default `7`) or a dictionary entry value if not a digit
-* `5.` background char (same as foreground plus `8` for transparent) (default `8`)
-* `6.` extra required context char (special values: `?` for any, `*` for LHS char, `$` for char saved in memory, `#` for out-of-screen, `~` empty space) at each char `&` in the rule body
-* `7.` extra required context replacement (char to replace `&` in the rule body, special values: `~` space)
-* `<score>` integer (default `0`)
-* `<weight>` positive number, decimals allowed e.g. `0.01` (default `1`)
+A line that begins with `#<keyword>` where the keyword is unknown is silently ignored. To comment out a keyword, prefix with a space (`# #timing B 500`) or `# `.
 
-Specifying multiple headers for a single body is a shortcut equivalent to creating multiple single-header rules with the same body.
+### Encoding
 
-#### Rule body
+Files are decoded as UTF-8 to wide characters. Non-ASCII characters are valid in rule bodies, replacements, and as non-terminals; ASCII characters that have special syntactic meaning (`=`, `^`, `#`, `@`, `&`, `!`, `%`, `*`, `$`, `~`, `?`) cannot be used naively as terminals if they would conflict with the role they play in the local context — see the per-position rules below.
 
-Contains three `@` symbols at its core.
-* First `@` ... defines the *relative* LHS position of the non-terminal symbol
-* Second `@` ... marks the boundary between the LHS (required context) and RHS (replacement)
-* Third `@` ... defines the *relative* position of the RHS non-terminal replacement
+### Includes
 
-Minimal example:
+`#include <path>` substitutes the contents of another file at that point in the assembled text. Resolution rules:
+
+- `<path>` is resolved relative to the directory of the **current including file** (not the top-level program). An absolute path fails silently.
+- The same path-completion logic as program loading applies: if `<path>` doesn't exist, try `<path>.gz`, or if `<path>` lacks a `.cfg`/`.cfg.gz` extension, try `<path>/index.cfg` and `<path>/index.cfg.gz`.
+- Circular includes are silently skipped (each path is included at most once per top-level load).
+- Includes may be nested.
+
+Because includes are textual substitution, the order of declarations in the **assembled** text matters. Convention: include files containing only `#`-declarations early.
+
+## Configuration directives
+
+All directives use the form `#<keyword> <args>` (no space between `#` and keyword). A directive must precede any code that depends on it — `#sound`, `#program`, `#control` and `#color` are resolved while rule headers are being parsed, so a rule referring to a character declared *later* in the file silently gets the wrong meaning (typically: registered as a sound that does not exist, i.e. a no-op).
+
+### Status line template
+
+`#!<template>` — defines the status line template. **Must be the very first line of the file** (after include resolution): a blank line or a comment before it is enough to disable it silently. Variables substituted at render time:
+
+| Variable | Meaning |
+|---|---|
+| `{score}` | Cumulative score (preserved across program switches). |
+| `{steps}` | Successful steps. A step that applied several rules in parallel counts once. |
+| `{moves}` | Steps triggered by user input only (excludes timing events and ineffective keypresses). |
+| `{parallel}` | Parallel-execution percentage as e.g. `42%`; empty if no threading stats have accumulated. |
+| `{help}` | Current program's `#help` text. |
+
+If no program has declared a template, the default is:
 
 ```
-# on an instant time step silently replace A with B
-==ATB
+Score: {score} Steps: {steps} {parallel} {help}
+```
+
+**Inheritance.** The active template is a single global, not a stack: whenever a program with a non-empty `#!` is loaded it becomes the template for every subsequently loaded program that does not declare its own — including programs returned to via the call stack. `#help` is the opposite: it is re-read on every program load, so it is always local to the running program (and becomes empty if the program declares none).
+
+The practical split: put inheritable branding in `#!` (`#! Sokoban: {score} | {help}` keeps "Sokoban:" across all subroutines), put contextual text in `#help`. Prefer `{help}` in the template over literal help text so subroutines can override it.
+
+Template content is rendered left-aligned. The most recently applied rule's header text is always rendered right-aligned on the same line, truncating the template if necessary.
+
+### Help text
+
+`#help <text>` — local-only help text (not inherited across program switches). Substituted into `{help}` in the active template.
+
+### Timing
+
+`#timing <char> <interval-ms>` — declares `<char>` as a timing trigger that fires every `<interval-ms>` milliseconds when no user input is pending. Multiple timings are allowed. `<interval-ms>` of `0` means "fire whenever no other event is pending" (immediate timing).
+
+At most one timing fires per main-loop iteration. Overdue interval-based timings are checked first; only if none is overdue does an immediate timing fire. Within each of those two groups the order is **unspecified** (the timing table is a hash map, not declaration-ordered) — do not declare two interval timings that can come due simultaneously and expect a particular one to win.
+
+### Sounds
+
+`#sound <char> <path>` — registers `<char>` as a sound trigger and loads the WAV file at `<path>`. Sound paths are resolved relative to the program file's directory (with fallback to current working directory). Reference `<char>` in rule header field `S` (sound) to play the sound when the rule fires.
+
+### Programs
+
+`#program <char> <path>` — maps `<char>` to another program file. When a rule with `<char>` in header field `S` fires, the engine pushes the current program onto the call stack and loads `<path>`. Path resolution is the same as for `#include`. Use a `#control <c> return` action to pop back.
+
+### Engine actions
+
+`#control <char> <action>` — registers `<char>` as an engine action. When a rule with `<char>` in header field `S` fires, the action runs. Recognised actions:
+
+| Action | Behaviour |
+|---|---|
+| `pause` | Toggle pause/unpause. |
+| `clear` | Clear screen and re-apply the program's starting symbols. |
+| `reset` | Reset to the top-level program on the call stack (clears the stack). |
+| `return` | Pop one frame from the call stack; quit if the stack is empty. |
+| `quit` | Quit the application. |
+
+Any other action word is accepted by the parser and then silently ignored at runtime.
+
+A `#control` declaration on its own does nothing: engine actions are fired *by rules*, so the key must also be a rule trigger, and that rule needs an anchor that exists in every state the key must work from (scenery is the usual choice). For clearing at program **load** time use a bare `^` starting symbol; `#control <c> clear` is the runtime equivalent.
+
+### Colour aliases
+
+`#color <char> <color-spec>` — defines `<char>` as a colour alias usable in header fields `4` (foreground) and `5` (background). `<color-spec>` is `<digit>` or `<digit>,<attr>` where:
+
+- `<digit>` is a colour code (see Colours below).
+- `<attr>` is `BOLD` or `DIM` (curses attributes).
+
+Example: `#color M 1,BOLD` makes `M` bold red.
+
+When header field `4` or `5` contains a character that is not a digit, the engine looks it up in the colour-alias dictionary. Unknown aliases fall back to the default colour for that field. An alias may also override a digit, since the dictionary is consulted first.
+
+### Transient characters
+
+`#transient <chars>` — lists characters whose writes do **not** update the saved character in local memory (only the saved background is updated). Every character not listed is "sticky": writing it stores it in memory, so a later `$` restores it.
+
+This is what moving sprites need. A non-terminal walking across scenery must be declared transient, or the trail it leaves behind is itself — see [Local memory](#local-memory) and the sprite pattern below.
+
+### Grid
+
+`#grid <width> <height>` — declares grid alignment for toroidal wrapping. Default is `1 1` (no alignment). Affects:
+
+- The effective screen area used for wrapping: `(col / width) * width` columns by `((row - 1) / height) * height` rows.
+- Initial-symbol placement when the position char is one of the uppercase variants `L`/`C`/`R`/`X` (grid-aligned).
+
+### Threads
+
+`#threads <count>` — sets the number of rules that may be applied in parallel per step. `0` (default) means auto-detect from CPU count. `1` means single-threaded (one rule per step). `>1` allows up to `<count>` non-conflicting rules per step, but only for immediate timing triggers. See [Multi-rule execution](#multi-rule-execution).
+
+## Initial symbols
+
+`^<char><v-pos><h-pos>` — places `<char>` on the screen at program start.
+
+- `<char>` defaults to `s` if absent.
+- `<v-pos>`: vertical position. Default `c` (centre).
+- `<h-pos>`: horizontal position. Default `c` (centre).
+
+A bare `^` (single character, no payload) is a special **clear marker**: it requests that the screen be cleared before placing the rest of the starting symbols. Place it as the first `^` line:
+
+```
+^         # Clear the screen first
+^Scc      # Then place S at centre
+```
+
+Starting symbols write the screen but **not** local memory — a `$` restore over a cell that was only ever painted by a `^` seed yields a blank, not the seeded character.
+
+### Position characters
+
+Vertical:
+
+| Char | Position |
+|---|---|
+| `u` | Top row (row 1). |
+| `l` | Bottom row (row N-1). |
+| `c` | Approximate middle. |
+| `L` | Bottom row aligned to grid height. |
+| `C` | Approximate middle aligned to grid height. |
+| `X` | Random row aligned to grid height. |
+| `*` | **All** rows (fill marker, see below). |
+| (anything else) | Random row. |
+
+Horizontal:
+
+| Char | Position |
+|---|---|
+| `l` | Left edge (column 0). |
+| `r` | Right edge. |
+| `c` | Approximate centre. |
+| `R` | Right edge aligned to grid width. |
+| `C` | Approximate centre aligned to grid width. |
+| `X` | Random column aligned to grid width. |
+| `*` | **All** columns (fill marker, see below). |
+| (anything else) | Random column. |
+
+Uppercase variants (`L`/`C`/`R`/`X`) require `#grid` to give meaningful results other than the defaults; with the default `#grid 1 1` they behave the same as their lowercase counterparts. They exist to support full-block (double-width) grammars where columns must be even-aligned.
+
+### Fill marker `*`
+
+A `*` in a position fills that whole axis: `^g**` floods the entire
+field with `g`, `^gc*` writes a full row of `g` at the centre row,
+`^g*l` a full column at the left edge. This is the dual of the bare
+`^` clear marker (clear/fill duality) and replaces the common
+"materialize the background with a one-shot spread cascade" idiom —
+needed because rules cannot anchor on empty cells, so a background
+symbol is the way to make emptiness matchable.
+
+## Rules
+
+A rule consists of one or more **headers** (lines starting with `=`) followed by a multi-line **body**. All headers immediately preceding a body share that body — equivalent to writing one rule per header with a copied body.
+
+A rule is **applicable** at a screen position when:
+
+1. Its trigger character matches the current trigger.
+2. The screen character at the rule's anchor position equals the LHS non-terminal.
+3. Every non-space cell of the rule body's LHS region matches the corresponding screen cell (per the matching rules below).
+
+When multiple rules are applicable across all positions and rules, one (or more, in multi-rule mode) is selected by cumulative-weight random sampling, then applied.
+
+### Header
+
+A header is a single line of the form:
+
+```
+=S1234567 <score> <weight>
+```
+
+The labels `=`, `S`, `1`–`7` correspond directly to the character positions in the header string. The reference table below uses the same labels in its **Pos** column. Trailing fields may be omitted by leaving the header shorter; missing fields take their defaults.
+
+| Pos | Field | Default |
+|---|---|---|
+| `=` | Header marker — always `=`, identifies the line as a rule header. | required |
+| `S` | Sound / program / engine-action character. One of: `=` for silent; a `#sound` char to play that sound; a `#program` char to switch programs; a `#control` char to fire that engine action. (Resolution order: `#program` → `#control` → otherwise registered as a sound.) | `=` (silent) |
+| `1` | LHS non-terminal — the character that this rule rewrites. Becomes a member of the non-terminal set V. | `s` |
+| `2` | Trigger key. `~` is normalised to space (the SPACE key). `?` matches any trigger (wildcard). | `?` (wildcard) |
+| `3` | RHS non-terminal replacement — the character written at the third `@` in the body (the LHS-anchor `@` is not written). The default is space, which is a **no-op write** (preserves whatever's at the LHS-anchor cell): if you want to *erase* the LHS-anchor cell to empty, use `~` here, not space. See "Body characters" for the space-vs-`~` distinction. | space (no-op) |
+| `4` | Foreground colour. A digit `0`–`7` or a `#color` alias. | `7` (white) |
+| `5` | Background colour. A digit `0`–`7`, `8` for transparent, or a `#color` alias. | `8` (transparent) |
+| `6` | Extra context match — the character that `&` cells in the body's LHS region must equal, and that `!` and `%` cells are tested against. | (none) |
+| `7` | Extra context replacement — character written at `&` cells in the body's RHS region. | space (no-op) |
+| (space) | Separator between the field block and score/weight. | — |
+| `<score> <weight>` | Whitespace-separated: an integer score and a weight. The weight may be a decimal (e.g. `0.01`) so rare events need not inflate every other weight; scores are always integers. Non-positive weight is clamped to 1. | `0` `1` |
+
+The score/weight tail is read from a **fixed offset**: character 10 of the header line, i.e. immediately after the full nine-character field block `=S1234567` plus one separator space. A header that omits trailing fields and then appends a tail (`==ATB 5 2`) misparses silently — pad the field block out to full width first.
+
+#### Special tokens
+
+In field `2` (trigger):
+- `~` → SPACE key.
+- `?` → wildcard; rule fires regardless of trigger character.
+- Any other character is a literal trigger key.
+
+In fields `4` (foreground) and `5` (background):
+- `0`–`7` are direct colour codes.
+- `8` (background only) is transparent — the actual background at apply time is read from the cell's saved memory (see [Local memory](#local-memory)).
+- Any other character is looked up in the colour-alias dictionary (`#color`).
+- An unknown alias falls back to the field's default.
+
+In field `6` (context match):
+- `~` → matches an empty (space) cell. This is the token for "must be blank"; conversely `!` with field `6` set to `~` means "must be non-blank".
+- `?` (or an omitted field) → **no context character is defined**. It does *not* mean "any character": a `&` cell can then never match, so the rule never fires. `!` cells, by contrast, match everything (nothing is equal to "no character"), and `%` cells match only field `7`.
+- Otherwise: a literal character.
+
+In field `7` (context replacement):
+- `*` → the LHS non-terminal (substituted at parse time).
+- `~` → writes a space.
+- An omitted field (or a literal space) → no-op: `&` cells in the RHS region write nothing.
+- Otherwise: a literal character.
+
+There is only one context pair per rule, shared by every `&`, `!` and `%` cell in the body. A rule needing two different context characters must be split into two rules.
+
+### Body
+
+The body is one or more lines of text following a header (or a stack of headers). It contains exactly **three `@` markers**:
+
+1. **First `@`** — the anchor: the rule's LHS non-terminal position. The body cell here must equal the LHS character (field `1`) for the rule to apply.
+2. **Second `@`** — the boundary marker: separates the LHS region (matched against the screen) from the RHS region (written to the screen). This cell is never matched and never written.
+3. **Third `@`** — the RHS anchor: the position where the LHS non-terminal's replacement (field `3`) is written.
+
+The body is parsed cell-by-cell. Each non-newline character occupies one cell; newlines advance to the next row. Body cells are resolved relative to the non-terminal's screen position, but the LHS and RHS regions use **different body-coordinate origins**:
+
+- **LHS region** (dry-run, matched against screen): a cell at body position `(br, bc)` is checked at screen offset `(br − ro, bc − co)` from the non-terminal, where `(ro, co)` is `@1`'s position in the body.
+- **RHS region** (apply, written to screen): a cell at body position `(br, bc)` is written at screen offset `(br − rq, bc − cq)` from the non-terminal, where `(rq, cq)` is `@3`'s position in the body.
+
+For horizontal rules all three `@` markers are on the same body row (`ro = rq`), so row offsets are identical across the two regions. Column offsets differ by `cq − co` (the gap between `@1` and `@3`). A LHS cell at body column `co + Δ` and an RHS cell at body column `cq + Δ` both resolve to screen column offset `+Δ` — they reference the **same screen column** despite occupying different body columns. This is the standard idiom for writing to the same neighbour that was checked in dry-run.
+
+The boundary direction is inferred from the layout: if the third `@` is to the right of the first `@`, the body is **horizontal** (LHS is to the left of the boundary, RHS to the right); otherwise **vertical** (LHS above, RHS below). Mixed layouts are not supported.
+
+`./zahradnice-check explain CFG --line N` prints a rule's resolved geometry — which cells it reads and writes, at which offsets — and settles layout questions faster than counting columns by hand.
+
+#### Body characters
+
+| Char | Role in LHS region (matching) | Role in RHS region (writing) |
+|---|---|---|
+| (space) | No-op — neither matches nor writes. | No-op. |
+| `~` | Matches a screen cell containing space. | Writes a space. |
+| `@` | First/second/third occurrence have positional roles (see above); other `@`s are illegal. | — |
+| `&` | Matches against field `6` (never matches if field `6` is unset). | Writes field `7` (with `*` meaning LHS non-terminal). |
+| `*` | At parse time, replaced by the LHS non-terminal. | Same. |
+| `!` | Matches any cell whose contents are **not** equal to field `6`. | Written literally (likely unintended; avoid in RHS). |
+| `%` | Matches any cell whose contents are **either** field `6` **or** field `7`. | Written literally (likely unintended; avoid in RHS). |
+| `$` | Treated as a literal `$` for matching. | Restores the cell from local memory (the `G` struct previously saved at this position). |
+| any other | Literal match against the screen cell. | Literal write to the screen, with the rule's foreground/background. |
+
+**Spaces are always no-ops.** A literal space in the body neither matches nor writes anything. To match a space cell, use `~`. To write a space, use `~` (which is rewritten to space at apply time).
+
+The boundary `@` cell is special: it is never matched in dry-run and never written in apply.
+
+### Examples
+
+Minimal silent rule:
+
+```
+# On any trigger, replace A with B.
+==A?B
 @@@
 ```
-Example:
+
+Context-aware rule:
 
 ```
-# when user presses key `e` rewrite A with B (if surrounded by x's)
-#  and surrounding x's by o's (play sound C) and color the foreground
-#  in red and background in yellow 
+# When the user presses 'e' and A is surrounded by 'x', replace A with B
+# and replace each 'x' with 'o', play sound C, foreground red, background yellow.
 =CAeB13
    x   o
   x@x@o@o
    x   o
-# when user presses key `e` rewrite B with A (if surrounded by o's)
-#  and surrounding o's by x's (silently) and color the foreground
-#  in yellow and background in blue  
-==BeA34
-   o   x
-  o@o@x@x
-   o   x
 ```
-Complex example (shortcut combining both the above rules):
+
+Multi-header shortcut combining two complementary rules:
 
 ```
 =CAeB13xo
@@ -108,216 +331,182 @@ Complex example (shortcut combining both the above rules):
   &@&@&@&
    &   &
 ```
-### Initial symbols
 
-Initial symbols are optional and define starting symbols to be placed on screen.
+## Rule application semantics
 
-`^<inital-symbol-char><vertical-placement-char><horizontal-placement-char>`
+### Selection
 
-**Special case:** Plain `^` (with no characters following) requests screen clearing before placing other starting symbols. This is useful for utility programs that need a clean slate.
+For trigger key `K`:
 
-**Fill marker:** `*` in a position char fills that whole axis — `^g**` floods the field with `g`, `^gc*` writes a full centre row (dual of the bare `^` clear; see GRAMMAR.v2.md).
+1. The set of non-terminals reachable by any rule with key `K` or `?` is computed.
+2. The current screen positions of any of those non-terminals are gathered.
+3. For each (position, rule) pair where the rule's key is `K` or `?` and the rule's LHS non-terminal equals the screen char at the position, the body's LHS region is dry-run matched against the screen.
+4. The set of (position, rule) pairs that pass the dry-run is the **applicable set**.
 
-**Example:**
+If the applicable set is empty, the step is a no-op.
+
+Otherwise, one applicable pair is sampled with probability proportional to `rule.weight`. The selected rule is applied: the body's RHS region is written to the screen, score is incremented by `rule.reward`, the rule's sound (if any) is queued, and the rule's program-switch / engine-action effect (if any) is fired.
+
+Weights are relative *within one step's applicable set*. A tiny weight does not make an event rare when it is the only rule that matches — it will fire every step until something else becomes applicable.
+
+### Multi-rule execution
+
+Multiple rules per step are gated: they require `#threads > 1` **and** a trigger that is an immediate timing (`#timing <c> 0`) **and** an event that did not come from a keypress. Keypresses and interval-based timings always apply exactly one rule, so discrete-event semantics (one move per key, one tick per interval) are preserved regardless of thread count.
+
+When the gate opens:
+
+1. The applicable set is computed as above, then shuffled to remove order bias.
+2. Up to `thread_count` rules are sampled one at a time (without replacement, weight-proportional). Each candidate's bounding box is computed over its **actual non-space cells** — LHS cells at the dry-run origin, RHS cells at the apply origin, boundary marker excluded. If the bounding box overlaps any previously selected rule's bounding box, the candidate is discarded; otherwise it is added to the selected set.
+3. All selected rules are applied — concurrently if a global thread pool is available, sequentially otherwise. The score is incremented by the sum of rewards. All sounds are queued. Engine actions and program switches: only the first selected rule's are processed.
+
+The conflict footprint is **conservative by design**: it covers read-only LHS cells as well as written ones. This guarantees that any parallel step's outcome is reachable by *some* single-threaded interleaving — multi-rule execution never produces a screen state that single-rule execution could not. The cost is lost parallelism in two situations: (a) two rules read the same cell but neither writes to it, and (b) two rules' bounding rectangles overlap but their actual non-space cells are disjoint (e.g., complementary L-shaped bodies). In both situations the rules will not co-fire in the same step; they will fire on consecutive steps instead, with no change to eventual screen state.
+
+### Wrapping
+
+All coordinate writes and reads are wrapped toroidally over the effective screen area:
+
+- Rows wrap modulo `effective_max_row = ((row - 1) / grid_height) * grid_height`, mapping into `[1, effective_max_row]` (row 0 is reserved for status).
+- Columns wrap modulo `effective_max_col = (col / grid_width) * grid_width`, mapping into `[0, effective_max_col - 1]`.
+
+Cells beyond the effective area are not accessible; rules that anchor to wrapped positions implicitly operate on the wrapped cell. There is no off-screen: a walker that leaves an edge reappears on the opposite one, so no edge-handling rules are needed — and none can detect an edge either.
+
+## Colours
+
+Eight base colour codes (foreground 0–7; background 0–8 with 8 = transparent):
+
+| Code | Colour |
+|---|---|
+| 0 | Black |
+| 1 | Red |
+| 2 | Green |
+| 3 | Yellow |
+| 4 | Blue |
+| 5 | Magenta |
+| 6 | Cyan |
+| 7 | White |
+| 8 | Transparent (background only) |
+
+**Transparent background.** When a rule writes a cell with background `8`, the actual background written is the one previously saved in local memory at that position (see below). This allows sprites to preserve the underlying scenery's background.
+
+## Local memory
+
+The engine maintains, for every screen cell, a saved `G` struct holding `(char, fore, back, fore_attrs, back_attrs)`. Initial values are `(' ', 7, 0, 0, 0)`.
+
+Memory is updated as a side effect of writing cells:
+
+- By default **every** rule write stores the full `G` struct (the just-written char and colours) as the new memory value at that cell — non-terminals included. Memory is "sticky".
+- For a character listed in `#transient <chars>`, only the **background** of the memory `G` is updated; the character and the rest of the saved struct are preserved. This is the overlay semantic that lets a sprite move through scenery without destroying it.
+- Starting symbols (`^` lines) bypass memory entirely: they paint the screen only.
+
+Memory is read as a side effect of:
+
+- A rule body cell containing `$` in the RHS region — restores the cell to the saved `G`. This is the standard "restore the scenery" pattern when a sprite leaves a cell.
+- A rule writing a cell whose background field is `8` (transparent) — the saved background is used.
+
+The direct consequence: a moving non-terminal that is *not* declared transient overwrites memory as it goes, so restoring behind it reproduces the sprite instead of the scenery, painting a solid trail. Declare the sprite's characters `#transient`.
+
+## Multithreading
+
+`#threads <count>`:
+
+- `0` — auto-detect from `std::thread::hardware_concurrency()`, falling back to 1. Recording a trace (`--trace`) forces 1 for replay determinism.
+- `1` — single-threaded; one rule per step.
+- `>1` — multi-rule execution as described above, subject to the immediate-timing gate.
+
+A global thread pool is shared across all loaded programs (its size is set by `--max-threads`, defaulting to the hardware concurrency with a fallback of 4). Threading statistics (`{parallel}` template variable) accumulate over the lifetime of the engine process.
+
+## Program switching and the call stack
+
+A `#program <char> <path>` directive maps a character to a program. A rule whose field `S` is that character pushes the current program onto the call stack and loads the target program. The derivation state (screen contents) carries across the switch — programs are compositional, which also means a launched program inherits the caller's screen unless it clears (bare `^`) or floods (`^g**`) it.
+
+`#control <char> return` pops one frame from the stack, returning to the caller. If the stack is empty, the engine quits.
+
+`#control <char> reset` empties the stack and returns to the top-level program.
+
+Call/return in full — `main.cfg` hands control to `utility.cfg`, which hands it back:
+
 ```
-^        # Clear screen first  
-^Scc     # Then place S symbol at center
-```
-
-The chars can be one of the following. There are uppercase variants 
-to force column indices divisible by 2 to allow defining full-block
-(double the character width) grammars, for the more or less square
-look of the 'pixels'.
-
-* vertical
-  * `u` upper row
-  * `l` lower row
-  * `L` lower row but index divisible by 2
-  * `c` approximate middle row
-  * `C` approximate middle row with index divisible by 2
-  * `X` random row but index divisible by 2
-  * `<other>` random row
-* horizontal
-  * `l` left edge of the screen
-  * `r` right edge of the screen
-  * `R` right edge of the screen but divisible by 2
-  * `c` approximate center column
-  * `C` approximate center column divisible by two
-  * `X` random column but divisible with 2
-  * `<other>` random column 
-### Configuration directives
-
-**Status Line Templates:**
-* `#!<template>` ... defines status line template with variable substitution (must be first line)
-  - Template variables: `{score}`, `{steps}`, `{moves}`, `{parallel}`, `{help}`
-  - Example: `#! Score: {score} | Steps: {steps} {parallel} | {help}`
-  - Template inheritance: Last program with `#!` directive sets template for all subroutines
-  - If no `#!` directive, inherits template or uses default: `Score: {score} Steps: {steps} {parallel} {help}`
-* `#help <text>` ... defines help content for `{help}` variable in template
-  - Help text is always local to current program (no inheritance)  
-  - Example: `#help Snake: a/s/d/w move, space/x/q general`
-
-**Inherited vs Local Content:**
-- **Inherited text**: Put directly in `#!` template - persists across all subroutines
-  - `#! Sokoban: {score} | {help}` → "Sokoban:" shows in all subroutines
-- **Local text**: Put in `#help` directive - changes per program  
-  - `#help Level Select: w/s choose` → only shows in current program
-- **Design choice**: Balance persistent branding vs contextual flexibility
-
-**Template Variables:**
-- `{score}` - Current score (accumulated across program switches)
-- `{steps}` - Number of rules applied (accumulated across program switches)  
-- `{moves}` - Number of successful user actions that resulted in rule application (excludes timing events and ineffective keypresses)
-- `{parallel}` - Parallel rule execution percentage, e.g. `(85%)` (empty if no threading stats)
-- `{help}` - Current program's help text from `#help` directive
-
-**Status Line Layout:**
-- Template content is displayed on the left side
-- Last applied rule pattern is always displayed right-aligned  
-- Template content is truncated if needed to leave space for rule display
-
-**Examples:**
-```
-# Pattern 1: Inherited branding + local help
-#! Sokoban: {score} | {moves} moves | {help}
-#help Level 1 - push boxes to targets
-# → Subroutines show: "Sokoban: 42 | 15 moves | Level Select: w/s choose"
-
-# Pattern 2: Fully flexible (everything local)
-#! {score} | {moves} moves | {help}
-#help Snake: a/s/d/w move, space/x/q general
-# → Subroutines show: "42 | 15 moves | Menu: w/s select e/enter"
-
-# Pattern 3: Minimal template
-#! {help}
-#help Tetris: w/rotate s/drop a/d/move
-# → Shows only contextual help, no counters
-```
-
-**Best Practices:**
-- Always use `{help}` in templates rather than embedding help text directly in `#!`
-- Plain text in `#!` works but loses variable substitution (not recommended)
-- Use `#help` directive for all contextual help text to maintain clean separation
-* `#include <filename>` ... include another file at this position (recursive includes supported, circular includes ignored)
-
-**Timing:**
-* `#timing <char> <interval-ms>` ... define timing trigger (e.g. `#timing T 500` makes T fire every 500ms)
-  - Use interval `0` for immediate timing (fires when no other input occurs)
-  - Multiple timing directives supported for different characters
-  - No timing events occur unless explicitly declared
-
-**Engine Actions:**
-* `#control <char> <action>` ... define engine control actions:
-  - `#control ~ pause` ... space toggles pause/unpause
-  - `#control x restart` ... restart current program
-  - `#control r reset` ... reset to top-level program from stack
-  - `#control c clear` ... clear screen and restart current program with its starting symbols (runtime clearing)
-  - `#control t return` ... pop call stack, return to caller (or quit if at top-level)
-  - `#control q quit` ... quit application
-
-Note: For clearing at program load time, use plain `^` as a starting symbol. For runtime clearing during program execution, use `#control c clear`.
-
-**Other:**
-* `#grid <width> <height>` ... define grid alignment for toroidal wrapping; defaults to 1/1
-* `#threads <count>` ... define thread count for parallel rule execution; defaults to auto-detect CPU cores
-* `#sound <char> <path>` ... define sound mapping (e.g. `#sound S sounds/click.wav`)
-* `#program <char> <path>` ... define program mapping for switching (e.g. `#program 1 snake.cfg`)
-* `#color <char> <color>,<attrs>` ... define color with attributes (e.g. `#color M 5,BOLD`)
-
-### Program switching
-
-Programs can call other programs using a compositional system that preserves derivation state.
-
-**1. Define program mappings:**
-```
-#program 1 snake.cfg
-#program 2 tetris.cfg
-```
-
-**2. Use mapped characters in rules:**
-```
-=X1T~        # When X symbol and T key pressed, replace with ~ and switch to snake.cfg
-@@@
-```
-
-**Key features:**
-- **Compositional:** Derivation state (screen contents) flows between programs
-- **Call stack:** Programs can return to their caller using `#control return`
-- **Standard rules:** Program switching uses normal rule syntax with RHS replacement  
-- **File completion:** Supports `.cfg`, `.gz`, and directory/index.cfg resolution
-
-**Note:** For stack operations (return, quit, reset), use `#control` actions instead of program mappings.
-
-**Example call/return pattern:**
-```
-#! main.cfg - calls utility, replaced S with R on T
+# main.cfg — 'U' calls the utility, replacing S with R
 #program U utility.cfg
-#control R return
 =USTR
 @@@
+```
 
-
-#! utility.cfg - does work (replaces R with U on T) and returns  
+```
+# utility.cfg — does its work, then 'R' returns to the caller
 #control R return
 =RRTU
 @@@
 ```
 
-### Color attributes and control remapping
+Stack operations (`return`, `reset`, `quit`) are `#control` actions, not `#program` mappings — a program cannot return to its caller by naming the caller's file, because that would push another frame.
 
-**Color with attributes:**
-* `#color <char> <color-code>,<attribute>` ... define color with attributes
-* Available attributes: `BOLD`, `DIM`
-* Examples:
-    * `#color M 1,BOLD` - define 'M' as bold red
-    * `#color D 7,DIM` - define 'D' as dimmed white
-    * `#color P 5,BOLD` - define 'P' as bold magenta
+ESC is always available as an emergency exit, regardless of declarations.
 
-**Control key remapping:**
-* `#control <old-key> <new-key>` ... remap control keys
-* Available controls: `B` (long step), `M` (medium step), `T` (instant step), `q` (quit), `~` (unpause/space)
-* Examples:
-    * `#control ~ ,` - remap unpause from space to comma
-    * `#control q .` - remap quit from 'q' to period
-* Note: ESC key always works as emergency exit regardless of remapping
+## Default keys
 
-## Multithreaded Execution
+The engine itself reserves only:
 
-The grammar engine supports parallel rule execution for improved performance in complex scenarios like Conway's Game of Life.
+- **ESC** — emergency exit (always).
+- **F12** — capture two screenshots of the current screen (plain text and ANSI-coloured) named `screenshot_<timestamp>.txt` / `.ansi` in the current working directory.
 
-### Thread Configuration
+All other keys, including space, `q`, `x`, `B`, `M`, `T`, must be wired through `#control` (for engine actions) or appear as a rule trigger (for program-defined behaviour). Programs start **unpaused**; SPACE pauses only if a rule wires `#control <c> pause`.
 
-Use `#threads <count>` to control threading behavior:
+## Worked patterns
 
-* `#threads 0` - Auto-detect CPU cores (default)
-* `#threads 1` - Single-threaded mode (original behavior)
-* `#threads N` - Use exactly N threads
+The bodies below are complete and were run against the engine; each can be pasted into a `.cfg` as-is.
 
-### Execution Semantics
+### Sprite shifting with scenery preserved
 
-**Single-threaded mode** (`#threads 1`):
-- Finds all applicable rules for the current trigger
-- Randomly selects exactly one rule based on weights
-- Applies that single rule
+A sprite `S` moves one cell right on `d`, restoring whatever scenery (`.`) it covered.
 
-**Multi-threaded mode** (`#threads >1`):
-- Finds all applicable rules for the current trigger
-- Randomly selects up to N non-conflicting rules (where N = thread count)
-- Uses area-based conflict detection to ensure rules don't overlap
-- Applies all selected rules simultaneously in parallel
+```
+#transient S
+==Sd$77.*
+@&@@&
+```
 
-**Key difference:** Multi-threaded mode can apply multiple rules per step, fundamentally changing program behavior compared to the traditional one-rule-per-step execution.
+Reading the header: rewrite `S` on `d`; field `3` is `$`, so the cell the sprite vacates is restored from memory; fields `4`/`5` are white-on-white; field `6` is `.`, so the `&` cell to the right must be scenery; field `7` is `*`, which resolves to the LHS non-terminal `S`, so that neighbour becomes the sprite.
 
-### Performance Impact
+The body places `@1` and its `&` neighbour in the LHS region, and `@3` with its `&` neighbour in the RHS region; because both `&` cells sit at offset +1 from their own anchor, they address the same screen cell — the one being checked and then written.
 
-Multi-threading provides significant speedup in scenarios with many independent rule applications (e.g., cellular automata). The engine displays threading statistics in the status line as `Steps: X (Y%)` showing step count and parallelization percentage.
+`#transient S` is what makes the trail scenery rather than a line of `S`. Without it, memory records the sprite at each cell it passes and `$` faithfully restores it.
 
-## TODO
+### Conditional move via `!`
 
-Not yet covered by this introduction:
+A block `B` falls one row per tick, but only while the cell below is not a wall `W`:
 
-* special chars `!`, `%`, `*` and `$` in rule bodies — `*` in particular is
-  substituted by the LHS non-terminal at parse time, so it cannot be used as
-  an ordinary glyph. Full table: **Body characters** in `GRAMMAR.v2.md`.
-* local memory (used e.g. in `flowers.cfg`)
-* `#` char as an implicit (outer) screen boundary
+```
+#timing T 0
+==BT~77W
+@
+!
+@
+@
+B
+```
+
+Field `6` is `W` and the LHS cell below the anchor is `!`, which matches anything *other than* `W`. Field `3` is `~`, erasing the vacated cell; the literal `B` in the RHS region writes the block one row down. The body is vertical (the third `@` is below the first), so rows 0–1 are the LHS region, row 2 is the boundary, and rows 3–4 are the RHS region.
+
+### Either-of via `%`
+
+`%` matches a cell holding either field `6` or field `7`, which is how a rule accepts two alternatives without being split in two:
+
+```
+==ATB77xy
+@%@@%
+```
+
+Here the neighbour may be `x` or `y`. Note that `%` and `!` are LHS-only: in the RHS region they are written to the screen literally.
+
+## Not implemented
+
+The following appeared in earlier documentation but are not implemented in current code:
+
+- `*` as a context-match token (field `6`) meaning "the LHS non-terminal" — only field `7` gets that substitution; in field `6`, `*` is a literal asterisk.
+- `$` as a context-match token (field `6`) — only `$` as a body **replacement** char is meaningful (memory restore).
+- `#` as an "out-of-screen" context-match token — the toroidal wrapping leaves no cell out of screen, and the matching code does not specially recognise `#`.
+- `?` in field `6` as a wildcard that makes `&` match anything — it disables the context character, and `&` cells then never match.
+- `restart` engine action — `#control` accepts the keyword but the runtime has no handler; only `pause`, `clear`, `reset`, `return`, `quit` fire. Use `clear` or program switching for restart-like behaviours.
+- `#control <old-key> <new-key>` as a control-key remapping mechanism — `#control`'s second argument is an action name, never a key. Remapping is done by changing the rule's trigger character.
+- `B`/`M`/`T` as built-in "manual step" keys with long/medium/instant semantics — the engine attaches no meaning to them. They are ordinary keys, conventionally used as `#timing` characters.
