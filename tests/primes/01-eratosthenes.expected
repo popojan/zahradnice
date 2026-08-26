@@ -1,4 +1,4 @@
-Eratosthenes   primes: 18    space=pause  c=restart  q=quit              ==BT_K8
+Score: 18 Steps: 409  Eratosthenes: divisors live in the rules   space=p ==BT_K8
   ##.#.#...#.#...#.#...#.....#.#.....#...#.#...#.....#.....#.#....x            |
   + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - W
    +  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  W
