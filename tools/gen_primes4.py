@@ -39,8 +39,12 @@ Allocation keeps the insertion point fixed rather than transporting digits: it
 pushes every record one slot along, then writes the new record into slot 1 of
 row 3 -- a fixed offset from the register, so nothing has to be carried.
 
-Range: divisors and candidates < BASE**NDIG.  Verdicts are exact while the
-record area still has room for the next prime.
+Range: divisors and candidates < BASE**NDIG.  Only primes below
+BASE**ceil(NDIG/2) are given a record -- every composite in range has a prime
+factor at most its own square root, so the rest would cost per candidate and
+cross out nothing.  That bound is a digit-width test, not a count, so it needs
+no counter: "the top NDIG-HALF digits of the candidate are zero".  Without it
+a taller screen is a linearly SLOWER one (measured: 3.2x at 24x80).
 
 python3 tools/gen_primes4.py [BASE [NDIG]]
 """
@@ -232,14 +236,53 @@ add('# survived every divisor: print it, count it, then give it a record')
 rule({(0, SEPX): '%'}, {(0, SEPX): PRIME, (0, KLO): '"'}, lhs='{', rep='$',
      fore='G', ctx=PRIME, ctxrep=COMP, tail='1 1')
 
-add('# copy the candidate into the "last prime" field, then go allocate')
+add('# copy the candidate into the "last prime" field, then decide')
 P_END = (1, KLO - (NDIG - 1))
 for v in range(BASE):
-    rule({(0, K2D): DIG[v], (0, -1): '%'},
-         {off(P_END, (3, SLOT1)): ';'}, lhs='"', rep=DIG[v], fore='G',
-         ctx=PRIME, ctxrep=COMP)
     rule({(0, K2D): DIG[v], (0, -1): '!'}, {(0, -1): '"'},
          lhs='"', rep=DIG[v], fore='G', ctx=PRIME)
+
+# --- who gets a record ----------------------------------------------------
+# Only primes p <= sqrt(BASE**NDIG) can cross out anything in range: every
+# composite below BASE**NDIG has a prime factor at most its own square root.
+# Cost is linear in the record count, so handing a record to every prime
+# makes a TALLER screen slower -- 56.5 events/candidate at 27 records against
+# 216.6 at 100, for verdicts that were already exact at 27.
+#
+# The test needs no counter and no comparator: p < BASE**HALF is exactly
+# "the top NDIG-HALF digits of the candidate are zero", and the copy walk
+# ends at P_END, a fixed offset from every register digit.
+HALF = (NDIG + 1) // 2         # ceil, so odd NDIG keeps a few spare records
+HIGH = [i for i in range(HALF, NDIG)]          # digits that must all be zero
+MSB = NDIG - 1
+REG_AT = {i: (0, -i - 2) for i in range(NDIG)}  # register digit i, from P_END
+GO_ALLOC = {off(P_END, (3, SLOT1)): ';'}
+GO_NEXT = {off(P_END, (2, DLO)): 'A'}
+
+add('# --- small enough to matter (top %d of %d digits zero): allocate ---'
+    % (len(HIGH), NDIG))
+for v in range(BASE):
+    if MSB in HIGH and v != 0:
+        continue                                  # handled by the skip rules
+    keep = {REG_AT[i]: DIG[0] for i in HIGH if i != MSB}
+    rule({(0, K2D): DIG[v], (0, -1): '%', **keep}, GO_ALLOC,
+         lhs='"', rep=DIG[v], fore='G', ctx=PRIME, ctxrep=COMP)
+
+if HIGH:
+    add('# --- too big to divide anything in range: print it, skip the')
+    add('# record, straight on to the next candidate. Cases are split by the')
+    add('# LOWEST non-zero high digit, so exactly one of them ever matches.')
+    for v in range(1, BASE):                      # top digit itself non-zero
+        rule({(0, K2D): DIG[v], (0, -1): '%'}, GO_NEXT,
+             lhs='"', rep=DIG[v], fore='G', ctx=PRIME, ctxrep=COMP)
+    for j in HIGH:
+        if j == MSB:
+            continue
+        for w in range(1, BASE):
+            keep = {REG_AT[i]: DIG[0] for i in HIGH if i < j}
+            keep[REG_AT[j]] = DIG[w]
+            rule({(0, K2D): DIG[0], (0, -1): '%', **keep}, GO_NEXT,
+                 lhs='"', rep=DIG[0], fore='G', ctx=PRIME, ctxrep=COMP)
 
 # --- allocation -----------------------------------------------------------
 add('# --- find the first free slot (same walk, changing nothing) ---')
