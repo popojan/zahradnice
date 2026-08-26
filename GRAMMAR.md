@@ -316,6 +316,8 @@ Multi-threading provides significant speedup in scenarios with many independent 
 
 Not yet covered by this introduction:
 
-* special chars `!` and `%` in rule bodies.
+* special chars `!`, `%`, `*` and `$` in rule bodies — `*` in particular is
+  substituted by the LHS non-terminal at parse time, so it cannot be used as
+  an ordinary glyph. Full table: **Body characters** in `GRAMMAR.v2.md`.
 * local memory (used e.g. in `flowers.cfg`)
 * `#` char as an implicit (outer) screen boundary
