@@ -456,3 +456,41 @@ grep '^\^' programs/foo.cfg
 
 (Found when Contact process hung after being reached from the new Evolution
 submenu, 2026-08-26.)
+
+---
+
+## 26. A control key needs an anchor that exists in *every* reachable state
+
+**Symptom.** `q` (or any `#control` key) works sometimes and not others — or
+works for a while and then stops, leaving the program unquittable.
+
+**Cause.** An engine action needs a rule to fire it (#17), and that rule needs
+its anchor character to be on screen *at the moment the key is pressed*. Two
+ways to get this wrong:
+
+- **Anchoring on a head.** A machine's head is in exactly one of its states at a
+  time. `programs/primes/04-packed.cfg` listed only `>` and `<` while its head
+  also passes through `{ } ? , A ) " Y ; ' _ | ] ^` — measured, `q` reached it at
+  **7 of 41** sampled moments.
+- **Anchoring on something the program can consume.** An absorbing state may
+  erase the very character the rule needs.
+  `experiments/convergence/contact.cfg` anchors on `A`, and its all-empty state
+  is absorbing — so the key died exactly when the run was over.
+
+**Avoid.** Anchor on the seeded scenery (a margin, a wall, a row header, the
+origin column) — something the rules never overwrite. Where the field itself can
+empty out, note that a cell erased with `~` is still in the `x` map as a space,
+so `=q q~` with a bare `@@@` body covers the absorbing state.
+
+Check it rather than reasoning about it — dump the screen at many step counts and
+intersect the character sets; what survives every sample is what is safe to
+anchor on:
+
+```sh
+for k in 5 40 400 4000 30000; do
+  ./zahradnice-headless prog.cfg --threads 1 --max-steps $k --input @ticks \
+    | tail -n +2 | fold -w1 | sort -u
+done   # then intersect
+```
+
+(Both cases found while wiring the primes and evolution submenus, 2026-08-26.)
