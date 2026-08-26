@@ -424,3 +424,35 @@ positions first, e.g. `==DTC78   0 0.25` (fg `7`, bg `8`, blank
 ctx/ctxrep). Verify with `zahradnice-check explain --head '...'` — it
 prints the parsed weight. (Caught this way in the night-4 generator,
 2026-08-22.)
+
+---
+
+## 25. A program launched from a menu inherits the caller's screen
+
+**Symptom.** A program runs fine on its own (`./zahradnice path/to/prog.cfg`) but
+appears to hang when chosen from a menu: its status line shows, the step counter
+sits still, and the menu is still on screen underneath.
+
+**Cause.** Program switching is compositional by design — "derivation state
+(screen contents) flows between programs" (GRAMMAR.md). A program whose seeds do
+not cover the field therefore starts on top of the caller's picture. If its rules
+need empty cells, they find none. `experiments/convergence/contact.cfg` seeds a
+single `^Acc`: launched from a menu that `A` lands in the middle of the menu box,
+is walled in by its text, and the only applicable rule left is the one that kills
+it — an absorbing state reached on move one.
+
+**Avoid.** Every program reachable from a menu must either open with a bare `^`
+(clear) or flood the field (`^.**`, `^0**`). Note `start()` only tests `g.S[0]`:
+a `^` that is not the **first** seed is placed as an ordinary symbol and clears
+nothing. Seeds may arrive via `#include` (the sokoban levels inherit theirs from
+`rules.cfg`), so audit the included text, not just the file.
+
+Cheap check — a program that clears cannot be affected by what preceded it:
+
+```sh
+# every seed line of a launch target; the first must be `^`, or one must flood
+grep '^\^' programs/foo.cfg
+```
+
+(Found when Contact process hung after being reached from the new Evolution
+submenu, 2026-08-26.)
