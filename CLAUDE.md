@@ -61,6 +61,12 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 - `/programs/<name>/` - A collection: `index.cfg` is its submenu, siblings are the
   programs it launches (`sokoban`, `primes`). A submenu uses `#control Q return`,
   so `q` always goes one level up; only the top-level menu quits.
+- `/experiments/index.cfg` - Submenu over a curated few of the research programs,
+  reached from the main menu as **Evolution**. The programs stay where their papers
+  and result docs link them; only an index and a `q`-triggered return rule were added,
+  so no derivation changed. A research program keeps its own `#!` because its counter
+  is named (`pop=`, `grains=`, `births=`, `reward=`) — it gains `{help}` rather than
+  losing the template.
 - `/programs.bak/` - Backup configurations
 - `/demos/` - Tutorial and demonstration programs
 

@@ -141,6 +141,7 @@ test: zahradnice-headless
 	  prog=$$(echo "$$t" | cut -d/ -f2); \
 	  name=$$(basename "$$base"); \
 	  if [ -f "programs/$$prog/$$name.cfg" ]; then cfg="programs/$$prog/$$name.cfg"; \
+	  elif [ -f "$$prog/$$name.cfg" ]; then cfg="$$prog/$$name.cfg"; \
 	  elif [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
 	  else cfg="programs/$$prog.cfg"; fi; \
 	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
@@ -162,6 +163,7 @@ update-tests: zahradnice-headless
 	  prog=$$(echo "$$t" | cut -d/ -f2); \
 	  name=$$(basename "$$base"); \
 	  if [ -f "programs/$$prog/$$name.cfg" ]; then cfg="programs/$$prog/$$name.cfg"; \
+	  elif [ -f "$$prog/$$name.cfg" ]; then cfg="$$prog/$$name.cfg"; \
 	  elif [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
 	  else cfg="programs/$$prog.cfg"; fi; \
 	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
