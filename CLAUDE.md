@@ -101,7 +101,16 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 **Derivation class (`grammar.h:90-129`):**
 - `x` - Map from (row,col) coordinates to characters representing current screen state (non-terminals only)
 - `memory` - Array for local state storage used by advanced programs
-- `screen_chars` - Flat `wchar_t` array indexed by `r*col + c`, redundantly mirroring the displayed character at every cell. Read in `apply_impl` for every context-match. Introduced to avoid mutex contention on curses reads from worker threads, but is also the architectural reason single-threaded rule matching is fast: every dry-run match becomes an O(1) array index instead of a curses round-trip or `x` map lookup. Adding more threads on top of this provides only marginal speedup because the post-match hot paths (mvadd_wch into curses, `screen_mutex` for `x`/`memory` updates) are already serialised and memory-bandwidth-bound.
+- `screen_chars` - Flat `wchar_t` array indexed by `r*col + c`, redundantly mirroring the displayed character at every cell. Read in `apply_impl` for every context-match. Introduced to avoid mutex contention on curses reads from worker threads, but is also the architectural reason single-threaded rule matching is fast: every dry-run match becomes an O(1) array index instead of a curses round-trip or `x` map lookup. The cost that dominates is the *match* phase, not the post-match one: `gatherApplicableRules` / `step` are fully serial, and before the rule index below they dry-ran every rule of a family at every anchor on screen — measured at 8018 dry-runs per applied rule for `programs/primes/06-umeo.cfg`.
+- Rule matching is indexed, in `Derivation`:
+  - `anchors_for(key)` caches which characters a trigger can rewrite (it used to be rebuilt from every rule on every step).
+  - Each `Rule` carries a **probe**: the first LHS cell that pins an exact character, as an offset from the anchor.
+    A bare `@@@` body, or one whose cells are all `!` / `%` / any-ctx, pins nothing (`probe_ch == 0`) and is always tried.
+  - `rules_for(anchor, key)` buckets a family by the character its probe pins, keeping rules that pin a different cell
+    (or nothing) in `others`. Both lists are ascending and are merged, so candidates arrive in plain scan order —
+    the derivation is byte-identical to the unindexed scan for a given seed. Measured 4–11x fewer dry-runs, 1.03–2.5x wall clock.
+- Threading helps when work is measured in applied rules rather than trigger events: 06-umeo is ~2.4x faster at 4 threads.
+  Feeding a fixed oversized trigger count hides this, because every trigger after the program settles still pays a full scan.
 - Grid-based 2D transformation system with color support
 
 ## Special Files
