@@ -58,6 +58,9 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 
 **Program locations:**
 - `/programs/` - Main game collection (~50+ programs)
+- `/programs/<name>/` - A collection: `index.cfg` is its submenu, siblings are the
+  programs it launches (`sokoban`, `primes`). A submenu uses `#control Q return`,
+  so `q` always goes one level up; only the top-level menu quits.
 - `/programs.bak/` - Backup configurations
 - `/demos/` - Tutorial and demonstration programs
 
@@ -106,5 +109,7 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 - `GRAMMAR.md` - Complete language reference and syntax guide
 - `README.md` - Project overview and program descriptions  
 - `plosinovka.cfg` - Example complex program demonstrating advanced features
-- `programs/menu.cfg` - Default startup program that provides program selection interface
+- `programs/index.cfg` - Default startup program that provides program selection interface
+- `programs/primes/` - Six sieves, each moving the divisor further out of the rule
+  set; `05-fischer` and `06-umeo` are real-time cellular automata (see `tools/gen_primes*.py`)
 - `demos/` - Simple tutorial programs for learning the grammar language

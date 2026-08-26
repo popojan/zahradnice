@@ -139,10 +139,12 @@ test: zahradnice-headless
 	for t in $(TESTS); do \
 	  base=$${t%.input}; \
 	  prog=$$(echo "$$t" | cut -d/ -f2); \
-	  if [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
+	  name=$$(basename "$$base"); \
+	  if [ -f "programs/$$prog/$$name.cfg" ]; then cfg="programs/$$prog/$$name.cfg"; \
+	  elif [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
 	  else cfg="programs/$$prog.cfg"; fi; \
 	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
-	  ./zahradnice-headless "$$cfg" --seed "$$seed" \
+	  ./zahradnice-headless "$$cfg" --seed "$$seed" --threads 4 \
 	    --input "@$$t" --dump-screen -.txt 2>/dev/null > $$tmp; \
 	  if diff -u "$$base.expected" $$tmp >/dev/null; then \
 	    echo "PASS $$base"; pass=$$((pass+1)); \
@@ -158,10 +160,12 @@ update-tests: zahradnice-headless
 	@for t in $(TESTS); do \
 	  base=$${t%.input}; \
 	  prog=$$(echo "$$t" | cut -d/ -f2); \
-	  if [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
+	  name=$$(basename "$$base"); \
+	  if [ -f "programs/$$prog/$$name.cfg" ]; then cfg="programs/$$prog/$$name.cfg"; \
+	  elif [ -d "programs/$$prog" ]; then cfg="programs/$$prog/index.cfg"; \
 	  else cfg="programs/$$prog.cfg"; fi; \
 	  seed=1; [ -f "$$base.seed" ] && seed=$$(cat "$$base.seed"); \
-	  ./zahradnice-headless "$$cfg" --seed "$$seed" \
+	  ./zahradnice-headless "$$cfg" --seed "$$seed" --threads 4 \
 	    --input "@$$t" --dump-screen -.txt 2>/dev/null > "$$base.expected"; \
 	  echo "wrote $$base.expected"; \
 	done
@@ -172,7 +176,7 @@ RELEASE_DIR=release
 release:
 	mkdir -p ${RELEASE_DIR}/zahradnice/programs
 	cp index.cfg ${RELEASE_DIR}/zahradnice
-	cp -R programs/*.cfg programs/sokoban ${RELEASE_DIR}/zahradnice/programs
+	cp -R programs/*.cfg programs/sokoban programs/primes ${RELEASE_DIR}/zahradnice/programs
 	cp zahradnice ${RELEASE_DIR}/zahradnice
 	cd ${RELEASE_DIR}; \
 	tar -czf zahradnice.tar.gz zahradnice/; \
