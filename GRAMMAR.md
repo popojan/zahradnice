@@ -91,6 +91,8 @@ Template content is rendered left-aligned. The most recently applied rule's head
 
 At most one timing fires per main-loop iteration. Overdue interval-based timings are checked first; only if none is overdue does an immediate timing fire. Within each of those two groups the order is **unspecified** (the timing table is a hash map, not declaration-ordered) — do not declare two interval timings that can come due simultaneously and expect a particular one to win.
 
+An immediate timing stops firing once it has applied nothing: whether a rule matches depends only on the screen, so the same trigger against the same screen would fail again. The engine sleeps instead — until a keypress or the next interval timing, either of which can change the screen and re-arms the immediate trigger. A program of nothing but `#timing T 0` that runs out of applicable rules therefore costs no CPU, and resumes the moment a key arrives. Nothing observable changes for a program that always has work.
+
 ### Sounds
 
 `#sound <char> <path>` — registers `<char>` as a sound trigger and loads the WAV file at `<path>`. Sound paths are resolved relative to the program file's directory (with fallback to current working directory). Reference `<char>` in rule header field `S` (sound) to play the sound when the rule fires.

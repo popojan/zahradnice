@@ -253,6 +253,35 @@ void clear_status(int row, int col, size_t len) {
     mvaddwstr(row, col, empty.c_str());
 }
 
+// How long the next wget_wch() may block, in curses timeout() units:
+//   0  poll — an interval-0 timing char is armed, the program runs full tilt
+//   n  wait up to n ms — that is when the next interval timing comes due
+//  -1  wait for a key — no clock can wake us
+// `quiet` means the last trigger applied nothing: rule applicability depends
+// only on the screen state, so re-firing the same immediate trigger against
+// an unchanged screen cannot succeed either. Only a key or an interval event
+// can make rules applicable again, so we wait for one instead of spinning.
+static int idle_timeout_ms(const Grammar2D &cfg,
+                           const std::unordered_map<wchar_t, int> &elapsed_counts,
+                           const std::chrono::steady_clock::time_point &start,
+                           bool quiet) {
+    bool immediate = false;
+    double soonest = -1.0;  // ms until the next interval event, -1 = no clock
+    std::chrono::duration<double, std::milli> since =
+        std::chrono::steady_clock::now() - start;
+    for (const auto &[timing_char, interval] : cfg.timing_chars) {
+        if (interval == 0) { immediate = true; continue; }
+        auto it = elapsed_counts.find(timing_char);
+        int fired = (it == elapsed_counts.end()) ? 0 : it->second;
+        double left = static_cast<double>(fired + 1) * interval - since.count();
+        if (left < 0.0) left = 0.0;
+        if (soonest < 0.0 || left < soonest) soonest = left;
+    }
+    if (immediate && !quiet) return 0;
+    if (soonest < 0.0) return -1;
+    return static_cast<int>(soonest) + 1;
+}
+
 // Clear the host-terminal area outside the centred viewport so stale terminal
 // content doesn't bleed through. Called once after initscr() when a smaller
 // --screen is requested.
@@ -967,6 +996,7 @@ int main(int argc, char *argv[]) {
 
         std::unordered_map<wchar_t, int> elapsed_counts;  // Track elapsed counts per timing char
         bool success = true;
+        bool quiet = false;  // last trigger applied nothing: screen is a fixed point
 
         Grammar2D cfg;
         std::unordered_map<wchar_t, std::shared_ptr<sample>> sounds;
@@ -1043,7 +1073,6 @@ int main(int argc, char *argv[]) {
         }
 
         wint_t wch = L' ';
-        wint_t last = L' ';
 
         Grammar2D::Rule rule = {};  // Initialize fresh rule for each program
         // Restore preserved display info
@@ -1115,6 +1144,10 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            // Sleep in wget_wch rather than spinning when there is nothing to
+            // do; a keypress still wakes us at once.
+            timeout(paused ? -1 : idle_timeout_ms(cfg, elapsed_counts, start, quiet));
+
             int result = wget_wch(stdscr, &wch);
             if (result == ERR) {
                 wch = ERR;
@@ -1124,11 +1157,6 @@ int main(int argc, char *argv[]) {
             bool user_input = (result != ERR);
 
             //time lapse
-            //save CPU if no rule applicable
-            if (!success && last == wch) {
-                wch = ERR;
-            }
-
             if (wch == ERR) {
                 wch = 0;
                 auto stop = std::chrono::steady_clock::now();
@@ -1146,8 +1174,9 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                // Only if no interval timing fired, check immediate timing
-                if (wch == 0) {
+                // Only if no interval timing fired, check immediate timing.
+                // A quiet screen disarms it: it would fail again, unchanged.
+                if (wch == 0 && !quiet) {
                     for (const auto& [timing_char, interval] : cfg.timing_chars) {
                         if (interval == 0) {
                             wch = timing_char;
@@ -1252,7 +1281,14 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                last = wch;
+                // A screen the free-running trigger could not move is a fixed
+                // point: nothing but a key or an interval event can change it.
+                if (success) {
+                    quiet = false;
+                } else {
+                    auto tit = cfg.timing_chars.find(wch);
+                    if (tit != cfg.timing_chars.end() && tit->second == 0) quiet = true;
+                }
             }
 
             //refresh();

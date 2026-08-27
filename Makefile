@@ -102,8 +102,11 @@ zahradnice-check: build/check.o build/libgrammar-speed.a
 clean:
 	rm -rf build zahradnice
 
-# --- screen-dump regression tests ---
-# Layout: tests/<prog>/<case>.input + tests/<prog>/<case>.expected.
+# --- regression tests ---
+# `make test` runs both suites: the headless screen dumps below, then the
+# idle-CPU check, which needs the curses binary and a pty.
+#
+# Screen dumps: tests/<prog>/<case>.input + tests/<prog>/<case>.expected.
 # <prog> resolves to programs/<prog>/index.cfg if it's a directory,
 # otherwise programs/<prog>.cfg. Optional sidecar tests/<prog>/<case>.seed
 # overrides the default --seed 1. Compares plain-text screen dumps with
@@ -112,9 +115,16 @@ clean:
 
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
-.PHONY: test update-tests
+.PHONY: test test-dumps test-idle update-tests
 
-test: zahradnice-headless
+test: test-dumps test-idle
+
+# The engine must sleep when the screen cannot change, and only then:
+# see tests/idle_cpu.py. Takes ~15s of wall clock, most of it waiting.
+test-idle: zahradnice
+	@python3 tests/idle_cpu.py ./zahradnice
+
+test-dumps: zahradnice-headless
 	@pass=0; fail=0; tmp=$$(mktemp); trap 'rm -f $$tmp' EXIT; \
 	for t in $(TESTS); do \
 	  base=$${t%.input}; \

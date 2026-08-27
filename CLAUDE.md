@@ -27,6 +27,13 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
 
 **Core Components:**
 - `src/zahradnice.cpp` - Main game loop with ncurses terminal interface, handles SDL2_mixer initialization, timing (B/M/T steps), and user input processing
+  - The loop sleeps inside `wget_wch` instead of polling: `idle_timeout_ms()` returns
+    `0` while an immediate (`#timing <c> 0`) trigger is armed, the ms until the next
+    interval timing otherwise, `-1` when only a key can wake it. An immediate trigger
+    is disarmed once it applies nothing — applicability is a function of the screen
+    alone, so the same trigger on an unchanged screen fails again; any applied rule
+    re-arms it. Without this a settled program pins a core at 100% (`tests/idle_cpu.py`
+    guards both that and the opposite mistake, sleeping while rules still apply).
 - `src/grammar.cpp/h` - Grammar parsing and rule execution engine:
   - `Grammar2D` class: Parses `.cfg` files, manages rules, dictionary entries, and sounds  
   - `Derivation` class: Manages 2D game state, applies rules, handles spatial transformations and colors

@@ -8,6 +8,7 @@ programs.wip
 *.ipynb
 *.py
 !tools/*.py
+!tests/*.py
 *.htm
 *.html
 
