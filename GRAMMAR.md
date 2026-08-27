@@ -147,11 +147,12 @@ This is what moving sprites need. A non-terminal walking across scenery must be 
 
 ## Initial symbols
 
-`^<char><v-pos><h-pos>` — places `<char>` on the screen at program start.
+`^<char><v-pos><h-pos>[?]` — places `<char>` on the screen at program start.
 
 - `<char>` defaults to `s` if absent.
 - `<v-pos>`: vertical position. Default `c` (centre).
 - `<h-pos>`: horizontal position. Default `c` (centre).
+- `?`: optional flag — this symbol is the *caller's* to choose. See [Caller-supplied starting symbols](#caller-supplied-starting-symbols).
 
 A bare `^` (single character, no payload) is a special **clear marker**: it requests that the screen be cleared before placing the rest of the starting symbols. Place it as the first `^` line:
 
@@ -161,6 +162,38 @@ A bare `^` (single character, no payload) is a special **clear marker**: it requ
 ```
 
 Starting symbols write the screen but **not** local memory — a `$` restore over a cell that was only ever painted by a `^` seed yields a blank, not the seeded character.
+
+### Caller-supplied starting symbols
+
+A trailing `?` marks a starting symbol as supplied by whoever called the program:
+
+```
+^5cc?     # plant `5` at centre — unless a returning child says otherwise
+```
+
+When a `return` engine action pops back into this program, the engine plants the `#program` character of the entry that launched the child instead of `<char>`. On every other load — first entry, `reset`, `clear`, or a program with nothing above it on the call stack — `<char>` is planted as usual, so it reads as the default.
+
+The key rides on the call-stack frame, not in the derivation: the caller keeps no state of its own, and because the engine cannot tell a submenu from any other program, the same thing happens at every depth.
+
+This is what lets a menu re-open on the entry you left through. The menu declares the slot, and one rule per entry decodes the key into a cursor position:
+
+```
+#program 6 06-umeo.cfg
+^1cc?                 # the caller's key lands here; `1` on first entry
+
+==6TZ                 # key `6` → the frame anchor Z, and the cursor in Umeo's row
+              ~@~
+              @
+              @
+x
+```
+
+Two things are worth pinning down when writing such a rule:
+
+- **The plant happens after `start()`**, so a bare `^` clear in the same program does not wipe it.
+- **Pin the key as standing alone** (the `~` either side above) if the program paints its own key characters anywhere — a menu whose frame reads `Fischer 1965` will otherwise fire the `1` rule again on the `1` it just painted, and re-draw itself from there.
+
+A program may flag more than one starting symbol; each flagged one receives the key.
 
 ### Position characters
 
@@ -422,6 +455,8 @@ A global thread pool is shared across all loaded programs (its size is set by `-
 A `#program <char> <path>` directive maps a character to a program. A rule whose field `S` is that character pushes the current program onto the call stack and loads the target program. The derivation state (screen contents) carries across the switch — programs are compositional, which also means a launched program inherits the caller's screen unless it clears (bare `^`) or floods (`^g**`) it.
 
 `#control <char> return` pops one frame from the stack, returning to the caller. If the stack is empty, the engine quits.
+
+Each frame also remembers the `#program` character that launched the child. On a `return` the engine hands it to the caller by planting it into a [caller-supplied starting symbol](#caller-supplied-starting-symbols), if the caller declares one — which is how a menu can re-open on the entry you left through without keeping any state of its own.
 
 `#control <char> reset` empties the stack and returns to the top-level program.
 

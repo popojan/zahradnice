@@ -295,7 +295,9 @@ bool Grammar2D::loadFromFile(const std::string &fname) {
                 // Position indicators are still ASCII, so we can convert back
                 char ul = line.length() > 2 ? static_cast<char>(line[2]) : 'c';
                 char lr = line.length() > 3 ? static_cast<char>(line[3]) : 'c';
-                S.push_back({ul, lr, s});
+                // Field 4 `?`: this symbol is the caller's to choose.
+                bool param = line.length() > 4 && line[4] == L'?';
+                S.push_back({ul, lr, s, param});
             }
         }
         if (!line.empty() && line[0] == L'=') //new rule LHSs
@@ -616,7 +618,7 @@ Derivation::~Derivation() {
     delete [] screen_chars;
 }
 
-void Derivation::start() {
+void Derivation::start(wchar_t param_key) {
     // Check for clear request (plain ^ marker)
     bool should_clear = false;
     size_t start_index = 0;
@@ -633,6 +635,9 @@ void Derivation::start() {
     // Process normal starting symbols
     for (size_t i = start_index; i < g.S.size(); ++i) {
         const auto &s = g.S[i];
+        // A `^…?` symbol is the caller's: on a return the launching key
+        // stands in for the declared default.
+        wchar_t sym = (s.param && param_key) ? param_key : s.s;
         // Use grid-aligned effective dimensions consistent with wrap functions
         int effective_col = (col / g.grid_width) * g.grid_width;
         int effective_row = ((row - 1) / g.grid_height) * g.grid_height;
@@ -677,10 +682,10 @@ void Derivation::start() {
         int c_lo = (c == -1) ? 0 : c, c_hi = (c == -1) ? col - 1 : c;
         for (int rr = r_lo; rr <= r_hi; ++rr) {
             for (int cc = c_lo; cc <= c_hi; ++cc) {
-                x[{rr, cc}] = s.s;
-                if (display_) display_->put(rr, cc, s.s, 0, 0);
+                x[{rr, cc}] = sym;
+                if (display_) display_->put(rr, cc, sym, 0, 0);
                 // Update redundant character storage
-                screen_chars[rr * col + cc] = s.s;
+                screen_chars[rr * col + cc] = sym;
             }
         }
     }

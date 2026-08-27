@@ -972,7 +972,16 @@ int main(int argc, char *argv[]) {
     }
 
     std::string prev_config;  // For program_unload markers
-    std::vector<std::string> caller_stack;  // Stack of calling programs
+    // Stack of calling programs. A frame remembers the #program key that
+    // launched the child, so a `^…?` starting symbol in the caller can be
+    // planted with it on the way back — the caller learns which of its
+    // entries it is returning from without holding any of its own state.
+    struct Frame {
+        std::string path;
+        wchar_t key;
+    };
+    std::vector<Frame> caller_stack;
+    wchar_t pending_param = 0;  // key handed to the next start(), then spent
 
     // Program caching
     std::unordered_map<std::string, Grammar2D> program_cache;
@@ -1064,7 +1073,8 @@ int main(int argc, char *argv[]) {
         w.reset(cfg, row, col);
         w.init(clear);
         clear = false;  // Subsequent program switches preserve state
-        w.start();
+        w.start(pending_param);
+        pending_param = 0;
 
         // Restore running state after program switch
         if (was_running) {
@@ -1090,7 +1100,7 @@ int main(int argc, char *argv[]) {
                     // Track if we were running when switching
                     was_running = !paused;
                     // Push current program to stack and switch
-                    caller_stack.push_back(config);
+                    caller_stack.push_back({config, rule.sound});
                     config = resolve_program_path(new_program, config);
                     break;
                 }
@@ -1244,7 +1254,7 @@ int main(int argc, char *argv[]) {
                         } else if (action == "reset") {
                             // Reset to top-level program from stack
                             if (!caller_stack.empty()) {
-                                config = caller_stack[0];  // Top-level program
+                                config = caller_stack[0].path;  // Top-level program
                                 caller_stack.clear();
                             }
                             // If stack is empty, we're already at top-level, just continue
@@ -1261,7 +1271,8 @@ int main(int argc, char *argv[]) {
                         } else if (action == "return") {
                             // Pop from caller stack
                             if (!caller_stack.empty()) {
-                                config = caller_stack.back();
+                                config = caller_stack.back().path;
+                                pending_param = caller_stack.back().key;
                                 caller_stack.pop_back();
                             } else {
                                 config = "quit";  // No caller to return to

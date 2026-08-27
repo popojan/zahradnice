@@ -53,6 +53,10 @@ public:
         char ul; //vertical placement
         char lr; //horizontal placement
         wchar_t s; //symbol
+        // Trailing `?`: the caller supplies this symbol. On a `return` the
+        // engine plants the key of the #program entry that launched the
+        // child instead of `s`; `s` is the default for every other entry.
+        bool param = false;
     };
 
     std::wstring help;          // Status line template (from #!)
@@ -242,7 +246,9 @@ public:
 
     ~Derivation();
 
-    void start();
+    // param_key: the #program key of the entry that launched the program we
+    // are returning from, or 0. It replaces the symbol of any `^…?` start.
+    void start(wchar_t param_key = 0);
 
     bool step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char src = 0);
 
