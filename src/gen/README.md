@@ -347,8 +347,10 @@ it inside the consuming generator until it is.
 
 Promoted only when a future use case confirms the abstraction:
 
-- **Snake-step helpers** (head-direction-encoded glyphs, body trail). Triggers:
-  snake_gen.
+- **Snake-step helpers** (head-direction-encoded glyphs, body trail). Trigger:
+  a future snake generator that gets the body-trail encoding right — the
+  first attempt (`snake_gen.cpp`) never produced a working game and was
+  removed.
 - **Multi-frame loop emission** (frame array → cyclic transition rule chain).
   Today the user composes diffs themselves. Trigger: a 3+ frame walking
   animation generator.
@@ -359,8 +361,6 @@ Promoted only when a future use case confirms the abstraction:
 
 ## Reference generators
 
-- `tetris_gen.cpp` — full I+T tetromino set; byte-identical to the Python
-  POC. Demonstrates `move_diff`, `replace_for_move`, geometry primitives.
 - `animation_gen.cpp` — minimal frame-flip-flop using *programmatic cell
   lists*. Useful when the shape is computed, not drawn.
 - `walker_gen.cpp` — same animation idiom using the *art loader*. The

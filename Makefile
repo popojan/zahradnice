@@ -59,26 +59,6 @@ build/libgenlib.a: build/genlib.o
 
 # --- Generator binaries (separate from engine targets) ---
 
-build/tetris_gen.o: src/gen/tetris_gen.cpp src/gen/genlib.h | build
-	$(CXX) $(STD) -O2 -c $< -o $@
-
-build/tetris_gen: build/tetris_gen.o build/libgenlib.a
-	$(CXX) $(STD) -O2 $^ -o $@
-
-# Regenerate tetris2 from source.
-gen-tetris: build/tetris_gen
-	./build/tetris_gen > programs/tetris2/tetris.cfg
-
-build/snake_gen.o: src/gen/snake_gen.cpp src/gen/genlib.h | build
-	$(CXX) $(STD) -O2 -c $< -o $@
-
-build/snake_gen: build/snake_gen.o build/libgenlib.a
-	$(CXX) $(STD) -O2 $^ -o $@
-
-# Regenerate snake2 from source.
-gen-snake: build/snake_gen
-	./build/snake_gen > programs/snake2/snake.cfg
-
 build/animation_gen.o: src/gen/animation_gen.cpp src/gen/genlib.h | build
 	$(CXX) $(STD) -O2 -c $< -o $@
 

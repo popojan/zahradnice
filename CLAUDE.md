@@ -67,7 +67,7 @@ Zahradnice is a terminal-based game engine that uses Type-0 grammars as a domain
   so no derivation changed. A research program keeps its own `#!` because its counter
   is named (`pop=`, `grains=`, `births=`, `reward=`) — it gains `{help}` rather than
   losing the template.
-- `/programs.bak/` - Backup configurations
+- `/programs/archived/` - Retired programs, kept but not menu-reachable
 - `/demos/` - Tutorial and demonstration programs
 
 ## Key Controls
