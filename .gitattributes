@@ -1,0 +1,19 @@
+# What GitHub counts as this project's language.
+#
+# Zahradnice is a C++ engine. Everything else that accumulated around it —
+# the .cfg program collection, the generators and research scripts, the
+# papers — is either the engine's input or writing about it. By bytes the
+# Python and TeX now outweigh src/, so the repository was being labelled
+# Python. `linguist-detectable=false` keeps a file out of the language
+# statistics without touching diffs, blame or highlighting.
+#
+# (.cfg and .csv need no rule: Linguist treats them as data, and Markdown
+# as prose, so none of them reach the language bar in the first place.)
+
+*.py    linguist-detectable=false
+*.tex   linguist-detectable=false
+*.bib   linguist-detectable=false
+
+# Headers here are C++ (classes, templates); say so rather than leaving it
+# to Linguist's .h heuristic, which can read a header as plain C.
+*.h     linguist-language=C++
