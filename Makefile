@@ -103,8 +103,9 @@ clean:
 	rm -rf build zahradnice
 
 # --- regression tests ---
-# `make test` runs both suites: the headless screen dumps below, then the
-# idle-CPU check, which needs the curses binary and a pty.
+# `make test` runs all three suites: the headless screen dumps below, then
+# the two that need the curses binary and a pty — idle CPU, and menus
+# remembering which entry you left through.
 #
 # Screen dumps: tests/<prog>/<case>.input + tests/<prog>/<case>.expected.
 # <prog> resolves to programs/<prog>/index.cfg if it's a directory,
@@ -115,14 +116,19 @@ clean:
 
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
-.PHONY: test test-dumps test-idle update-tests
+.PHONY: test test-dumps test-idle test-menu update-tests
 
-test: test-dumps test-idle
+test: test-dumps test-idle test-menu
 
 # The engine must sleep when the screen cannot change, and only then:
 # see tests/idle_cpu.py. Takes ~15s of wall clock, most of it waiting.
 test-idle: zahradnice
 	@python3 tests/idle_cpu.py ./zahradnice
+
+# A menu must come back with the entry you left through: see
+# tests/menu_memory.py. Drives the real binary; ~25s, mostly waiting.
+test-menu: zahradnice
+	@python3 tests/menu_memory.py ./zahradnice
 
 test-dumps: zahradnice-headless
 	@pass=0; fail=0; tmp=$$(mktemp); trap 'rm -f $$tmp' EXIT; \
