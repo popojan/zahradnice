@@ -81,20 +81,20 @@ def main():
 
     # One level: leave the main menu into a submenu, come back to it.
     ok &= check(binary, 'menu/submenu', [
-        ('sssssss', 0.3, 'Primes'),   # walk down to Primes
-        ('e', 1.0, None),             # into the primes submenu
-        ('q', 1.0, 'Primes'),         # ...and back out, still on Primes
+        ('ssssssssss', 0.3, 'Primes'),  # walk down to Primes
+        ('e', 1.0, None),               # into the primes submenu
+        ('q', 1.0, 'Primes'),           # ...and back out, still on Primes
     ])
 
     # Two levels, same mechanism: a sieve returns into the submenu on its
     # own entry, and the submenu then returns into the main menu on its.
     ok &= check(binary, 'menu/depth-2', [
-        ('sssssss', 0.3, 'Primes'),
-        ('e', 1.0, 'Eratosthenes'),   # submenu opens on its own default
+        ('ssssssssss', 0.3, 'Primes'),
+        ('e', 1.0, 'Eratosthenes'),     # submenu opens on its own default
         ('sssss', 0.3, 'Umeo 2015'),
-        ('e', RUN_S, None),           # run Umeo
-        ('q', 1.0, 'Umeo 2015'),      # back into the submenu, on Umeo
-        ('q', 1.0, 'Primes'),         # back into the main menu, on Primes
+        ('e', RUN_S, None),             # run Umeo
+        ('q', 1.0, 'Umeo 2015'),        # back into the submenu, on Umeo
+        ('q', 1.0, 'Primes'),           # back into the main menu, on Primes
     ])
 
     print('----')
