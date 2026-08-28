@@ -510,8 +510,18 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs, int so
         rule.ctx = lhs[7];
     else
         rule.ctx = static_cast<wchar_t>(-1);
-    if (rule.ctx == L'?')
+    // Field 6 is normalised once, here, so `&`, `!` and `%` all see the same
+    // character. `&` used to normalise space itself at match time while `!`
+    // and `%` compared against the raw field, so one literal space read as
+    // "blank" for `&` but as "matches everything" for `!`.
+    // A space now means what it means everywhere else in the language:
+    // nothing. That is what the 1200-odd headers padded out to reach the
+    // score/weight offset intend by it, and `~` remains the way to say
+    // "blank". `*` is the LHS non-terminal, as in field 7 and in body cells.
+    if (rule.ctx == L'?' || rule.ctx == L' ')
         rule.ctx = static_cast<wchar_t>(-1);
+    else if (rule.ctx == L'*')
+        rule.ctx = rule.lhs;
 
     if (lhs.length() > 8) {
         rule.ctxrep = lhs[8];

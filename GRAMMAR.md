@@ -288,7 +288,8 @@ In fields `4` (foreground) and `5` (background):
 
 In field `6` (context match):
 - `~` → matches an empty (space) cell. This is the token for "must be blank"; conversely `!` with field `6` set to `~` means "must be non-blank".
-- `?` (or an omitted field) → **no context character is defined**. It does *not* mean "any character": a `&` cell can then never match, so the rule never fires. `!` cells, by contrast, match everything (nothing is equal to "no character"), and `%` cells match only field `7`.
+- `?`, a literal space, or an omitted field → **no context character is defined**. It does *not* mean "any character": a `&` cell can then never match, so the rule never fires. `!` cells, by contrast, match everything (nothing is equal to "no character"), and `%` cells match only field `7`. A space reads as "nothing" here for the same reason it does in a body cell, and because that is what a header padded out to reach the score/weight offset means by it.
+- `*` → the LHS non-terminal (substituted at parse time, as in field `7` and in body cells). `&` then means "this neighbour is another one of me", `!` means "this neighbour is anything but me".
 - Otherwise: a literal character.
 
 In field `7` (context replacement):
@@ -540,7 +541,6 @@ Here the neighbour may be `x` or `y`. Note that `%` and `!` are LHS-only: in the
 
 The following appeared in earlier documentation but are not implemented in current code:
 
-- `*` as a context-match token (field `6`) meaning "the LHS non-terminal" — only field `7` gets that substitution; in field `6`, `*` is a literal asterisk.
 - `$` as a context-match token (field `6`) — only `$` as a body **replacement** char is meaningful (memory restore).
 - `#` as an "out-of-screen" context-match token — the toroidal wrapping leaves no cell out of screen, and the matching code does not specially recognise `#`.
 - `?` in field `6` as a wildcard that makes `&` match anything — it disables the context character, and `&` cells then never match.

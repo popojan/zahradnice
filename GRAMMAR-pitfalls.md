@@ -10,12 +10,21 @@ Entries are roughly ordered by how often they recur in practice.
 
 **Symptom.** A rule with `!` (not-equal-to-ctx) and `header.ctx = ' '` (literal space) fires on every empty cell in the playfield, immediately and continuously.
 
-**Cause.** The matcher in `grammar.cpp` reads the screen cell into `ctx` and **converts `' '` to `'~'` before** the comparison `req == L'!' && ctx == rule.ctx`. So:
+**Cause.** The matcher in `grammar.cpp` reads the screen cell into `ctx` and **converts `' '` to `'~'` before** the comparison `req == L'!' && ctx == rule.ctx`. `&` cells used to normalise their own requirement to `~` as well, but `!` and `%` compared against the raw field, so one literal space read two ways:
 
 - `header.ctx = '~'` → `!` matches when cell is non-empty (including X, piece glyphs, walls). Almost always what you want.
-- `header.ctx = ' '` → `!` *always matches* because converted screen `'~'` never equals literal `' '`.
+- `header.ctx = ' '` → `!` *always matched* for that reason, while `&` in the same rule read it as "blank".
 
-**Avoid.** Any field-6 / field-7 (ctx / ctxrep) that is meant to align with empty space must be `~`, not literal space.
+**The split is gone.** `addRule` normalises field 6 once at parse time, so `&`, `!` and `%` now all see the same character. A literal space there means **nothing**, exactly as `?` and an omitted field do — and exactly as a space means nothing in a body cell and in field 7.
+
+**The remaining trap is spelling, not inconsistency.** `!` against an *unset* field 6 still matches every cell, because nothing is equal to "no character". That is now the same answer whichever of `?`, a space, or an omitted field you wrote. If you meant "must be non-blank", the token is `~`:
+
+| field 6 | `&` matches | `!` matches |
+|---|---|---|
+| `~` | blank cells | non-blank cells |
+| `?`, space, omitted | nothing — rule never fires | every cell |
+
+**Rule of thumb, and it holds language-wide:** a space always means *nothing* — it neither matches nor writes, in a body cell, in field 6, or in field 7. `~` always means *blank*. Never use a space to mean blank anywhere.
 
 **See also.** GRAMMAR.md §Body characters: *"Spaces are always no-ops … to match a space cell, use `~`."*
 
