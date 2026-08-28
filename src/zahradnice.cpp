@@ -914,7 +914,6 @@ int main(int argc, char *argv[]) {
     Mix_AllocateChannels(32);
 
     int score = 0;
-    int steps = 0;
     int moves = 0;
     bool started = false;
 
@@ -1115,7 +1114,11 @@ int main(int argc, char *argv[]) {
             int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
 
             // Render left part (template content)
-            std::wstring left_content = render_statusline(score, steps, moves, parallel_pct);
+            // `{steps}` is applied rules, not events: a parallel step that landed
+            // four rules counts four. Matches the trace's step column, `--max-steps`
+            // and the headless build's status line (headless_runner.cpp).
+            std::wstring left_content = render_statusline(
+                score, static_cast<int>(w.get_event_step()), moves, parallel_pct);
 
             // Render right part (rule display)
             std::wstring lhsa_truncated = rule.lhsa;
@@ -1237,7 +1240,6 @@ int main(int argc, char *argv[]) {
                 success = w.stepMultithreaded(wch, score, &rule, &applied_sounds,
                                               user_input ? 'k' : 't');
                 if (success) {
-                    ++steps;
                     // Increment moves counter only for successful user input
                     if (user_input) {
                         ++moves;

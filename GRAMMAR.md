@@ -64,7 +64,7 @@ All directives use the form `#<keyword> <args>` (no space between `#` and keywor
 | Variable | Meaning |
 |---|---|
 | `{score}` | Cumulative score (preserved across program switches). |
-| `{steps}` | Successful steps. A step that applied several rules in parallel counts once. |
+| `{steps}` | Applied rules, cumulative across program switches. A step that applied several rules in parallel counts each of them. Same number as the trace's step column and `--max-steps`. |
 | `{moves}` | Steps triggered by user input only (excludes timing events and ineffective keypresses). |
 | `{parallel}` | Parallel-execution percentage as e.g. `42%`; empty if no threading stats have accumulated. |
 | `{help}` | Current program's `#help` text. |
