@@ -300,6 +300,8 @@ In field `7` (context replacement):
 
 There is only one context pair per rule, shared by every `&`, `!` and `%` cell in the body. A rule needing two different context characters must be split into two rules.
 
+An unset field `6` makes a `&` cell — and a `%` cell whose field `7` is also unset — impossible to match, so the rule silently never fires. `./zahradnice-check lint CFG...` reports those, and warns about a `!` cell with no field `6` (which matches every cell, i.e. does nothing). `make test` runs it over the whole shipped corpus.
+
 ### Body
 
 The body is one or more lines of text following a header (or a stack of headers). It contains exactly **three `@` markers**:

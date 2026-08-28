@@ -5,6 +5,9 @@
 //   why CFG --screen FILE --trigger K [--rule N]
 //     Dynamic rule-match diagnostics: which rules fire / are near-miss
 //     / are excluded for the given (screen, trigger).
+//   lint CFG [CFG...]
+//     Report rules that can never fire because their context pair is
+//     unset (static).
 
 #include "../grammar.h"
 #include "../wide_io.h"
@@ -678,13 +681,113 @@ int cmd_why(int argc, char *argv[]) {
     return 0;
 }
 
+// --- lint: rules whose context pair makes them statically unfireable ---
+//
+// The engine deliberately does not guess what an author meant by an unset
+// field 6 -- `?`, a literal space and an omitted field all mean "there is no
+// context character", and each body token draws its own conclusion from that
+// (`&` never matches, `!` always does, `%` falls back to field 7). That is
+// consistent, but it is silent: the two shapes below can never fire, and
+// nothing at runtime says so. They are reported here instead.
+
+struct Finding {
+    int line;
+    bool error;          // false = warning
+    const char *code;
+    std::string msg;
+    std::wstring head;
+};
+
+int cmd_lint(int argc, char *argv[]) {
+    std::vector<std::string> paths;
+    for (int i = 0; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "-h" || a == "--help") {
+            std::cerr << "Usage: zahradnice-check lint CFG [CFG...]\n";
+            return 2;
+        }
+        if (!a.empty() && a[0] == '-') {
+            std::cerr << "unknown option: " << a << "\n";
+            return 1;
+        }
+        paths.push_back(a);
+    }
+    if (paths.empty()) {
+        std::cerr << "Usage: zahradnice-check lint CFG [CFG...]\n";
+        return 2;
+    }
+
+    int errors = 0, warnings = 0, failed_loads = 0;
+    for (const auto &path : paths) {
+        Grammar2D g;
+        if (!g.loadFromFile(path)) {
+            std::cerr << path << ": failed to load\n";
+            ++failed_loads;
+            continue;
+        }
+
+        std::vector<Finding> found;
+        for (const auto &kv : g.R) {
+            for (const auto &r : kv.second) {
+                bool amp = false, pct = false, bang = false;
+                for (const auto &cell : walk_body(r.rhs)) {
+                    if (!cell_in_lhs(r, cell.br, cell.bc)) continue;
+                    if (cell.ch == L'&') amp = true;
+                    else if (cell.ch == L'%') pct = true;
+                    else if (cell.ch == L'!') bang = true;
+                }
+                const bool ctx_unset = (r.ctx == (wchar_t)-1);
+                if (!ctx_unset) continue;
+
+                if (amp)
+                    found.push_back({r.source_line, true, "amp-no-ctx",
+                        "`&` in the LHS region with no field 6: nothing equals "
+                        "\"no character\", so this rule can never fire. Set "
+                        "field 6, or use `~` if the cell must be blank.",
+                        r.lhsa});
+                if (pct && r.ctxrep == L' ')
+                    found.push_back({r.source_line, true, "pct-no-ctx-pair",
+                        "`%` in the LHS region with neither field 6 nor field 7 "
+                        "set: the disjunction is empty, so this rule can never "
+                        "fire.", r.lhsa});
+                if (bang)
+                    found.push_back({r.source_line, false, "bang-no-ctx",
+                        "`!` in the LHS region with no field 6 matches every "
+                        "cell, which is the same as leaving the cell blank. If "
+                        "you meant \"must be non-blank\", field 6 is `~`.",
+                        r.lhsa});
+            }
+        }
+
+        std::sort(found.begin(), found.end(),
+                  [](const Finding &a, const Finding &b) {
+                      if (a.line != b.line) return a.line < b.line;
+                      return std::strcmp(a.code, b.code) < 0;
+                  });
+        for (const auto &f : found) {
+            std::cout << path << ":" << f.line << ": "
+                      << (f.error ? "error" : "warning")
+                      << "[" << f.code << "]: " << f.msg << "\n"
+                      << "    head = " << wstr_to_utf8(f.head) << "\n";
+            if (f.error) ++errors; else ++warnings;
+        }
+    }
+
+    std::cout << "----\n" << errors << " error(s), " << warnings
+              << " warning(s) over " << paths.size() << " file(s)";
+    if (failed_loads) std::cout << ", " << failed_loads << " failed to load";
+    std::cout << "\n";
+    return (errors || failed_loads) ? 1 : 0;
+}
+
 void usage() {
     std::cerr <<
         "Usage: zahradnice-check <subcommand> [args]\n"
         "Subcommands:\n"
         "  explain CFG --line N           resolved geometry of one rule\n"
         "  why CFG --screen FILE --trigger K [--rule N]\n"
-        "                                 dynamic rule-match diagnostics\n";
+        "                                 dynamic rule-match diagnostics\n"
+        "  lint CFG [CFG...]              rules that can never fire\n";
 }
 
 }  // namespace
@@ -698,6 +801,7 @@ int main(int argc, char *argv[]) {
     std::string sub = argv[1];
     if (sub == "explain") return cmd_explain(argc - 2, argv + 2);
     if (sub == "why")     return cmd_why(argc - 2, argv + 2);
+    if (sub == "lint")    return cmd_lint(argc - 2, argv + 2);
     if (sub == "-h" || sub == "--help") { usage(); return 0; }
     std::cerr << "unknown subcommand: " << sub << "\n";
     usage();

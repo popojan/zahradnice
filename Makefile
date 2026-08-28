@@ -116,9 +116,18 @@ clean:
 
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
-.PHONY: test test-dumps test-idle test-menu update-tests
+.PHONY: test test-dumps test-idle test-menu test-lint update-tests
 
-test: test-dumps test-idle test-menu
+test: test-dumps test-idle test-menu test-lint
+
+# No shipped rule may be statically unfireable: a `&` or `%` whose context
+# pair is unset can never match, and the engine says nothing about it.
+test-lint: zahradnice-check
+	@files=$$(git ls-files 'programs/*.cfg' 'programs/**/*.cfg' \
+	  'demos/*.cfg' 'experiments/*.cfg' 2>/dev/null); \
+	[ -n "$$files" ] || files=$$(find programs demos experiments \
+	  -name '*.cfg' 2>/dev/null); \
+	./zahradnice-check lint $$files
 
 # The engine must sleep when the screen cannot change, and only then:
 # see tests/idle_cpu.py. Takes ~15s of wall clock, most of it waiting.
