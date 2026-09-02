@@ -52,6 +52,16 @@ Composes with `--replay`, `--replay-snapshot`, `--mem-snapshot`,
 `--trace`, `--trace-cell`, `--stats`, `--seed`, `--screen`. See
 TRACING.md for those flags.
 
+`--threads N` pins how many rules may be applied per step. It is part of a
+run's identity, not a speed setting: the multi-rule gate changes which rules
+co-fire, so a seed reproduces a trajectory only at the thread count that
+produced it (an experiment measured the contact process's effective lambda_c
+moving with it). The count is recorded in the trace header as `# threads=N`.
+Replay reconstructs single-threaded runs only -- a trace logs one `apply` line
+per applied rule and marks no batch boundaries, so a multi-rule step cannot be
+told from the same rules applied in sequence; replaying one is refused with a
+message rather than mis-reported as a divergence.
+
 `--param NAME=VALUE` (repeatable) overrides a `#parameter` declared by
 the program — the sweep knob that does not need a regenerated file. It
 applies to the program named on the command line only, not to programs it

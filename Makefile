@@ -116,15 +116,20 @@ clean:
 
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
-.PHONY: test test-dumps test-idle test-menu test-lint test-params update-tests
+.PHONY: test test-dumps test-idle test-menu test-lint test-params test-trace update-tests
 
-test: test-dumps test-idle test-menu test-lint test-params
+test: test-dumps test-idle test-menu test-lint test-params test-trace
 
 # Parameters must be inert where they are not used and exact where they are:
 # see tests/params.py. Guards src_line stability above all -- the analyzers
 # re-parse a .cfg to map line -> rule.
 test-params: zahradnice-headless zahradnice
 	@python3 tests/params.py ./zahradnice-headless ./zahradnice
+
+# A trace must carry the thread count it was recorded at -- the derivation
+# depends on it. See tests/trace_threads.py.
+test-trace: zahradnice-headless zahradnice
+	@python3 tests/trace_threads.py ./zahradnice-headless ./zahradnice
 
 # No shipped rule may be statically unfireable: a `&` or `%` whose context
 # pair is unset can never match, and the engine says nothing about it.

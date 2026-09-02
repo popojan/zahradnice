@@ -331,6 +331,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
     // Parse header: "# zahradnice-trace vN", "# seed=N", "# screen=R,C"
     int rec_seed = 1, rec_rows = 24, rec_cols = 80, trace_version = 0;
+    int rec_threads = 0;  // 0 = header predates `# threads`; assume single
     char line[8192];
     long after_header = 0;
     while (std::fgets(line, sizeof(line), f)) {
@@ -341,10 +342,26 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         int v, r, c;
         if (std::sscanf(line, "# zahradnice-trace v%d", &v) == 1) trace_version = v;
         else if (std::sscanf(line, "# seed=%d", &v) == 1) rec_seed = v;
+        else if (std::sscanf(line, "# threads=%d", &v) == 1) rec_threads = v;
         else if (std::sscanf(line, "# screen=%d,%d", &r, &c) == 2) {
             rec_rows = r; rec_cols = c;
         }
         after_header = std::ftell(f);
+    }
+    // A trace records one `apply` line per applied *rule*, with no marker for
+    // where a multi-rule step began and ended, so a batch of N co-firing rules
+    // is indistinguishable from N sequential steps. Replay therefore cannot
+    // reconstruct a run recorded at #threads > 1: it re-derives one step at a
+    // time and reports the batch as a divergence at the first contested event,
+    // which reads like an engine bug rather than what it is. Say so instead.
+    // Supporting it needs batch boundaries in the format, i.e. a v3 trace.
+    if (rec_threads > 1) {
+        std::cerr << "Trace was recorded at --threads " << rec_threads
+                  << "; replay reconstructs single-threaded runs only "
+                  << "(the format has no multi-rule step boundaries). "
+                  << "Re-record with --threads 1." << std::endl;
+        std::fclose(f);
+        return 1;
     }
     if (trace_version != 0 && trace_version < 2) {
         std::cerr << "Trace is v" << trace_version
@@ -991,6 +1008,7 @@ int main(int argc, char *argv[]) {
         fprintf(trace_fp, "# zahradnice-trace v2\n");
         fprintf(trace_fp, "# seed=%d\n", actual_seed);
         fprintf(trace_fp, "# screen=%d,%d\n", eff_row, eff_col);
+        fprintf(trace_fp, "# threads=1\n");  // see the thread-count pin below
         // Only the overrides: this header is written before any program is
         // loaded, and an interactive session may visit several. The resolved
         // per-program vector is in the headless trace, which is what the
@@ -1054,15 +1072,19 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
-            // Auto-detect thread count if not set.
-            // When recording a trace, force single-thread for replay determinism.
-            if (cfg.thread_count == 0) {
-                if (trace_active) {
-                    cfg.thread_count = 1;
-                } else {
-                    cfg.thread_count = std::thread::hardware_concurrency();
-                    if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
-                }
+            // Auto-detect thread count if not set. Recording a trace pins it
+            // to 1 -- unconditionally, so the `# threads=1` written into the
+            // header is true even of a program that asks for more. An
+            // interactive session may visit several programs, so a per-program
+            // count could not be honestly recorded in a header written once.
+            // To record a multithreaded run faithfully, use
+            // `zahradnice-headless --threads N --trace`, which resolves the
+            // count before writing its header.
+            if (trace_active) {
+                cfg.thread_count = 1;
+            } else if (cfg.thread_count == 0) {
+                cfg.thread_count = std::thread::hardware_concurrency();
+                if (cfg.thread_count == 0) cfg.thread_count = 1; // fallback
             }
 
             // Get program directory for sound path resolution

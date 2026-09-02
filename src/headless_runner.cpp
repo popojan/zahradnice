@@ -91,6 +91,11 @@ int run_headless_input(const HeadlessOptions& opts) {
             std::fprintf(trace_fp, "# zahradnice-trace v2\n");
             std::fprintf(trace_fp, "# seed=%d\n", actual_seed);
             std::fprintf(trace_fp, "# screen=%d,%d\n", opts.rows, opts.cols);
+            // #threads is a dynamical parameter, not a performance knob: the
+            // multi-rule gate changes which rules co-fire, and an experiment
+            // measured the contact process's lambda_c moving with it. A trace
+            // that does not carry it cannot be replayed.
+            std::fprintf(trace_fp, "# threads=%d\n", cfg.thread_count);
             // Provenance: with parameters a run is no longer determined by the
             // top-level path alone. An analyzer re-parses the program to map
             // src_line -> rule, so it needs the resolved values and the exact
