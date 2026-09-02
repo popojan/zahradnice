@@ -123,8 +123,8 @@ test: test-dumps test-idle test-menu test-lint test-params
 # Parameters must be inert where they are not used and exact where they are:
 # see tests/params.py. Guards src_line stability above all -- the analyzers
 # re-parse a .cfg to map line -> rule.
-test-params: zahradnice-headless
-	@python3 tests/params.py ./zahradnice-headless
+test-params: zahradnice-headless zahradnice
+	@python3 tests/params.py ./zahradnice-headless ./zahradnice
 
 # No shipped rule may be statically unfireable: a `&` or `%` whose context
 # pair is unset can never match, and the engine says nothing about it.

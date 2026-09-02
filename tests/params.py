@@ -16,7 +16,12 @@ The properties worth guarding are the ones an edit could silently break:
     syntax) -- tested with a parameter named `score`, which collides on
     purpose.
 
-usage: tests/params.py [path-to-zahradnice-headless]
+There are two ways into the same engine -- the standalone
+`zahradnice-headless` and `zahradnice --headless` -- and they fill
+HeadlessOptions in different places, so an override must be shown to reach
+both. The combined binary dropped them silently until this test existed.
+
+usage: tests/params.py [path-to-zahradnice-headless] [path-to-zahradnice]
 """
 
 import os
@@ -25,6 +30,7 @@ import sys
 import tempfile
 
 BIN = sys.argv[1] if len(sys.argv) > 1 else "./zahradnice-headless"
+COMBINED = sys.argv[2] if len(sys.argv) > 2 else "./zahradnice"
 TICKS = "T" * 200
 SCREEN = "10,20"
 
@@ -48,6 +54,18 @@ def run(cfg, *args, expect_ok=True):
     body = open(screen).read() if p.returncode == 0 and os.path.exists(screen) else ""
     tr = open(trace).read() if p.returncode == 0 and os.path.exists(trace) else ""
     return p.returncode, p.stderr, body, tr
+
+
+def run_combined(cfg, *args):
+    """The same run through `zahradnice --headless`; screen only."""
+    screen = os.path.join(os.path.dirname(cfg), "combined.txt")
+    p = subprocess.run(
+        # the combined binary spells the thread cap --max-threads
+        [COMBINED, "--headless", cfg, "--seed", "5", "--screen", SCREEN,
+         "--max-threads", "1", "--input", TICKS, "--dump-screen", screen, *args],
+        capture_output=True, text=True)
+    return p.returncode, p.stderr, (open(screen).read() if p.returncode == 0
+                                    and os.path.exists(screen) else "")
 
 
 def write(d, name, text):
@@ -159,6 +177,22 @@ with tempfile.TemporaryDirectory() as d:
     check("body-not-substituted", rc == 0 and "{X}" in field(s_br), "braces in a body were replaced")
     check("status-template-not-substituted",
           rc == 0 and "score=9" not in status, f"status line reads {status!r}")
+
+    # --- both front ends honour an override -------------------------------
+    # zahradnice.cpp and headless_main.cpp fill HeadlessOptions separately;
+    # a field added to one is easy to forget in the other.
+    # The two front ends are not compared screen-for-screen: the combined
+    # binary has no --threads, so cfg.thread_count auto-detects and multi-rule
+    # mode shuffles the applicable set, spending the RNG differently. What must
+    # hold is that the override reaches the weight here too.
+    if os.path.exists(COMBINED):
+        rc_c, err_c, s_c_def = run_combined(param)
+        _, _, s_c_hi = run_combined(param, "--param", "W=100")
+        check("combined-binary-runs", rc_c == 0, err_c.strip())
+        ca0, cb0 = counts(s_c_def, "ab").values()
+        ca1, cb1 = counts(s_c_hi, "ab").values()
+        check("combined-honours-param", ca1 > ca0 and cb1 < cb0,
+              "`zahradnice --headless` ignored --param")
 
     # --- provenance is in the trace ---------------------------------------
     _, _, _, t_prov = run(skel, "--param", "MODE=off")

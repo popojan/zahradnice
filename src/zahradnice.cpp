@@ -891,6 +891,7 @@ int main(int argc, char *argv[]) {
         opts.cols        = (screen_cols > 0) ? screen_cols : 80;
         opts.max_steps   = max_steps;
         opts.watch_cells = watch_cells;
+        opts.params      = param_overrides;
         return zg::run_headless_input(opts);
     }
 
