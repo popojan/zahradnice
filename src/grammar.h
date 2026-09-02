@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <set>
+#include <map>
 #include <cstdio>
 
 #include "display.h"
@@ -133,6 +134,22 @@ public:
     // Multithreading configuration
     int thread_count = 0;
 
+    // Parameters. `#parameter NAME VALUE` declares a default; `{NAME}` in a
+    // directive's arguments or in a rule header's score/weight tail is replaced
+    // while the file is assembled. Substitution runs *during* include splicing,
+    // so an `#include` path may itself be parameterized -- which is why a
+    // parameter must be declared before the line that uses it, the same law
+    // `#sound`, `#color`, `#program` and `#control` already obey.
+    //
+    // Deliberately not substituted: rule bodies and single-character header
+    // fields (geometry is positional -- a variable-width value would shift
+    // columns), the `#!` status template (its {steps}/{score} share the
+    // syntax), and plain comments.
+    std::map<std::string, std::string> params;           // resolved, in name order
+    std::map<std::string, std::string> param_overrides;  // CLI/caller; win over the file
+    std::vector<std::string> resolved_includes;          // provenance for the trace
+    std::string load_error;                              // non-empty => load failed
+
     Grammar2D() {
         // No default dictionary entries needed - functions return same key/digit if not found
         // Auto-detect thread count (0 = use all cores, 1 = single-threaded)
@@ -146,8 +163,16 @@ public:
     bool loadFromFile(const std::string &fname);
 
 private:
-    // Recursive file loading with include support
-    std::string loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) const;
+    // Recursive file loading with include support. Not const: it resolves
+    // `#parameter` declarations and records the includes it actually spliced.
+    std::string loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files);
+
+    // Replace `{NAME}` in the permitted part of one assembled line. `from` is
+    // the first column that may be substituted (10 for a rule header's
+    // score/weight tail, 0 for a directive's arguments). Returns false and
+    // fills load_error when a referenced parameter was never declared.
+    bool substituteParams(std::string &line, size_t from,
+                          const std::string &fname, int lineno);
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 

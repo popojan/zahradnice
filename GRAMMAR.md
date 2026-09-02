@@ -46,12 +46,63 @@ Files are decoded as UTF-8 to wide characters. Non-ASCII characters are valid in
 
 `#include <path>` substitutes the contents of another file at that point in the assembled text. Resolution rules:
 
-- `<path>` is resolved relative to the directory of the **current including file** (not the top-level program). An absolute path fails silently.
+- `<path>` is resolved relative to the directory of the **current including file** (not the top-level program). An absolute path does not resolve.
 - The same path-completion logic as program loading applies: if `<path>` doesn't exist, try `<path>.gz`, or if `<path>` lacks a `.cfg`/`.cfg.gz` extension, try `<path>/index.cfg` and `<path>/index.cfg.gz`.
-- Circular includes are silently skipped (each path is included at most once per top-level load).
+- A path that resolves to nothing is a **load error** naming the including file and line. (Circular includes are still skipped silently — each path is spliced at most once per top-level load.)
 - Includes may be nested.
+- `<path>` may contain `{NAME}` parameter references — see below.
 
 Because includes are textual substitution, the order of declarations in the **assembled** text matters. Convention: include files containing only `#`-declarations early.
+
+### Parameters
+
+`#parameter <NAME> <value>` declares a named scalar with a default. `{NAME}` elsewhere in the file is replaced by its value while the program is assembled. `NAME` is `[A-Za-z_][A-Za-z0-9_]*`.
+
+```
+#parameter DRIVE 1500
+#parameter G 0.0002
+#timing d {DRIVE}
+==⠁T120   0 {G}
+@@@
+```
+
+Override from the command line (both `zahradnice` and `zahradnice-headless`), repeatable:
+
+```
+./zahradnice-headless manna.cfg --param DRIVE=40 --param G=0.006
+```
+
+`--param` applies to the program **named on the command line** and to no other: a menu's entries are commonly wrappers differing only by the value they set (below), and a process-wide override would silently flatten all of them to the same thing. To parameterize a child, run the child.
+
+Precedence: `--param` beats every declaration, and among declarations the **first** one wins — unlike every other directive, because a `#parameter` is a *default*, not a setting: "set unless already set". A `{NAME}` that was never declared is a **load error** naming the file and line — a value that silently fails to apply is the worst outcome for a sweep.
+
+First-wins is what lets a short wrapper stand in for a whole variant, so one program template can serve several menu entries:
+
+```
+#! Forest fire (calm)  pop={score} steps={steps}
+#parameter SPROUT 10      # this file decides ...
+#include forest-core.cfg  # ... and the included file's #parameter is the default
+```
+
+The wrapper is a normal program: it has its own `#!` caption, runs standalone, and a menu reaches it with the ordinary `#program <char> calm.cfg`. With last-wins the included default would clobber its caller, and no value could be set before an `#include` line that depends on it.
+
+**Where substitution happens** — only two places:
+
+- a directive's arguments (`#timing`, `#threads`, `#include`, …);
+- a rule header's score/weight tail, i.e. from column 10 on.
+
+**Where it deliberately does not** — rule bodies, the single-character header fields (LHS, trigger, replacement, colours, context), the `#!` status template (whose `{steps}`/`{score}` share the syntax), and plain comments. Body geometry is positional: a variable-width value would shift columns. Braces in those places are left verbatim.
+
+Substitution runs *during* include assembly, so an `#include` path may itself be parameterized:
+
+```
+#parameter READOUT consumptive
+#include readout-{READOUT}.cfg
+```
+
+which is how one skeleton program can swap whole rule blocks. Because the include path may depend on a parameter, **a parameter must be declared before the line that uses it** — the same law `#sound`, `#program`, `#control` and `#color` already obey.
+
+The `#parameter` line stays in the assembled text, so rule line numbers (the `src_line` a trace reports) are unaffected by substitution itself. A trace records the resolved values and the exact files that were spliced (`# param NAME=VALUE`, `# include PATH`), so a run stays reconstructible from its artifact.
 
 ## Configuration directives
 

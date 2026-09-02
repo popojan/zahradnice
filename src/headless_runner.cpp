@@ -57,6 +57,7 @@ int run_headless_input(const HeadlessOptions& opts) {
     if (!prepare_input_string(opts.input_arg, input_str)) return 1;
 
     Grammar2D cfg;
+    cfg.param_overrides = opts.params;
     if (!cfg.loadFromFile(opts.config_path)) {
         std::cerr << "Cannot load program: " << opts.config_path << std::endl;
         return 1;
@@ -90,6 +91,14 @@ int run_headless_input(const HeadlessOptions& opts) {
             std::fprintf(trace_fp, "# zahradnice-trace v2\n");
             std::fprintf(trace_fp, "# seed=%d\n", actual_seed);
             std::fprintf(trace_fp, "# screen=%d,%d\n", opts.rows, opts.cols);
+            // Provenance: with parameters a run is no longer determined by the
+            // top-level path alone. An analyzer re-parses the program to map
+            // src_line -> rule, so it needs the resolved values and the exact
+            // files that were spliced.
+            for (const auto& [name, value] : cfg.params)
+                std::fprintf(trace_fp, "# param %s=%s\n", name.c_str(), value.c_str());
+            for (const auto& path : cfg.resolved_includes)
+                std::fprintf(trace_fp, "# include %s\n", path.c_str());
         }
     }
     FILE* stats_fp = nullptr;

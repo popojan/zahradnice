@@ -52,6 +52,13 @@ Composes with `--replay`, `--replay-snapshot`, `--mem-snapshot`,
 `--trace`, `--trace-cell`, `--stats`, `--seed`, `--screen`. See
 TRACING.md for those flags.
 
+`--param NAME=VALUE` (repeatable) overrides a `#parameter` declared by
+the program — the sweep knob that does not need a regenerated file. It
+applies to the program named on the command line only, not to programs it
+launches. The resolved vector and the spliced include paths are recorded
+in the trace header (`# param`, `# include`). See GRAMMAR.md,
+"Parameters".
+
 ## Defaults (Unix-symmetric)
 
 `--headless` mode is symmetric on both ends, both gated by

@@ -321,7 +321,8 @@ static int run_replay(const std::string &replay_path, int delay_ms,
                       const std::string &trace_out_path,
                       bool headless,
                       uint64_t max_steps,
-                      const std::string &dump_screen_path) {
+                      const std::string &dump_screen_path,
+                      const std::map<std::string, std::string> &param_overrides) {
     FILE *f = std::fopen(replay_path.c_str(), "r");
     if (!f) {
         std::cerr << "Cannot open replay file: " << replay_path << std::endl;
@@ -550,6 +551,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             auto it = program_cache.find(p);
             if (it == program_cache.end()) {
                 Grammar2D cfg;
+                cfg.param_overrides = param_overrides;
                 if (!cfg.loadFromFile(p)) continue;
                 if (cfg.thread_count == 0) cfg.thread_count = 1;  // replay is force-execute
                 program_cache.emplace(p, std::move(cfg));
@@ -727,6 +729,9 @@ int main(int argc, char *argv[]) {
     std::string input_arg;
     uint64_t max_steps = 0;
     std::string dump_screen_path;
+    // Parameter overrides live at process level, not in the loaded grammar:
+    // they must survive a #program switch, a `clear` and an `x` reload.
+    std::map<std::string, std::string> param_overrides;
 
     auto needs_value = [&](int i) -> bool {
         if (i + 1 >= argc) {
@@ -766,6 +771,16 @@ int main(int argc, char *argv[]) {
         else if (a == "--max-threads") { if (!needs_value(i)) return 1; max_threads = std::atoi(argv[++i]); }
         else if (a == "--trace") { if (!needs_value(i)) return 1; trace_path = argv[++i]; }
         else if (a == "--stats") { if (!needs_value(i)) return 1; stats_path = argv[++i]; }
+        else if (a == "--param") {
+            if (!needs_value(i)) return 1;
+            std::string kv = argv[++i];
+            size_t eq = kv.find('=');
+            if (eq == std::string::npos || eq == 0) {
+                std::cerr << "--param expects NAME=VALUE" << std::endl;
+                return 1;
+            }
+            param_overrides[kv.substr(0, eq)] = kv.substr(eq + 1);
+        }
         else if (a == "--replay") { if (!needs_value(i)) return 1; replay_path = argv[++i]; }
         else if (a == "--replay-delay") { if (!needs_value(i)) return 1; replay_delay = std::atoi(argv[++i]); }
         else if (a == "--replay-snapshot") {
@@ -861,7 +876,7 @@ int main(int argc, char *argv[]) {
     if (!replay_path.empty()) {
         return run_replay(replay_path, replay_delay, snapshot_steps,
                           mem_snapshot_steps, watch_cells, trace_path, headless, max_steps,
-                          dump_screen_path);
+                          dump_screen_path, param_overrides);
     }
 
     if (headless && !input_arg.empty()) {
@@ -891,6 +906,13 @@ int main(int argc, char *argv[]) {
     }
 
     config = resolve_program_path(config, "");
+
+    // `--param` applies to the program named on the command line and to no
+    // other. A menu's entries are commonly thin wrappers that differ only by
+    // the value they set before including a shared core (GRAMMAR.md,
+    // "Parameters"); a process-wide override would silently flatten every one
+    // of them to the same thing. To parameterize a child, run the child.
+    const std::string initial_config = config;
 
     // Initialize global thread pool with command-line specified max threads
     Derivation::initializeGlobalThreadPool(max_threads);
@@ -968,6 +990,12 @@ int main(int argc, char *argv[]) {
         fprintf(trace_fp, "# zahradnice-trace v2\n");
         fprintf(trace_fp, "# seed=%d\n", actual_seed);
         fprintf(trace_fp, "# screen=%d,%d\n", eff_row, eff_col);
+        // Only the overrides: this header is written before any program is
+        // loaded, and an interactive session may visit several. The resolved
+        // per-program vector is in the headless trace, which is what the
+        // analyzers read.
+        for (const auto &[name, value] : param_overrides)
+            fprintf(trace_fp, "# param %s=%s\n", name.c_str(), value.c_str());
     }
 
     std::string prev_config;  // For program_unload markers
@@ -1016,7 +1044,9 @@ int main(int argc, char *argv[]) {
             cfg = cache_it->second;
             sounds = sound_cache[config];
         } else {
-            // Load and cache new program
+            // Load and cache new program. Overrides reach the top-level
+            // program only, so the path alone still keys the cache.
+            if (config == initial_config) cfg.param_overrides = param_overrides;
             if (cfg.loadFromFile(config) == false) {
                 std::cerr << "Program " << config << " not found, exiting." << std::endl;
                 err = 1;
