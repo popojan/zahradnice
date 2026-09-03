@@ -38,6 +38,22 @@ Each line of the assembled text is classified by its first character:
 
 A line that begins with `#<keyword>` where the keyword is unknown is silently ignored. To comment out a keyword, prefix with a space (`# #timing B 500`) or `# `.
 
+> **A comment is a whole line.** There is no trailing-comment syntax: `#`
+> means "comment" only in column 0, and a directive's argument runs to the end
+> of its line, whitespace included. `#parameter TICK 8   # ms per step` sets
+> `TICK` to `8   # ms per step`, and `#include core.cfg  # shared` looks for a
+> file whose name ends in `# shared`. Some of that survives by luck — the
+> integer parsers stop at the first non-digit, so a poisoned `#parameter` used
+> as a weight still works — and some does not: `#color B 2,BOLD  # laden`
+> compares the attribute as `BOLD  # laden`, keeps the colour and silently
+> drops the bold. Put commentary on its own line above.
+>
+> Positional lines (`^` seeds, `=` rule headers) read a fixed number of
+> characters and ignore the rest, so trailing text there is harmless — but a
+> rule header's score/weight tail *is* read, from column 10 on. Keeping the
+> one rule (comments are whole lines) is simpler than remembering which lines
+> forgive you.
+
 ### Encoding
 
 Files are decoded as UTF-8 to wide characters. Non-ASCII characters are valid in rule bodies, replacements, and as non-terminals; ASCII characters that have special syntactic meaning (`=`, `^`, `#`, `@`, `&`, `!`, `%`, `*`, `$`, `~`, `?`) cannot be used naively as terminals if they would conflict with the role they play in the local context — see the per-position rules below.
@@ -80,9 +96,16 @@ First-wins is what lets a short wrapper stand in for a whole variant, so one pro
 
 ```
 #! Forest fire (calm)  pop={score} steps={steps}
-#parameter SPROUT 10      # this file decides ...
-#include forest-core.cfg  # ... and the included file's #parameter is the default
+# this file decides ...
+#parameter SPROUT 10
+# ... and the included file's #parameter is the default
+#include forest-core.cfg
 ```
+
+(Both comments have to sit on their own lines: as a trailing comment the
+first would make `SPROUT` the string `10      # this file decides ...`, and
+the second would send the include looking for a file whose name ends in
+`# ... and the included file's #parameter is the default`.)
 
 The wrapper is a normal program: it has its own `#!` caption, runs standalone, and a menu reaches it with the ordinary `#program <char> calm.cfg`. With last-wins the included default would clobber its caller, and no value could be set before an `#include` line that depends on it.
 
@@ -209,8 +232,9 @@ This is what moving sprites need. A non-terminal walking across scenery must be 
 A bare `^` (single character, no payload) is a special **clear marker**: it requests that the screen be cleared before placing the rest of the starting symbols. Place it as the first `^` line:
 
 ```
-^         # Clear the screen first
-^Scc      # Then place S at centre
+# Clear the screen first, then place S at centre
+^
+^Scc
 ```
 
 Starting symbols write the screen but **not** local memory — a `$` restore over a cell that was only ever painted by a `^` seed yields a blank, not the seeded character.
@@ -220,7 +244,8 @@ Starting symbols write the screen but **not** local memory — a `$` restore ove
 A trailing `?` marks a starting symbol as supplied by whoever called the program:
 
 ```
-^5cc?     # plant `5` at centre — unless a returning child says otherwise
+# plant `5` at centre — unless a returning child says otherwise
+^5cc?
 ```
 
 When a `return` engine action pops back into this program, the engine plants the `#program` character of the entry that launched the child instead of `<char>`. On every other load — first entry, `reset`, `clear`, or a program with nothing above it on the call stack — `<char>` is planted as usual, so it reads as the default.
@@ -231,9 +256,11 @@ This is what lets a menu re-open on the entry you left through. The menu declare
 
 ```
 #program 6 06-umeo.cfg
-^1cc?                 # the caller's key lands here; `1` on first entry
+# the caller's key lands here; `1` on first entry
+^1cc?
 
-==6TZ                 # key `6` → the frame anchor Z, and the cursor in Umeo's row
+# key `6` → the frame anchor Z, and the cursor in Umeo's row
+==6TZ
               ~@~
               @
               @
