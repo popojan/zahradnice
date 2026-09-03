@@ -934,6 +934,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char sr
                 score += rule.reward;
                 if (stats_fp) ++stats[stats_key(nit->a, nit->c)].applied;
                 ++event_step;
+                ++apply_step;   // one rule, therefore one step
                 if (trace_fp) log_apply(score, src, key, nit->a, nit->c, rc.first, rc.second);
                 return true;
             }
@@ -1299,6 +1300,7 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
             score += selected_rules[0].rule.reward;
             if (stats_fp) ++stats[stats_key(selected_rules[0].rule.lhs, selected_rules[0].rule_index)].applied;
             ++event_step;
+            ++apply_step;
             if (trace_fp) log_apply(score, src, key,
                                     selected_rules[0].rule.lhs, selected_rules[0].rule_index,
                                     selected_rules[0].position.first, selected_rules[0].position.second);
@@ -1345,6 +1347,9 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
     for (size_t i = 0; i < futures.size(); ++i) {
         if (futures[i].get()) {
             score += rewards[i];
+            // The batch is one step however many rules it carries, so the
+            // counter advances on the first rule that lands and then holds.
+            if (!any_applied) ++apply_step;
             any_applied = true;
             if (stats_fp) ++stats[stats_key(selected_rules[i].rule.lhs, selected_rules[i].rule_index)].applied;
             ++event_step;
@@ -1397,10 +1402,13 @@ void Derivation::log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_
         head = it->second[idx].lhsa.c_str();
         src_line = it->second[idx].source_line;
     }
-    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%d\t%ls\n",
+    // apply_step trails the rule head (which may contain spaces but never a
+    // tab), so every analyzer that indexes columns positively is unaffected.
+    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%d\t%ls\t%llu\n",
             (unsigned long long)event_step, score,
             src ? src : '-',
-            (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head);
+            (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head,
+            (unsigned long long)apply_step);
 }
 
 void Derivation::log_cellwrite(uint64_t step, int r, int c,

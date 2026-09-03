@@ -331,7 +331,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
     // Parse header: "# zahradnice-trace vN", "# seed=N", "# screen=R,C"
     int rec_seed = 1, rec_rows = 24, rec_cols = 80, trace_version = 0;
-    int rec_threads = 0;  // 0 = header predates `# threads`; assume single
+    int rec_threads = 1;
     char line[8192];
     long after_header = 0;
     while (std::fgets(line, sizeof(line), f)) {
@@ -348,25 +348,12 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         }
         after_header = std::ftell(f);
     }
-    // A trace records one `apply` line per applied *rule*, with no marker for
-    // where a multi-rule step began and ended, so a batch of N co-firing rules
-    // is indistinguishable from N sequential steps. Replay therefore cannot
-    // reconstruct a run recorded at #threads > 1: it re-derives one step at a
-    // time and reports the batch as a divergence at the first contested event,
-    // which reads like an engine bug rather than what it is. Say so instead.
-    // Supporting it needs batch boundaries in the format, i.e. a v3 trace.
-    if (rec_threads > 1) {
-        std::cerr << "Trace was recorded at --threads " << rec_threads
-                  << "; replay reconstructs single-threaded runs only "
-                  << "(the format has no multi-rule step boundaries). "
-                  << "Re-record with --threads 1." << std::endl;
-        std::fclose(f);
-        return 1;
-    }
-    if (trace_version != 0 && trace_version < 2) {
+    // v3 added apply_step, which delimits a multi-rule step; without it a
+    // multithreaded run cannot be reconstructed at all, so older traces are
+    // re-recorded rather than carried.
+    if (trace_version != 3) {
         std::cerr << "Trace is v" << trace_version
-                  << "; this build expects v2. Convert with scripts/upgrade_trace_v1_to_v2.py."
-                  << std::endl;
+                  << "; this build reads v3. Re-record it." << std::endl;
         std::fclose(f);
         return 1;
     }
@@ -415,7 +402,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         trace_out_fp = std::fopen(trace_out_path.c_str(), "w");
         if (trace_out_fp) {
             std::setvbuf(trace_out_fp, nullptr, _IOLBF, 0);
-            fprintf(trace_out_fp, "# zahradnice-trace v2\n");
+            fprintf(trace_out_fp, "# zahradnice-trace v3\n");
             fprintf(trace_out_fp, "# seed=%d\n", rec_seed);
             fprintf(trace_out_fp, "# screen=%d,%d\n", rec_rows, rec_cols);
             w.set_trace_file(trace_out_fp);
@@ -485,6 +472,9 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         w.dump_memory(mfp, step);
         std::fclose(mfp);
     };
+    uint64_t cur_batch = 0;      // apply_step of the batch being replayed
+    int pending_score = 0;       // score the current batch ends on
+    bool have_pending = false;
     std::set<uint64_t> snapshot_pending(snapshot_steps.begin(), snapshot_steps.end());
     std::set<uint64_t> memsnap_pending(mem_snapshot_steps.begin(), mem_snapshot_steps.end());
 
@@ -570,7 +560,10 @@ static int run_replay(const std::string &replay_path, int delay_ms,
                 Grammar2D cfg;
                 cfg.param_overrides = param_overrides;
                 if (!cfg.loadFromFile(p)) continue;
-                if (cfg.thread_count == 0) cfg.thread_count = 1;  // replay is force-execute
+                // Replay at the count the run was recorded at: it decides how
+                // many rules may co-fire, so it is part of the derivation.
+                // Pre-`# threads` traces are single-threaded by construction.
+                cfg.thread_count = rec_threads;
                 program_cache.emplace(p, std::move(cfg));
             }
             cur_cfg = &program_cache.at(p);
@@ -619,7 +612,8 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             strtok_r(nullptr, "\t", &saveptr);          // ro
             strtok_r(nullptr, "\t", &saveptr);          // co
             strtok_r(nullptr, "\t", &saveptr);          // src_line (v2)
-            char *head_s = strtok_r(nullptr, "\t", &saveptr); // head (rest of line)
+            char *head_s = strtok_r(nullptr, "\t", &saveptr); // head
+            char *batch_s = strtok_r(nullptr, "\t", &saveptr); // apply_step (v3)
             if (!trig_s) continue;
             int rec_score = sc ? std::atoi(sc) : score_seen;
             score_seen = rec_score;
@@ -629,11 +623,31 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             int got = std::mbtowc(&trig, trig_s, MB_CUR_MAX);
             if (got < 1) trig = static_cast<unsigned char>(trig_s[0]);
 
+            // Consecutive lines sharing an apply_step are one multi-rule step:
+            // the engine took a single trigger and applied them together. Feed
+            // the trigger once per batch and let the live step reproduce the
+            // whole batch, rather than feeding it once per rule -- which is
+            // what made a multithreaded trace diverge at its first batch.
+            uint64_t rec_batch = batch_s ? std::strtoull(batch_s, nullptr, 10) : 0;
+            bool new_batch = (rec_batch != cur_batch);
             Grammar2D::Rule rule_dummy = {};
             std::vector<wchar_t> sounds_dummy;
-            w.stepMultithreaded(trig, score_live, &rule_dummy, &sounds_dummy, src_ch);
+            if (new_batch) {
+                // The previous batch is complete; its last line carried the
+                // score the live engine should now be showing.
+                if (!diverged_at && have_pending && pending_score != score_live) {
+                    diverged_at = events_processed;
+                    std::cerr << "Replay diverged at step " << cur_batch
+                              << ": recorded score=" << pending_score
+                              << "; live score=" << score_live << std::endl;
+                }
+                cur_batch = rec_batch;
+                w.stepMultithreaded(trig, score_live, &rule_dummy, &sounds_dummy, src_ch);
+                last_lhsa = rule_dummy.lhsa;
+            }
+            have_pending = true;
+            pending_score = rec_score;
             ++events_processed;
-            last_lhsa = rule_dummy.lhsa;
             if (max_steps > 0 && events_processed >= max_steps) {
                 aborted = true;
             }
@@ -658,7 +672,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
             // Internal divergence test: compare live rule head + score to recording.
             // First divergence is sticky — captured for status display.
-            if (!diverged_at && head_s) {
+            if (!diverged_at && head_s && new_batch) {
                 std::string rec_head = head_s;
                 // wstring → string for comparison (assume ASCII rule heads;
                 // non-ASCII chars compared by raw mbstowcs roundtrip would also work)
@@ -669,7 +683,10 @@ static int run_replay(const std::string &replay_path, int delay_ms,
                     int n = std::wctomb(mb, wc);
                     if (n > 0) live_head.append(mb, n);
                 }
-                if (rec_head != live_head || rec_score != score_live) {
+                // Head only: dbgrule carries the batch's *first* selected rule,
+                // and the score is not comparable until the batch is complete
+                // -- it is checked against the batch's last line above.
+                if (rec_head != live_head) {
                     diverged_at = events_processed;
                     div_rec_head = rec_head;
                     div_live_head = live_head;

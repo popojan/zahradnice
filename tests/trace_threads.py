@@ -12,12 +12,13 @@ What is guarded here:
 
   * the count reaches the trace header, from both front ends;
   * a single-threaded trace still replays to a byte-identical screen;
-  * a multithreaded trace is refused with a message that says why, rather
-    than force-executed at one thread and reported as a divergence at the
-    first contested event -- which reads like an engine bug. A trace records
-    one `apply` line per applied *rule* and marks no batch boundaries, so N
-    co-firing rules are indistinguishable from N sequential steps; replaying
-    one needs a format change, not a flag.
+  * a multithreaded trace replays to a byte-identical screen too, which is
+    what the astep column bought: `step` counts applied rules (thread-count
+    independent for a confluent program, so it cannot delimit a batch) and
+    `astep` counts steps, so consecutive lines sharing one were applied
+    together and replay feeds their trigger once;
+  * the batch structure is actually there -- at N threads the mean batch size
+    rises, so astep must advance more slowly than step.
 
 usage: tests/trace_threads.py [path-to-zahradnice-headless] [path-to-zahradnice]
 """
@@ -82,7 +83,7 @@ def replay(trace, out):
 with tempfile.TemporaryDirectory() as d:
     # --- the count reaches the header ------------------------------------
     t1, s1 = record(d, 1)
-    t4, _ = record(d, 4)
+    t4, s4 = record(d, 4)
     check("header-records-threads",
           header(t1, "threads") == "1" and header(t4, "threads") == "4",
           f"got {header(t1, 'threads')!r} and {header(t4, 'threads')!r}")
@@ -94,12 +95,29 @@ with tempfile.TemporaryDirectory() as d:
             and open(out1).read().splitlines()[1:] == open(s1).read().splitlines()[1:])
     check("single-threaded-replays-exactly", same, log1.strip()[:200])
 
-    # --- a multithreaded trace is refused, and says why --------------------
+    # --- a multithreaded trace replays exactly as well ---------------------
     out4 = os.path.join(d, "replay4.txt")
     rc4, log4 = replay(t4, out4)
-    check("multithreaded-replay-refused",
-          rc4 != 0 and "--threads 4" in log4 and "diverged" not in log4,
-          log4.strip()[:200])
+    same4 = (rc4 == 0 and os.path.exists(out4)
+             and open(out4).read().splitlines()[1:] == open(s4).read().splitlines()[1:])
+    check("multithreaded-replays-exactly", same4,
+          log4.strip()[:200] or "screen differs")
+
+    # --- the batch really is a batch --------------------------------------
+    def steps(path):
+        """(applied rules, distinct asteps) -- i.e. rules and batches."""
+        lines = [l.rstrip("\n").split("\t") for l in open(path)
+                 if l.startswith("apply\t")]
+        return len(lines), len({l[-1] for l in lines})
+
+    r1, a1 = steps(t1)
+    r4, a4 = steps(t4)
+    check("astep-counts-steps-not-rules", r1 == a1 and a4 < r4,
+          f"threads=1 gave {r1} rules/{a1} steps (want equal), "
+          f"threads=4 gave {r4}/{a4} (want fewer steps than rules)")
+    check("rule-count-is-thread-independent", r1 == r4,
+          f"{r1} rules at one thread, {r4} at four -- the program is confluent, "
+          "so the totals must match")
 
     # --- the interactive front end pins the count and records it -----------
     # zahradnice.cpp writes its header before any program is loaded, so it

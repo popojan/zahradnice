@@ -398,7 +398,15 @@ private:
     FILE* trace_fp = nullptr;
     FILE* stats_fp = nullptr;
     std::unordered_map<uint64_t, RuleStats> stats;
+    // Two counters, deliberately different. `event_step` counts applied
+    // *rules*: for a confluent program the total is the same however many
+    // threads ran it, which is what makes it a comparable measure. It cannot
+    // therefore delimit a multi-rule step, so `apply_step` counts *steps* --
+    // one per trigger event that applied anything, whatever the batch size.
+    // Consecutive trace lines sharing an apply_step are one batch, which is
+    // what lets replay feed the trigger once and expect N rules.
     uint64_t event_step = 0;
+    uint64_t apply_step = 0;
 
     inline uint64_t stats_key(wchar_t lhs, size_t idx) const {
         return (static_cast<uint64_t>(static_cast<uint32_t>(lhs)) << 32) | static_cast<uint32_t>(idx);

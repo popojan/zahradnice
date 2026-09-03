@@ -88,7 +88,7 @@ int run_headless_input(const HeadlessOptions& opts) {
         if (trace_fp) {
             std::setvbuf(trace_fp, nullptr, _IOLBF, 0);
             w.set_trace_file(trace_fp);
-            std::fprintf(trace_fp, "# zahradnice-trace v2\n");
+            std::fprintf(trace_fp, "# zahradnice-trace v3\n");
             std::fprintf(trace_fp, "# seed=%d\n", actual_seed);
             std::fprintf(trace_fp, "# screen=%d,%d\n", opts.rows, opts.cols);
             // #threads is a dynamical parameter, not a performance knob: the

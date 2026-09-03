@@ -52,9 +52,10 @@ event is logged into the trace.
 
 Header (always at top of file):
 ```
-# zahradnice-trace v2
+# zahradnice-trace v3
 # seed=42
 # screen=24,80
+# threads=1
 ```
 
 Then events, one per line:
@@ -64,12 +65,15 @@ Then events, one per line:
 | `program_load`   | step, score, path |
 | `program_unload` | step, score, path |
 | `program_exit`   | step, score |
-| `apply`          | step, score, src, trig, lhs, idx, ro, co, src_line, head |
+| `apply`          | step, score, src, trig, lhs, idx, ro, co, src_line, head, astep |
 | `screenshot`     | step, basename |
 
 Columns are tab-separated. Apply lines:
 
-- **step** — monotonic event counter (one per applied rule)
+- **step** — monotonic counter, one per applied **rule**. For a confluent
+  program the total is the same however many threads ran it, which is what
+  makes it comparable across runs — and is exactly why it cannot delimit a
+  multi-rule step. See **astep**.
 - **score** — score immediately after this event applied
 - **src** — `k` if triggered by user keypress, `t` if by timing tick
 - **trig** — the trigger character that caused rule lookup (a key, a
@@ -83,11 +87,23 @@ Columns are tab-separated. Apply lines:
 - **head** — the rule's authored `=...` line (the same identifier the
   status bar shows for "last applied rule"); makes each line
   self-readable without consulting the stats file
+- **astep** — monotonic counter, one per **step**: one trigger event that
+  applied anything, whatever the batch size. Consecutive lines sharing an
+  astep were applied together by a single trigger, which is what lets replay
+  feed that trigger once and expect the whole batch. At `#threads 1` it
+  advances with **step**; above it, `step/astep` is the mean batch size.
+  It trails `head` so that analyzers indexing columns positively are
+  unaffected
 
-Trace format is versioned in the header. v1 traces (without
-`src_line`) are rejected by replay; convert them with the helper
-script `scripts/upgrade_trace_v1_to_v2.py` (reads stats to fill
-the new column).
+Trace format is versioned in the header; replay reads v3 only and rejects
+anything else with a message. v3 added `# threads=N` and the `astep` column.
+
+`# threads=N` is part of a run's identity, not a performance note: the
+multi-rule gate decides how many rules may co-fire per step, so a seed
+reproduces a trajectory only at the thread count that produced it (an
+experiment measured the contact process's effective lambda_c moving with it —
+survival at 0.4375: 14% -> 0% for N 1->8). Replay re-derives at the recorded
+count.
 
 The `(lhs, idx)` pair uniquely identifies a rule within the currently-loaded
 program. The preceding `program_load` line tells you which program owns
