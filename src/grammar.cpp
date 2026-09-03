@@ -1528,3 +1528,46 @@ void Derivation::dump_stats_for_program(const std::string &path) {
     fflush(stats_fp);
     stats.clear();
 }
+
+std::string zg::resolve_program_path(const std::string& program_path,
+                                     const std::string& current_config) {
+    // Absolute paths stand as written.
+    if (!program_path.empty() && program_path[0] == '/') {
+        return program_path;
+    }
+
+    // Relative to the directory of the program that named it, exactly as an
+    // #include resolves.
+    std::string base_path;
+    size_t last_slash = current_config.find_last_of("/");
+    if (last_slash != std::string::npos) {
+        base_path = current_config.substr(0, last_slash) + "/" + program_path;
+    } else {
+        base_path = program_path;
+    }
+
+    struct stat buffer;
+    if (stat(base_path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)) {
+        return base_path;
+    }
+
+    // A directory names its index; a missing file may be the compressed one.
+    if (!base_path.ends_with(".cfg") && !base_path.ends_with(".cfg.gz")) {
+        std::string index_path = base_path + "/index.cfg";
+        if (stat(index_path.c_str(), &buffer) == 0) {
+            return index_path;
+        }
+        std::string index_gz_path = index_path + ".gz";
+        if (stat(index_gz_path.c_str(), &buffer) == 0) {
+            return index_gz_path;
+        }
+    } else {
+        std::string gz_path = base_path + ".gz";
+        if (stat(gz_path.c_str(), &buffer) == 0) {
+            return gz_path;
+        }
+    }
+
+    // Nothing matched: hand back the plain path and let the load report it.
+    return base_path;
+}

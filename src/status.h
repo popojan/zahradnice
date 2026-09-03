@@ -31,4 +31,14 @@ namespace zg {
                                      int parallel_pct,
                                      const std::wstring& lhsa,
                                      int cols);
+
+    // Same, with the template named explicitly. A `#!` is a global that the
+    // next program inherits unless it declares its own, so a run that switched
+    // programs cannot read the template off the Grammar2D it ended in.
+    std::wstring format_status_line(const std::wstring& tmpl,
+                                     const std::wstring& help_text,
+                                     int score, int steps, int batches, int moves,
+                                     int parallel_pct,
+                                     const std::wstring& lhsa,
+                                     int cols);
 }

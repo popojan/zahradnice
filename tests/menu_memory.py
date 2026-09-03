@@ -8,8 +8,11 @@ turn that key into the cursor's row. The menu holds no state of its own:
 the key rides on the call-stack frame, which is where the parent/child
 relation already lives, so it works the same at any depth.
 
-Driven through a pty because program switching only exists in the curses
-engine — the headless runner loads one program and stays in it.
+Driven through a pty to cover the curses front end as a user meets it:
+real keystrokes, real screen, the call stack underneath. Program switching
+is no longer curses-only — tests/control_actions.py checks the same
+mechanism headless, deterministically and without sleeps — so what this
+test is for now is that the interactive path agrees with it.
 
 usage: tests/menu_memory.py [path-to-zahradnice]
 """

@@ -49,9 +49,19 @@ std::wstring zg::format_status_line(const Grammar2D& cfg,
                                      int parallel_pct,
                                      const std::wstring& lhsa,
                                      int cols) {
+    return format_status_line(cfg.help, cfg.help_text, score, steps, batches,
+                              moves, parallel_pct, lhsa, cols);
+}
+
+std::wstring zg::format_status_line(const std::wstring& tmpl_in,
+                                     const std::wstring& help_text,
+                                     int score, int steps, int batches, int moves,
+                                     int parallel_pct,
+                                     const std::wstring& lhsa,
+                                     int cols) {
     std::wstring tmpl = substitute_status_vars(
-        cfg.help.empty() ? std::wstring(kDefaultStatusTemplate) : cfg.help,
-        score, steps, batches, moves, parallel_pct, cfg.help_text);
+        tmpl_in.empty() ? std::wstring(kDefaultStatusTemplate) : tmpl_in,
+        score, steps, batches, moves, parallel_pct, help_text);
 
     int rhs_w = wcswidth(lhsa.c_str(), lhsa.length());
     if (rhs_w < 0) rhs_w = static_cast<int>(lhsa.length());

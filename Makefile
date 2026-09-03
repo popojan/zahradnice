@@ -103,9 +103,10 @@ clean:
 	rm -rf build zahradnice
 
 # --- regression tests ---
-# `make test` runs all three suites: the headless screen dumps below, then
-# the two that need the curses binary and a pty — idle CPU, and menus
-# remembering which entry you left through.
+# `make test` runs the headless screen dumps below, the headless behaviour
+# suites (parameters, traces, control actions), and the two that need the
+# curses binary and a pty — idle CPU, and menus remembering which entry you
+# left through.
 #
 # Screen dumps: tests/<prog>/<case>.input + tests/<prog>/<case>.expected.
 # <prog> resolves to programs/<prog>/index.cfg if it's a directory,
@@ -116,9 +117,15 @@ clean:
 
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
-.PHONY: test test-dumps test-idle test-menu test-lint test-params test-trace update-tests
+.PHONY: test test-dumps test-idle test-menu test-lint test-params test-trace \
+        test-control update-tests
 
-test: test-dumps test-idle test-menu test-lint test-params test-trace
+test: test-dumps test-idle test-menu test-lint test-params test-trace test-control
+
+# #control actions and #program switching, which the headless runner used to
+# apply and then discard. See tests/control_actions.py.
+test-control: zahradnice-headless
+	@python3 tests/control_actions.py ./zahradnice-headless
 
 # Parameters must be inert where they are not used and exact where they are:
 # see tests/params.py. Guards src_line stability above all -- the analyzers

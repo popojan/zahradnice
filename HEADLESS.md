@@ -69,6 +69,37 @@ launches. The resolved vector and the spliced include paths are recorded
 in the trace header (`# param`, `# include`). See GRAMMAR.md,
 "Parameters".
 
+## Control actions and program switching
+
+A rule that fires a `#control` action (`pause`, `clear`, `reset`, `return`,
+`quit`) or a `#program` switch does here what it does under curses, and the
+trace records the transitions as `program_unload` / `program_load` pairs. So a
+menu is drivable end to end:
+
+```sh
+# walk down to Ants, run it for 400 ticks, come back; the menu re-opens on
+# the entry it left through
+./zahradnice-headless programs/index.cfg --seed 1 \
+    --input "TT$(printf 's%.0s' {1..11})e$(printf 'T%.0s' {1..400})qTTTTTT"
+```
+
+`pause` has the only mapping that needs stating: interactively it blocks on the
+keyboard, so timing events stop happening while keys still arrive. Headless it
+means the same thing — a `#timing` trigger in the input script is skipped while
+paused, a key is not — which is what lets a script unpause.
+
+`quit`, and `return` with an empty call stack, end the run: remaining input is
+not consumed, and the event count in the summary reflects that.
+
+Sounds are the exception: `#sound` is parsed and the rule's sound character is
+resolved, but nothing is played and no audio device is opened.
+
+Until 2026-09 none of this worked. The runner applied the rule and dropped
+everything but the screen write, silently — and because a headless run also
+ends when no rule is applicable, a program that merely settled looked exactly
+like one that quit on cue. `tests/control_actions.py` pins the difference
+using programs that never run out of applicable rules.
+
 ## Defaults (Unix-symmetric)
 
 `--headless` mode is symmetric on both ends, both gated by

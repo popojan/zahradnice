@@ -157,56 +157,8 @@ std::string resolve_sound_path(const std::string& sound_path, const std::string&
     return sound_path;
 }
 
-std::string resolve_program_path(const std::string& program_path, const std::string& current_config) {
-
-    // If program path is already absolute, use as-is
-    if (!program_path.empty() && program_path[0] == '/') {
-        return program_path;
-    }
-
-    std::string base_path;
-
-    // Get directory of current config
-    size_t last_slash = current_config.find_last_of("/");
-    if (last_slash != std::string::npos) {
-        // Current config has directory, use that directory
-        base_path = current_config.substr(0, last_slash) + "/" + program_path;
-    } else {
-        // Current config has no directory, use current working directory
-        base_path = program_path;
-    }
-
-    // Apply file completion logic from loadFromFile
-    struct stat buffer;
-
-    // Try original path first
-    if (stat(base_path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode)) {
-        return base_path;
-    }
-
-    // If not .cfg, try adding /index.cfg
-    if (!base_path.ends_with(".cfg") && !base_path.ends_with(".cfg.gz")) {
-        std::string index_path = base_path + "/index.cfg";
-        if (stat(index_path.c_str(), &buffer) == 0) {
-            return index_path;
-        }
-        // Try compressed index
-        std::string index_gz_path = index_path + ".gz";
-        if (stat(index_gz_path.c_str(), &buffer) == 0) {
-            return index_gz_path;
-        }
-    }
-    // Try adding .gz to original path
-    else {
-        std::string gz_path = base_path + ".gz";
-        if (stat(gz_path.c_str(), &buffer) == 0) {
-            return gz_path;
-        }
-    }
-
-    // If nothing found, return original base_path (let loadFromFile handle the error)
-    return base_path;
-}
+// Shared with the headless runner, which switches programs too; see grammar.h.
+using zg::resolve_program_path;
 
 void clear_status(int row, int col, size_t len) {
     std::wstring empty(len, L' ');

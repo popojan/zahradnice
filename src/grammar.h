@@ -427,3 +427,12 @@ private:
 
     Display* display_ = nullptr;
 };
+
+namespace zg {
+    // Resolve a `#program` target relative to the program naming it, applying
+    // the same completion loadFromFile does (`.gz`, `<dir>/index.cfg`). Lives
+    // here rather than in the curses main because both front ends switch
+    // programs and only libgrammar is linked into the headless binary.
+    std::string resolve_program_path(const std::string& program_path,
+                                     const std::string& current_config);
+}

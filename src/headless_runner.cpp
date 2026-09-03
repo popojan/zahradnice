@@ -56,20 +56,34 @@ int run_headless_input(const HeadlessOptions& opts) {
     std::string input_str;
     if (!prepare_input_string(opts.input_arg, input_str)) return 1;
 
+    const std::string initial_config = opts.config_path;
+
+    // Re-parsed on every entry rather than cached the way the curses front end
+    // does it: a headless run enters a handful of programs, a Grammar2D holds
+    // nothing that must survive between entries, and caching them measured 8
+    // bytes of binary either way. The interactive cache is there for latency
+    // this path does not have.
+    auto load_program = [&](const std::string& path, Grammar2D& g) -> bool {
+        // --param reaches the program named on the command line and no other,
+        // so a menu's wrapper entries keep the values they set themselves.
+        if (path == initial_config) g.param_overrides = opts.params;
+        if (!g.loadFromFile(path)) return false;
+        if (opts.threads > 0) {
+            // Explicit --threads wins over the program's own #threads: a run
+            // pinned to one worker is reproducible whatever the host's core
+            // count, which is what the fixture tests rely on.
+            g.thread_count = opts.threads;
+        } else if (g.thread_count == 0) {
+            g.thread_count = opts.trace_path.empty()
+                ? std::thread::hardware_concurrency() : 1;
+        }
+        return true;
+    };
+
     Grammar2D cfg;
-    cfg.param_overrides = opts.params;
-    if (!cfg.loadFromFile(opts.config_path)) {
-        std::cerr << "Cannot load program: " << opts.config_path << std::endl;
+    if (!load_program(initial_config, cfg)) {
+        std::cerr << "Cannot load program: " << initial_config << std::endl;
         return 1;
-    }
-    if (opts.threads > 0) {
-        // Explicit --threads wins over the program's own #threads: a run
-        // pinned to one worker is reproducible whatever the host's core
-        // count, which is what the fixture tests rely on.
-        cfg.thread_count = opts.threads;
-    } else if (cfg.thread_count == 0) {
-        cfg.thread_count = opts.trace_path.empty()
-            ? std::thread::hardware_concurrency() : 1;
     }
 
     int actual_seed = (opts.seed == 0) ? static_cast<int>(time(0)) : opts.seed;
@@ -116,32 +130,137 @@ int run_headless_input(const HeadlessOptions& opts) {
     }
     if (!opts.watch_cells.empty()) w.set_watch_cells(opts.watch_cells);
 
-    w.reset(cfg, opts.rows, opts.cols);
-    w.init(true);
-    w.start();
-    w.log_program_load(opts.config_path, 0);
-
+    // The program loop, mirroring the curses front end: a rule may switch
+    // programs or fire a #control action, and both mean leaving the inner
+    // event loop and reloading. Without this the actions were parsed, applied
+    // and logged, and then silently dropped -- `q` did not quit and `x` did
+    // not clear, which made every control key untestable.
+    struct Frame { std::string path; wchar_t key; };
+    std::vector<Frame> caller_stack;
+    wchar_t pending_param = 0;      // key handed to the next start(), then spent
+    bool clear_screen = true;       // the first load clears; a switch composes
+    bool paused = false;
     int score = 0;
-    Grammar2D::Rule dummy = {};
-    std::vector<wchar_t> sounds_dummy;
+    size_t ip = 0;                  // event cursor, continuous across programs
+    bool stopped = false;           // --max-steps reached
+
+    std::string config = initial_config;
+    std::string prev_config;
+    std::wstring active_template;   // `#!` is global and outlives its program
+    std::wstring help_text;         // `#help` is re-read on every load
     std::wstring last_lhsa;
-    for (char c : input_str) {
-        wchar_t trig = static_cast<wchar_t>(static_cast<unsigned char>(c));
-        char src = cfg.timing_chars.count(trig) ? 't' : 'k';
-        w.stepMultithreaded(trig, score, &dummy, &sounds_dummy, src);
-        last_lhsa = dummy.lhsa;
-        if (opts.max_steps > 0 && w.get_event_step() >= opts.max_steps) break;
+    std::vector<wchar_t> sounds_dummy;
+
+    while (config != "quit" && !stopped) {
+        Grammar2D g;
+        if (!load_program(config, g)) {
+            std::cerr << "Cannot load program: " << config << std::endl;
+            return 1;
+        }
+
+        if (!prev_config.empty()) {
+            w.log_program_unload(prev_config, score);
+            w.dump_stats_for_program(prev_config);
+        }
+        w.log_program_load(config, score);
+        prev_config = config;
+
+        if (!g.help.empty()) active_template = g.help;
+        help_text = g.help_text;
+
+        w.reset(g, opts.rows, opts.cols);
+        w.init(clear_screen);
+        clear_screen = false;
+        w.start(pending_param);
+        pending_param = 0;
+
+        Grammar2D::Rule rule = {};
+        rule.lhsa = last_lhsa;
+
+        while (ip < input_str.size()) {
+            wchar_t trig = static_cast<wchar_t>(
+                static_cast<unsigned char>(input_str[ip++]));
+            char src = g.timing_chars.count(trig) ? 't' : 'k';
+            // Paused, the curses loop blocks on the keyboard, so timing events
+            // simply never happen; a keypress still gets through, which is how
+            // anything ever unpauses. Same rule here.
+            if (paused && src == 't') continue;
+
+            // Cleared per event: on a step that applies nothing these still
+            // hold the last applied rule, and would fire its action again.
+            rule.sound = 0;
+            rule.load = false;
+            rule.engine_action = false;
+            bool applied = w.stepMultithreaded(trig, score, &rule, &sounds_dummy, src);
+            if (applied) last_lhsa = rule.lhsa;
+            if (!applied) {
+                if (opts.max_steps > 0 && w.get_event_step() >= opts.max_steps) {
+                    stopped = true;
+                    break;
+                }
+                continue;
+            }
+
+            if (rule.load && rule.sound != 0) {
+                auto it = g.program_paths.find(rule.sound);
+                if (it != g.program_paths.end()) {
+                    caller_stack.push_back({config, rule.sound});
+                    config = zg::resolve_program_path(it->second, config);
+                    break;
+                }
+            } else if (rule.engine_action && rule.sound != 0) {
+                const std::string action = g.getEngineAction(rule.sound);
+                if (action == "pause") {
+                    paused = !paused;
+                } else if (action == "clear") {
+                    // Counted as an unload/load pair so per-program stats reset
+                    // exactly as they do interactively.
+                    w.log_program_unload(config, score);
+                    w.dump_stats_for_program(config);
+                    w.log_program_load(config, score);
+                    w.init(true);
+                    w.reset(g, opts.rows, opts.cols);
+                    w.start();
+                } else if (action == "reset") {
+                    if (!caller_stack.empty()) {
+                        config = caller_stack[0].path;
+                        caller_stack.clear();
+                        break;
+                    }
+                } else if (action == "return") {
+                    if (!caller_stack.empty()) {
+                        config = caller_stack.back().path;
+                        pending_param = caller_stack.back().key;
+                        caller_stack.pop_back();
+                    } else {
+                        config = "quit";   // nothing to return to
+                    }
+                    break;
+                } else if (action == "quit") {
+                    config = "quit";
+                    break;
+                }
+            }
+
+            if (opts.max_steps > 0 && w.get_event_step() >= opts.max_steps) {
+                stopped = true;
+                break;
+            }
+        }
+        if (ip >= input_str.size()) break;   // input exhausted
     }
     uint64_t events = w.get_event_step();
 
-    w.log_program_unload(opts.config_path, score);
-    w.dump_stats_for_program(opts.config_path);
+    if (!prev_config.empty()) {
+        w.log_program_unload(prev_config, score);
+        w.dump_stats_for_program(prev_config);
+    }
     w.log_program_exit(score);
 
     if (!opts.dump_path.empty()) {
         auto [par, tot] = w.getThreadingStats();
         int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
-        std::wstring line = format_status_line(cfg, score,
+        std::wstring line = format_status_line(active_template, help_text, score,
                                                static_cast<int>(events),
                                                static_cast<int>(w.get_batch_step()),
                                                0, parallel_pct, last_lhsa, opts.cols);
