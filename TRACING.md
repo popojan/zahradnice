@@ -65,7 +65,7 @@ Then events, one per line:
 | `program_load`   | step, score, path |
 | `program_unload` | step, score, path |
 | `program_exit`   | step, score |
-| `apply`          | step, score, src, trig, lhs, idx, ro, co, src_line, head, astep |
+| `apply`          | step, score, src, trig, lhs, idx, ro, co, src_line, head, batch |
 | `screenshot`     | step, basename |
 
 Columns are tab-separated. Apply lines:
@@ -73,7 +73,7 @@ Columns are tab-separated. Apply lines:
 - **step** — monotonic counter, one per applied **rule**. For a confluent
   program the total is the same however many threads ran it, which is what
   makes it comparable across runs — and is exactly why it cannot delimit a
-  multi-rule step. See **astep**.
+  multi-rule step. See **batch**. Surfaced as `{steps}` in a `#!` template.
 - **score** — score immediately after this event applied
 - **src** — `k` if triggered by user keypress, `t` if by timing tick
 - **trig** — the trigger character that caused rule lookup (a key, a
@@ -87,16 +87,16 @@ Columns are tab-separated. Apply lines:
 - **head** — the rule's authored `=...` line (the same identifier the
   status bar shows for "last applied rule"); makes each line
   self-readable without consulting the stats file
-- **astep** — monotonic counter, one per **step**: one trigger event that
-  applied anything, whatever the batch size. Consecutive lines sharing an
-  astep were applied together by a single trigger, which is what lets replay
-  feed that trigger once and expect the whole batch. At `#threads 1` it
-  advances with **step**; above it, `step/astep` is the mean batch size.
-  It trails `head` so that analyzers indexing columns positively are
-  unaffected
+- **batch** — monotonic counter, one per **step**: one trigger event that
+  applied anything, whatever the batch size. Consecutive lines sharing a batch
+  were applied together by a single trigger, which is what lets replay feed
+  that trigger once and expect the whole batch. At `#threads 1` it advances
+  with **step**; above it, `step/batch` is the mean batch size. It trails
+  `head` so that analyzers indexing columns positively are unaffected.
+  Surfaced as `{batches}` in a `#!` template
 
 Trace format is versioned in the header; replay reads v3 only and rejects
-anything else with a message. v3 added `# threads=N` and the `astep` column.
+anything else with a message. v3 added `# threads=N` and the `batch` column.
 
 `# threads=N` is part of a run's identity, not a performance note: the
 multi-rule gate decides how many rules may co-fire per step, so a seed

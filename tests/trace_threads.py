@@ -13,12 +13,14 @@ What is guarded here:
   * the count reaches the trace header, from both front ends;
   * a single-threaded trace still replays to a byte-identical screen;
   * a multithreaded trace replays to a byte-identical screen too, which is
-    what the astep column bought: `step` counts applied rules (thread-count
+    what the batch column bought: `step` counts applied rules (thread-count
     independent for a confluent program, so it cannot delimit a batch) and
-    `astep` counts steps, so consecutive lines sharing one were applied
+    `batch` counts steps, so consecutive lines sharing one were applied
     together and replay feeds their trigger once;
   * the batch structure is actually there -- at N threads the mean batch size
-    rises, so astep must advance more slowly than step.
+    rises, so batch must advance more slowly than step;
+  * both counters reach a `#!` template: {steps} (applied rules) holds still
+    as the thread count changes, {batches} (steps proper) divides by it.
 
 usage: tests/trace_threads.py [path-to-zahradnice-headless] [path-to-zahradnice]
 """
@@ -112,12 +114,46 @@ with tempfile.TemporaryDirectory() as d:
 
     r1, a1 = steps(t1)
     r4, a4 = steps(t4)
-    check("astep-counts-steps-not-rules", r1 == a1 and a4 < r4,
+    check("batch-counts-steps-not-rules", r1 == a1 and a4 < r4,
           f"threads=1 gave {r1} rules/{a1} steps (want equal), "
           f"threads=4 gave {r4}/{a4} (want fewer steps than rules)")
     check("rule-count-is-thread-independent", r1 == r4,
           f"{r1} rules at one thread, {r4} at four -- the program is confluent, "
           "so the totals must match")
+
+    # --- both counters reach a #! template ---------------------------------
+    tpl = os.path.join(d, "tpl.cfg")
+    with open(tpl, "w") as fh:
+        fh.write(PROG.replace("#! t\n", "#! s={steps} b={batches}\n"))
+
+    # Wide enough to read the status line, and driven well past quiescence:
+    # the rule total is thread-count independent only once the run has nothing
+    # left to apply. A trigger-limited run is not comparable, because one
+    # thread simply gets fewer rules in for the same number of ticks.
+    def status(threads):
+        out = os.path.join(d, f"tpl{threads}.txt")
+        subprocess.run(
+            [HEADLESS, tpl, "--seed", "5", "--screen", "6,78", "--threads", str(threads),
+             "--input", "T" * 600, "--dump-screen", out],
+            capture_output=True, text=True, check=True)
+        return open(out).read().splitlines()[0]
+
+    s1, s4 = status(1), status(4)
+    check("template-substitutes-batches",
+          "{batches}" not in s1 and "b=" in s1, s1.strip())
+    # {steps} counts applied rules, so it must not move with the thread count;
+    # {batches} counts steps, so it must.
+    def var(line, key):
+        for tok in line.split():
+            if tok.startswith(key + "="):
+                return int(tok.split("=")[1])
+        return None
+    check("template-steps-thread-independent",  # at quiescence
+          var(s1, "s") is not None and var(s1, "s") == var(s4, "s"),
+          f"{s1.strip()!r} vs {s4.strip()!r}")
+    check("template-batches-scale-with-threads",
+          var(s4, "b") is not None and var(s4, "b") < var(s1, "b"),
+          f"{s1.strip()!r} vs {s4.strip()!r}")
 
     # --- the interactive front end pins the count and records it -----------
     # zahradnice.cpp writes its header before any program is loaded, so it

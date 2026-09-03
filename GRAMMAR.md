@@ -115,7 +115,8 @@ All directives use the form `#<keyword> <args>` (no space between `#` and keywor
 | Variable | Meaning |
 |---|---|
 | `{score}` | Cumulative score (preserved across program switches). |
-| `{steps}` | Applied rules, cumulative across program switches. A step that applied several rules in parallel counts each of them. Same number as the trace's step column and `--max-steps`. |
+| `{steps}` | Applied rules, cumulative across program switches. A step that applied several rules in parallel counts each of them, so the total does not move with the thread count — which is what makes it the comparable measure. Same number as the trace's step column and `--max-steps`. |
+| `{batches}` | Steps proper: one per trigger event that applied anything, whatever the batch size. Same number as the trace's `batch` column. Equal to `{steps}` at `#threads 1`; above it, `{steps}`/`{batches}` is the mean batch size, and `{parallel}` says how often a step batched at all. |
 | `{moves}` | Steps triggered by user input only (excludes timing events and ineffective keypresses). |
 | `{parallel}` | Parallel-execution percentage as e.g. `42%`; empty if no threading stats have accumulated. |
 | `{help}` | Current program's `#help` text. |

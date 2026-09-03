@@ -29,55 +29,15 @@
 static std::wstring active_statusline_template = L"";
 static std::wstring current_help_text = L"";
 
-// Simple wide string replacement helper
-static void replace_all(std::wstring &str, const std::wstring &from, const std::wstring &to) {
-    size_t start_pos = 0;
-    while ((start_pos = str.find(from, start_pos)) != std::wstring::npos) {
-        str.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-    }
-}
-
-// Simple integer to wide string conversion
-static std::wstring int_to_wstring(int value) {
-    if (value == 0) return L"0";
-
-    std::wstring result;
-    bool negative = value < 0;
-    if (negative) value = -value;
-
-    while (value > 0) {
-        result = static_cast<wchar_t>(L'0' + value % 10) + result;
-        value /= 10;
-    }
-
-    if (negative) result = L"-" + result;
-    return result;
-}
-
-// Render statusline with template substitution
-static std::wstring render_statusline(int score, int steps, int moves, int parallel_pct) {
-    std::wstring tmpl;
-    if (!active_statusline_template.empty()) {
-        tmpl = active_statusline_template;
-    } else {
-        tmpl = L"Score: {score} Steps: {steps} {parallel} {help}";
-    }
-
-    // Perform variable substitutions
-    replace_all(tmpl, L"{score}", int_to_wstring(score));
-    replace_all(tmpl, L"{steps}", int_to_wstring(steps));
-    replace_all(tmpl, L"{moves}", int_to_wstring(moves));
-
-    if (parallel_pct >= 0) {
-        replace_all(tmpl, L"{parallel}", int_to_wstring(parallel_pct) + L"%");
-    } else {
-        replace_all(tmpl, L"{parallel}", L"");
-    }
-
-    replace_all(tmpl, L"{help}", current_help_text);
-
-    return tmpl;
+// Render statusline with template substitution. The template is the
+// *inherited* one (a program with no `#!` keeps its caller's caption), which
+// is the one thing this path does differently; the substitution is shared.
+static std::wstring render_statusline(int score, int steps, int batches, int moves, int parallel_pct) {
+    return zg::substitute_status_vars(
+        active_statusline_template.empty()
+            ? std::wstring(zg::kDefaultStatusTemplate)
+            : active_statusline_template,
+        score, steps, batches, moves, parallel_pct, current_help_text);
 }
 
 // Take a screenshot of the current terminal content to a text file.
@@ -454,6 +414,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
             std::wstring line = cur_cfg
                 ? zg::format_status_line(*cur_cfg, score_live,
                                          static_cast<int>(events_processed),
+                                         static_cast<int>(w.get_batch_step()),
                                          0, parallel_pct, last_lhsa, rec_cols)
                 : std::wstring();
             headless_display.set_status(line);
@@ -502,6 +463,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
 
         std::wstring line = zg::format_status_line(*cur_cfg, score_live,
                                                    static_cast<int>(events_processed),
+                                                   static_cast<int>(w.get_batch_step()),
                                                    0, parallel_pct, rhs, rec_cols);
         std::wstring blank(rec_cols, L' ');
         mvaddwstr(rep_off_row, rep_off_col, blank.c_str());
@@ -736,6 +698,7 @@ static int run_replay(const std::string &replay_path, int delay_ms,
         std::wstring line = cur_cfg
             ? zg::format_status_line(*cur_cfg, score_live,
                                      static_cast<int>(events_processed),
+                                     static_cast<int>(w.get_batch_step()),
                                      0, parallel_pct, last_lhsa, rec_cols)
             : std::wstring();
         headless_display.set_status(line);
@@ -1184,11 +1147,14 @@ int main(int argc, char *argv[]) {
             int parallel_pct = total > 0 ? (100 * parallel / total) : -1;
 
             // Render left part (template content)
-            // `{steps}` is applied rules, not events: a parallel step that landed
-            // four rules counts four. Matches the trace's step column, `--max-steps`
-            // and the headless build's status line (headless_runner.cpp).
+            // `{steps}` is applied rules, as it has always been: a parallel
+            // step that landed four rules counts four. It is the measure that
+            // does not move with the thread count, and matches the trace's
+            // step column and `--max-steps`. `{batches}` counts steps proper --
+            // one per trigger event that applied anything. Equal at #threads 1.
             std::wstring left_content = render_statusline(
-                score, static_cast<int>(w.get_event_step()), moves, parallel_pct);
+                score, static_cast<int>(w.get_event_step()),
+                static_cast<int>(w.get_batch_step()), moves, parallel_pct);
 
             // Render right part (rule display)
             std::wstring lhsa_truncated = rule.lhsa;

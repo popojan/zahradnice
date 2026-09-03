@@ -143,6 +143,7 @@ int run_headless_input(const HeadlessOptions& opts) {
         int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
         std::wstring line = format_status_line(cfg, score,
                                                static_cast<int>(events),
+                                               static_cast<int>(w.get_batch_step()),
                                                0, parallel_pct, last_lhsa, opts.cols);
         disp.set_status(line);
         dump_screen_by_ext(disp, opts.dump_path);
