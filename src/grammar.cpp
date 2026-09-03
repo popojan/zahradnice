@@ -7,6 +7,8 @@
 #include <fstream>
 #include <algorithm>
 #include <climits>
+#include <cctype>
+#include <iostream>
 
 // Define static mutex for thread-safe screen operations
 std::mutex Derivation::screen_mutex;
@@ -95,7 +97,37 @@ bool Grammar2D::_process(const std::vector<std::wstring> &lhs,
     return true;
 }
 
-std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) const {
+// `{NAME}` -> the parameter's resolved value, in `line` from column `from` on.
+// Names are [A-Za-z_][A-Za-z0-9_]*; anything else inside braces is left alone,
+// so a program may still print braces. An undeclared name is an error rather
+// than a silent literal -- a value that quietly fails to apply is the worst
+// outcome for a sweep.
+bool Grammar2D::substituteParams(std::string &line, size_t from,
+                                 const std::string &fname, int lineno) {
+    if (from >= line.size()) return true;
+    size_t pos = from;
+    while ((pos = line.find('{', pos)) != std::string::npos) {
+        size_t close = line.find('}', pos + 1);
+        if (close == std::string::npos) break;
+        std::string name = line.substr(pos + 1, close - pos - 1);
+        bool ok = !name.empty()
+                  && (isalpha((unsigned char)name[0]) || name[0] == '_');
+        for (size_t i = 1; ok && i < name.size(); ++i)
+            ok = isalnum((unsigned char)name[i]) || name[i] == '_';
+        if (!ok) { pos = close + 1; continue; }
+        auto it = params.find(name);
+        if (it == params.end()) {
+            load_error = fname + ":" + std::to_string(lineno)
+                       + ": undeclared parameter {" + name + "}";
+            return false;
+        }
+        line.replace(pos, close - pos + 1, it->second);
+        pos += it->second.size();
+    }
+    return true;
+}
+
+std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) {
     // Circular include detection
     if (included_files.find(fname) != included_files.end()) {
         return "";  // Skip circular includes silently
@@ -139,14 +171,55 @@ std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<s
         content.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
 
-    // Process content line by line, handling includes
+    resolved_includes.push_back(filename);
+
+    // Process content line by line, resolving parameters and handling includes
     std::string result;
     size_t start = 0;
+    int lineno = 0;
     while (start < content.length()) {
         size_t end = content.find('\n', start);
         if (end == std::string::npos) end = content.length();
         std::string line = content.substr(start, end - start);
         start = end + 1;
+        ++lineno;
+
+        // `#parameter NAME VALUE` declares a *default*, so unlike every other
+        // directive the FIRST declaration wins -- "set unless already set".
+        // That is what lets a three-line wrapper stand in for a whole variant:
+        //
+        //     #parameter SPROUT 10        <- the wrapper decides
+        //     #include forest-core.cfg    <- whose own #parameter is the default
+        //
+        // With last-wins the included default would clobber its caller, and the
+        // value could not be set before the #include line that needs it.
+        // A --param override beats both. The line stays in the assembled text:
+        // rules are identified in the trace by line number, so nothing here
+        // may add or remove a line.
+        if (line.rfind("#parameter ", 0) == 0) {
+            std::string rest = line.substr(11);
+            size_t sp = rest.find(' ');
+            if (sp != std::string::npos && sp > 0) {
+                std::string name = rest.substr(0, sp);
+                auto ov = param_overrides.find(name);
+                if (ov != param_overrides.end()) params[name] = ov->second;
+                else params.emplace(name, rest.substr(sp + 1));
+            }
+            result += line + "\n";
+            continue;
+        }
+
+        // Substitution sites: a directive's arguments, or a rule header's
+        // score/weight tail (from column 10 -- everything before it is a
+        // single-character positional field). Bodies, `#!` and plain comments
+        // are left verbatim.
+        if (line.size() > 1 && line[0] == '#' && line[1] != '!') {
+            size_t sp = line.find(' ');
+            if (sp != std::string::npos && sp > 1
+                && !substituteParams(line, sp + 1, fname, lineno)) return "";
+        } else if (!line.empty() && line[0] == '=') {
+            if (!substituteParams(line, 10, fname, lineno)) return "";
+        }
 
         // Check for #include directive
         if (line.length() > 8 && line.substr(0, 8) == "#include") {
@@ -162,8 +235,20 @@ std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<s
                 }
                 std::string include_path = include_dir + "/" + include_file;
 
-                // Recursively load included file
+                // Recursively load included file. A path that resolves to
+                // nothing is an error, not a silent skip: an include is now a
+                // composition choice a parameter can make, and a typo that
+                // quietly drops a rule set is the failure mode this project
+                // has already paid for once.
+                bool circular = included_files.count(include_path) > 0;
+                size_t before = resolved_includes.size();
                 std::string included_content = loadFileWithIncludes(include_path, included_files);
+                if (!load_error.empty()) return "";
+                if (!circular && resolved_includes.size() == before) {
+                    load_error = fname + ":" + std::to_string(lineno)
+                               + ": #include not found: " + include_file;
+                    return "";
+                }
                 result += included_content;
                 if (!included_content.empty() && !included_content.ends_with("\n")) {
                     result += "\n";
@@ -179,9 +264,18 @@ std::string Grammar2D::loadFileWithIncludes(const std::string &fname, std::set<s
 }
 
 bool Grammar2D::loadFromFile(const std::string &fname) {
+    // Per-load state; param_overrides survives, it comes from outside the file.
+    params.clear();
+    resolved_includes.clear();
+    load_error.clear();
+
     // Use include system to load file with all includes processed
     std::set<std::string> included_files;
     std::string content = loadFileWithIncludes(fname, included_files);
+    if (!load_error.empty()) {
+        std::cerr << load_error << std::endl;
+        return false;
+    }
     if (content.empty()) return false;
 
     std::vector<std::wstring> lhs;
@@ -510,8 +604,18 @@ void Grammar2D::addRule(const std::wstring &lhs, const std::wstring &rhs, int so
         rule.ctx = lhs[7];
     else
         rule.ctx = static_cast<wchar_t>(-1);
-    if (rule.ctx == L'?')
+    // Field 6 is normalised once, here, so `&`, `!` and `%` all see the same
+    // character. `&` used to normalise space itself at match time while `!`
+    // and `%` compared against the raw field, so one literal space read as
+    // "blank" for `&` but as "matches everything" for `!`.
+    // A space now means what it means everywhere else in the language:
+    // nothing. That is what the 1200-odd headers padded out to reach the
+    // score/weight offset intend by it, and `~` remains the way to say
+    // "blank". `*` is the LHS non-terminal, as in field 7 and in body cells.
+    if (rule.ctx == L'?' || rule.ctx == L' ')
         rule.ctx = static_cast<wchar_t>(-1);
+    else if (rule.ctx == L'*')
+        rule.ctx = rule.lhs;
 
     if (lhs.length() > 8) {
         rule.ctxrep = lhs[8];
@@ -830,6 +934,7 @@ bool Derivation::step(wchar_t key, int &score, Grammar2D::Rule *dbgrule, char sr
                 score += rule.reward;
                 if (stats_fp) ++stats[stats_key(nit->a, nit->c)].applied;
                 ++event_step;
+                ++batch_step;   // one rule, therefore one step
                 if (trace_fp) log_apply(score, src, key, nit->a, nit->c, rc.first, rc.second);
                 return true;
             }
@@ -1195,6 +1300,7 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
             score += selected_rules[0].rule.reward;
             if (stats_fp) ++stats[stats_key(selected_rules[0].rule.lhs, selected_rules[0].rule_index)].applied;
             ++event_step;
+            ++batch_step;
             if (trace_fp) log_apply(score, src, key,
                                     selected_rules[0].rule.lhs, selected_rules[0].rule_index,
                                     selected_rules[0].position.first, selected_rules[0].position.second);
@@ -1241,6 +1347,9 @@ bool Derivation::stepMultithreaded(wchar_t key, int &score, Grammar2D::Rule *dbg
     for (size_t i = 0; i < futures.size(); ++i) {
         if (futures[i].get()) {
             score += rewards[i];
+            // The batch is one step however many rules it carries, so the
+            // counter advances on the first rule that lands and then holds.
+            if (!any_applied) ++batch_step;
             any_applied = true;
             if (stats_fp) ++stats[stats_key(selected_rules[i].rule.lhs, selected_rules[i].rule_index)].applied;
             ++event_step;
@@ -1293,10 +1402,13 @@ void Derivation::log_apply(int score, char src, wchar_t trig, wchar_t lhs, size_
         head = it->second[idx].lhsa.c_str();
         src_line = it->second[idx].source_line;
     }
-    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%d\t%ls\n",
+    // batch_step trails the rule head (which may contain spaces but never a
+    // tab), so every analyzer that indexes columns positively is unaffected.
+    fprintf(trace_fp, "apply\t%llu\t%d\t%c\t%lc\t%lc\t%zu\t%d\t%d\t%d\t%ls\t%llu\n",
             (unsigned long long)event_step, score,
             src ? src : '-',
-            (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head);
+            (wint_t)trig, (wint_t)lhs, idx, ro, co, src_line, head,
+            (unsigned long long)batch_step);
 }
 
 void Derivation::log_cellwrite(uint64_t step, int r, int c,

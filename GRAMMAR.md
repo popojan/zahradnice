@@ -46,12 +46,63 @@ Files are decoded as UTF-8 to wide characters. Non-ASCII characters are valid in
 
 `#include <path>` substitutes the contents of another file at that point in the assembled text. Resolution rules:
 
-- `<path>` is resolved relative to the directory of the **current including file** (not the top-level program). An absolute path fails silently.
+- `<path>` is resolved relative to the directory of the **current including file** (not the top-level program). An absolute path does not resolve.
 - The same path-completion logic as program loading applies: if `<path>` doesn't exist, try `<path>.gz`, or if `<path>` lacks a `.cfg`/`.cfg.gz` extension, try `<path>/index.cfg` and `<path>/index.cfg.gz`.
-- Circular includes are silently skipped (each path is included at most once per top-level load).
+- A path that resolves to nothing is a **load error** naming the including file and line. (Circular includes are still skipped silently — each path is spliced at most once per top-level load.)
 - Includes may be nested.
+- `<path>` may contain `{NAME}` parameter references — see below.
 
 Because includes are textual substitution, the order of declarations in the **assembled** text matters. Convention: include files containing only `#`-declarations early.
+
+### Parameters
+
+`#parameter <NAME> <value>` declares a named scalar with a default. `{NAME}` elsewhere in the file is replaced by its value while the program is assembled. `NAME` is `[A-Za-z_][A-Za-z0-9_]*`.
+
+```
+#parameter DRIVE 1500
+#parameter G 0.0002
+#timing d {DRIVE}
+==⠁T120   0 {G}
+@@@
+```
+
+Override from the command line (both `zahradnice` and `zahradnice-headless`), repeatable:
+
+```
+./zahradnice-headless manna.cfg --param DRIVE=40 --param G=0.006
+```
+
+`--param` applies to the program **named on the command line** and to no other: a menu's entries are commonly wrappers differing only by the value they set (below), and a process-wide override would silently flatten all of them to the same thing. To parameterize a child, run the child.
+
+Precedence: `--param` beats every declaration, and among declarations the **first** one wins — unlike every other directive, because a `#parameter` is a *default*, not a setting: "set unless already set". A `{NAME}` that was never declared is a **load error** naming the file and line — a value that silently fails to apply is the worst outcome for a sweep.
+
+First-wins is what lets a short wrapper stand in for a whole variant, so one program template can serve several menu entries:
+
+```
+#! Forest fire (calm)  pop={score} steps={steps}
+#parameter SPROUT 10      # this file decides ...
+#include forest-core.cfg  # ... and the included file's #parameter is the default
+```
+
+The wrapper is a normal program: it has its own `#!` caption, runs standalone, and a menu reaches it with the ordinary `#program <char> calm.cfg`. With last-wins the included default would clobber its caller, and no value could be set before an `#include` line that depends on it.
+
+**Where substitution happens** — only two places:
+
+- a directive's arguments (`#timing`, `#threads`, `#include`, …);
+- a rule header's score/weight tail, i.e. from column 10 on.
+
+**Where it deliberately does not** — rule bodies, the single-character header fields (LHS, trigger, replacement, colours, context), the `#!` status template (whose `{steps}`/`{score}` share the syntax), and plain comments. Body geometry is positional: a variable-width value would shift columns. Braces in those places are left verbatim.
+
+Substitution runs *during* include assembly, so an `#include` path may itself be parameterized:
+
+```
+#parameter READOUT consumptive
+#include readout-{READOUT}.cfg
+```
+
+which is how one skeleton program can swap whole rule blocks. Because the include path may depend on a parameter, **a parameter must be declared before the line that uses it** — the same law `#sound`, `#program`, `#control` and `#color` already obey.
+
+The `#parameter` line stays in the assembled text, so rule line numbers (the `src_line` a trace reports) are unaffected by substitution itself. A trace records the resolved values and the exact files that were spliced (`# param NAME=VALUE`, `# include PATH`), so a run stays reconstructible from its artifact.
 
 ## Configuration directives
 
@@ -64,7 +115,8 @@ All directives use the form `#<keyword> <args>` (no space between `#` and keywor
 | Variable | Meaning |
 |---|---|
 | `{score}` | Cumulative score (preserved across program switches). |
-| `{steps}` | Successful steps. A step that applied several rules in parallel counts once. |
+| `{steps}` | Applied rules, cumulative across program switches. A step that applied several rules in parallel counts each of them, so the total does not move with the thread count — which is what makes it the comparable measure. Same number as the trace's step column and `--max-steps`. |
+| `{batches}` | Steps proper: one per trigger event that applied anything, whatever the batch size. Same number as the trace's `batch` column. Equal to `{steps}` at `#threads 1`; above it, `{steps}`/`{batches}` is the mean batch size, and `{parallel}` says how often a step batched at all. |
 | `{moves}` | Steps triggered by user input only (excludes timing events and ineffective keypresses). |
 | `{parallel}` | Parallel-execution percentage as e.g. `42%`; empty if no threading stats have accumulated. |
 | `{help}` | Current program's `#help` text. |
@@ -288,7 +340,8 @@ In fields `4` (foreground) and `5` (background):
 
 In field `6` (context match):
 - `~` → matches an empty (space) cell. This is the token for "must be blank"; conversely `!` with field `6` set to `~` means "must be non-blank".
-- `?` (or an omitted field) → **no context character is defined**. It does *not* mean "any character": a `&` cell can then never match, so the rule never fires. `!` cells, by contrast, match everything (nothing is equal to "no character"), and `%` cells match only field `7`.
+- `?`, a literal space, or an omitted field → **no context character is defined**. It does *not* mean "any character": a `&` cell can then never match, so the rule never fires. `!` cells, by contrast, match everything (nothing is equal to "no character"), and `%` cells match only field `7`. A space reads as "nothing" here for the same reason it does in a body cell, and because that is what a header padded out to reach the score/weight offset means by it.
+- `*` → the LHS non-terminal (substituted at parse time, as in field `7` and in body cells). `&` then means "this neighbour is another one of me", `!` means "this neighbour is anything but me".
 - Otherwise: a literal character.
 
 In field `7` (context replacement):
@@ -298,6 +351,8 @@ In field `7` (context replacement):
 - Otherwise: a literal character.
 
 There is only one context pair per rule, shared by every `&`, `!` and `%` cell in the body. A rule needing two different context characters must be split into two rules.
+
+An unset field `6` makes a `&` cell — and a `%` cell whose field `7` is also unset — impossible to match, so the rule silently never fires. `./zahradnice-check lint CFG...` reports those, and warns about a `!` cell with no field `6` (which matches every cell, i.e. does nothing). `make test` runs it over the whole shipped corpus.
 
 ### Body
 
@@ -540,7 +595,6 @@ Here the neighbour may be `x` or `y`. Note that `%` and `!` are LHS-only: in the
 
 The following appeared in earlier documentation but are not implemented in current code:
 
-- `*` as a context-match token (field `6`) meaning "the LHS non-terminal" — only field `7` gets that substitution; in field `6`, `*` is a literal asterisk.
 - `$` as a context-match token (field `6`) — only `$` as a body **replacement** char is meaningful (memory restore).
 - `#` as an "out-of-screen" context-match token — the toroidal wrapping leaves no cell out of screen, and the matching code does not specially recognise `#`.
 - `?` in field `6` as a wildcard that makes `&` match anything — it disables the context character, and `&` cells then never match.

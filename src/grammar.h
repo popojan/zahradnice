@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <set>
+#include <map>
 #include <cstdio>
 
 #include "display.h"
@@ -133,6 +134,22 @@ public:
     // Multithreading configuration
     int thread_count = 0;
 
+    // Parameters. `#parameter NAME VALUE` declares a default; `{NAME}` in a
+    // directive's arguments or in a rule header's score/weight tail is replaced
+    // while the file is assembled. Substitution runs *during* include splicing,
+    // so an `#include` path may itself be parameterized -- which is why a
+    // parameter must be declared before the line that uses it, the same law
+    // `#sound`, `#color`, `#program` and `#control` already obey.
+    //
+    // Deliberately not substituted: rule bodies and single-character header
+    // fields (geometry is positional -- a variable-width value would shift
+    // columns), the `#!` status template (its {steps}/{score} share the
+    // syntax), and plain comments.
+    std::map<std::string, std::string> params;           // resolved, in name order
+    std::map<std::string, std::string> param_overrides;  // CLI/caller; win over the file
+    std::vector<std::string> resolved_includes;          // provenance for the trace
+    std::string load_error;                              // non-empty => load failed
+
     Grammar2D() {
         // No default dictionary entries needed - functions return same key/digit if not found
         // Auto-detect thread count (0 = use all cores, 1 = single-threaded)
@@ -146,8 +163,16 @@ public:
     bool loadFromFile(const std::string &fname);
 
 private:
-    // Recursive file loading with include support
-    std::string loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files) const;
+    // Recursive file loading with include support. Not const: it resolves
+    // `#parameter` declarations and records the includes it actually spliced.
+    std::string loadFileWithIncludes(const std::string &fname, std::set<std::string> &included_files);
+
+    // Replace `{NAME}` in the permitted part of one assembled line. `from` is
+    // the first column that may be substituted (10 for a rule header's
+    // score/weight tail, 0 for a directive's arguments). Returns false and
+    // fills load_error when a referenced parameter was never declared.
+    bool substituteParams(std::string &line, size_t from,
+                          const std::string &fname, int lineno);
 
     std::pair<int, int> origin(wchar_t s, const std::wstring &rhs, wchar_t spec, int ord = 0);
 
@@ -298,6 +323,7 @@ public:
     // Header comment carries the step for the snapshot.
     void dump_memory(FILE *fp, uint64_t step) const;
     uint64_t get_event_step() const { return event_step; }
+    uint64_t get_batch_step() const { return batch_step; }
     // Trajectory replay: force-execute a previously-recorded apply.
     bool apply_recorded(wchar_t lhs, size_t idx, int ro, int co);
     // Set the output backend. nullptr = no rendering (engine state still
@@ -373,7 +399,15 @@ private:
     FILE* trace_fp = nullptr;
     FILE* stats_fp = nullptr;
     std::unordered_map<uint64_t, RuleStats> stats;
+    // Two counters, deliberately different. `event_step` counts applied
+    // *rules*: for a confluent program the total is the same however many
+    // threads ran it, which is what makes it a comparable measure. It cannot
+    // therefore delimit a multi-rule step, so `batch_step` counts *steps* --
+    // one per trigger event that applied anything, whatever the batch size.
+    // Consecutive trace lines sharing a batch_step are one batch, which is
+    // what lets replay feed the trigger once and expect N rules.
     uint64_t event_step = 0;
+    uint64_t batch_step = 0;
 
     inline uint64_t stats_key(wchar_t lhs, size_t idx) const {
         return (static_cast<uint64_t>(static_cast<uint32_t>(lhs)) << 32) | static_cast<uint32_t>(idx);

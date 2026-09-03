@@ -57,6 +57,7 @@ int run_headless_input(const HeadlessOptions& opts) {
     if (!prepare_input_string(opts.input_arg, input_str)) return 1;
 
     Grammar2D cfg;
+    cfg.param_overrides = opts.params;
     if (!cfg.loadFromFile(opts.config_path)) {
         std::cerr << "Cannot load program: " << opts.config_path << std::endl;
         return 1;
@@ -87,9 +88,22 @@ int run_headless_input(const HeadlessOptions& opts) {
         if (trace_fp) {
             std::setvbuf(trace_fp, nullptr, _IOLBF, 0);
             w.set_trace_file(trace_fp);
-            std::fprintf(trace_fp, "# zahradnice-trace v2\n");
+            std::fprintf(trace_fp, "# zahradnice-trace v3\n");
             std::fprintf(trace_fp, "# seed=%d\n", actual_seed);
             std::fprintf(trace_fp, "# screen=%d,%d\n", opts.rows, opts.cols);
+            // #threads is a dynamical parameter, not a performance knob: the
+            // multi-rule gate changes which rules co-fire, and an experiment
+            // measured the contact process's lambda_c moving with it. A trace
+            // that does not carry it cannot be replayed.
+            std::fprintf(trace_fp, "# threads=%d\n", cfg.thread_count);
+            // Provenance: with parameters a run is no longer determined by the
+            // top-level path alone. An analyzer re-parses the program to map
+            // src_line -> rule, so it needs the resolved values and the exact
+            // files that were spliced.
+            for (const auto& [name, value] : cfg.params)
+                std::fprintf(trace_fp, "# param %s=%s\n", name.c_str(), value.c_str());
+            for (const auto& path : cfg.resolved_includes)
+                std::fprintf(trace_fp, "# include %s\n", path.c_str());
         }
     }
     FILE* stats_fp = nullptr;
@@ -129,6 +143,7 @@ int run_headless_input(const HeadlessOptions& opts) {
         int parallel_pct = tot > 0 ? (100 * par / tot) : -1;
         std::wstring line = format_status_line(cfg, score,
                                                static_cast<int>(events),
+                                               static_cast<int>(w.get_batch_step()),
                                                0, parallel_pct, last_lhsa, opts.cols);
         disp.set_status(line);
         dump_screen_by_ext(disp, opts.dump_path);

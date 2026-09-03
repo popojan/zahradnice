@@ -45,7 +45,8 @@ int main(int argc, char* argv[]) {
                 "  --dump-screen PATH        write final screen (default `-` = stdout)\n"
                 "                            `-.ansi`/`-.txt` force stdout format\n"
                 "  --trace PATH              write event trace\n"
-                "  --stats PATH              write per-rule stats summary\n";
+                "  --stats PATH              write per-rule stats summary\n"
+                "  --param NAME=VALUE        override a #parameter (repeatable)\n";
             return 0;
         }
         else if (a == "--input")       { if (!need(i)) return 1; opts.input_arg = argv[++i]; }
@@ -55,6 +56,16 @@ int main(int argc, char* argv[]) {
         else if (a == "--dump-screen") { if (!need(i)) return 1; opts.dump_path = argv[++i]; }
         else if (a == "--trace")       { if (!need(i)) return 1; opts.trace_path = argv[++i]; }
         else if (a == "--stats")       { if (!need(i)) return 1; opts.stats_path = argv[++i]; }
+        else if (a == "--param") {
+            if (!need(i)) return 1;
+            std::string kv = argv[++i];
+            size_t eq = kv.find('=');
+            if (eq == std::string::npos || eq == 0) {
+                std::cerr << "--param expects NAME=VALUE\n";
+                return 1;
+            }
+            opts.params[kv.substr(0, eq)] = kv.substr(eq + 1);
+        }
         else if (a == "--screen") {
             if (!need(i)) return 1;
             if (std::sscanf(argv[++i], "%d,%d", &opts.rows, &opts.cols) != 2

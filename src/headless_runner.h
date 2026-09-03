@@ -18,6 +18,7 @@ struct HeadlessOptions {
     int cols = 80;
     uint64_t max_steps = 0;
     int threads = 0;          // 0 = the program's own #threads / all cores
+    std::map<std::string, std::string> params;  // --param NAME=VALUE overrides
     std::unordered_set<std::pair<int,int>, hash_pair> watch_cells;
 };
 
