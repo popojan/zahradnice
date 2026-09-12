@@ -52,6 +52,9 @@ fast. The sessions belong to tiers 4–5.
    paper's through-line in a network) and spatial sign-backprop (the
    substrate's own gift). Broadcast families are the control group.
 
+**Roadmap moved (2026-09-12):** the living roadmap is `popojan/loom`
+`backlog/roadmap.md`; these files are the design origin, frozen.
+
 ## Files
 
 - `00-foundations.md` — vocabulary (neuron, synapse, layer, phase, bus,

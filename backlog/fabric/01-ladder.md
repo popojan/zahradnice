@@ -295,3 +295,15 @@ parallelism at inference" answer.
   GPU sibling both depend on it.
 - Next: parity-3 at C=64; clause re-rolling (structural plasticity);
   convolutional clauses on 8×8 bitmaps; then the sibling.
+
+---
+
+## Roadmap moved (2026-09-12)
+
+The living roadmap of this line continues in the sibling repository
+**popojan/loom**, `backlog/roadmap.md`, which adopted the tiers above with
+their verdicts, the RTX-box results (port validated, learnability vs size
+measured, the parallel step as the schedule knob) and the plan through
+M1 — flat MNIST-class learning with every parameter a glyph — which gates
+loom's `backlog/utopia.md`. This file and its siblings stay as the design
+origin and are not updated further.
