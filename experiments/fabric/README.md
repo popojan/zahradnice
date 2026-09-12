@@ -191,7 +191,9 @@ fired/refused · `+ - /` correct / missed / false alarm.
   (`--explain-check 60`). CPU: ~5k events/s across 32 replicas (Python
   overhead per step); intended for a CUDA box, where thousands of
   replicas cost the same per step. Validation against zahradnice on
-  C=8 XOR: windowed means 0.55/0.65/0.68 vs 0.53/0.64/0.68.
+  C=8 S=4 XOR, 1500 samples: windowed means 0.55/0.65/0.68/0.71/0.73/0.74
+  (32 replicas) vs 0.53/0.64/0.68/0.70/0.71/0.74 (4 seeds); last-quarter
+  mean 0.739 [0.59–0.85] vs 0.736 [0.58–0.86]. Same machine.
 
 ## 4. What did not work, and why it is recorded
 

@@ -167,3 +167,15 @@ S is the lever: at S=2 the 8-clause fabric matches the 16-clause one at
 S=4; the model predicts 0.96–0.98 for C=16, S=2 (fabric runs below).
 Parity-3 does not benefit from S=2 in the model (0.49–0.51) — it needs
 clauses, not greed.
+
+## Sibling validation (session 2)
+
+`sibling/torchfab.py` runs the same cfg with the engine's semantics
+(one weighted (cell, rule) draw per replica per event); its parser is
+checked against `zahradnice-check explain` (60/60 rules). On the C=8,
+S=4 fabric, XOR, 1500 samples: 32 torch replicas give last-quarter
+accuracy 0.739 [0.587–0.851]; zahradnice on 4 seeds gives 0.736
+[0.584–0.856]; the six windowed means agree to ±0.01 throughout
+(`sibling/validate-tm8.txt`). CPU throughput 5.2k events/s across the
+32 replicas (≈6 ms per step of Python overhead), so the sibling is a
+replica machine for the CUDA box, not a single-run accelerator.

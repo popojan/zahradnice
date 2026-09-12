@@ -1,0 +1,8 @@
+fabric-tm-C=8-S=4.cfg: 731 rules, 59 glyphs, 32 replicas on cpu
+  samples   250  acc mean 0.548  min 0.440  max 0.664  (5289 ev/s across replicas)
+  samples   500  acc mean 0.647  min 0.520  max 0.784  (5179 ev/s across replicas)
+  samples   750  acc mean 0.684  min 0.552  max 0.864  (5154 ev/s across replicas)
+  samples  1000  acc mean 0.712  min 0.556  max 0.868  (5160 ev/s across replicas)
+  samples  1250  acc mean 0.728  min 0.588  max 0.832  (5188 ev/s across replicas)
+  samples  1500  acc mean 0.744  min 0.600  max 0.872  (5194 ev/s across replicas)
+final (last quarter): mean 0.739  min 0.587  max 0.851  over 32 replicas; 2504.5 s
