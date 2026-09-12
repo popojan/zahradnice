@@ -8,7 +8,12 @@ it, and no lift is built before its rung needs it.
 
 Ranked by when the ladder meets them.
 
-## L-A Episode protocol in headless (trigger: R0.1, immediately)
+## L-A Episode protocol in headless (trigger: R0.1, immediately) — **SHIPPED 2026-09-12**
+
+`--stream` (bytes from stdin as they arrive, trace line-buffered) closes
+G1; `--until CHARS` (a trigger re-fed while it applies) closes G6. G2
+(mid-run frames) is not needed while the trace carries the outcome. See
+HEADLESS.md "Closed loop". Original text kept below.
 
 What the supervised protocol needs per sample: feed a phase trigger
 *until quiescent*, then let the harness read the output row, then feed

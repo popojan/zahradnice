@@ -10,6 +10,9 @@ namespace zg {
 struct HeadlessOptions {
     std::string config_path;
     std::string input_arg;     // literal STR | @PATH | @-
+    bool stream = false;       // read trigger bytes from stdin as they arrive (closed loop)
+    std::string until_chars;   // triggers re-fed while they apply something: one byte = one phase
+    uint64_t until_cap = 10000000;  // applications per --until byte before giving up
     std::string trace_path;    // "" = no trace
     std::string stats_path;    // "" = no stats
     std::string dump_path;     // "" = no dump; "-" / "-.ansi" / "-.txt" / file

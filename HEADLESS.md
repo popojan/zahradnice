@@ -161,6 +161,28 @@ printf 'B\n%.0s' {1..1000} > /tmp/ticks
 ./zahradnice --headless --input @/tmp/ticks prog
 ```
 
+## Closed loop: `--stream` and `--until`
+
+`--input` is open-loop: the whole script is fixed before the run. Two
+flags make the headless runner drivable from a program that decides the
+next byte from what the last one did:
+
+```sh
+# bytes are consumed as they arrive on stdin; the trace is line-buffered,
+# so a driver can tail it between writes. EOF ends the run.
+./zahradnice-headless prog.cfg --stream --trace run.trace --seed 1
+
+# one byte runs a whole phase: each trigger in CHARS is re-fed while it
+# applies something (a control action or program switch ends the expansion)
+./zahradnice-headless prog.cfg --input 'b10110010ionc' --until iofc
+```
+
+`--until` is the "feed until no rule applies" the experiment harnesses
+used to approximate with over-long budgets — and a budget that came out
+short corrupted a protocol silently. A trigger that never quiesces is cut
+by `--max-steps`, or by a 10⁷-application guard with an error. Both flags
+are exercised by `tests/stream_input.py` (`make test-stream`).
+
 ## Status row in dumps
 
 Engine row 0 is reserved for the status line (game writes go through

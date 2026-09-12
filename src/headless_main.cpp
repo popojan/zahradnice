@@ -37,6 +37,10 @@ int main(int argc, char* argv[]) {
                 "Usage: zahradnice-headless PROGRAM [options]\n"
                 "  --input STR | @PATH | @-  trigger sequence (one byte/event; ~=SPACE)\n"
                 "                            default: read stdin if not a TTY\n"
+                "  --stream                  read trigger bytes from stdin as they arrive;\n"
+                "                            whitespace ignored, EOF ends the run (closed loop)\n"
+                "  --until CHARS             each of these triggers, when fed, is re-fed while it\n"
+                "                            applies something: one byte runs a phase to quiescence\n"
                 "  --seed N                  RNG seed\n"
                 "  --screen R,C              viewport (default 24,80)\n"
                 "  --max-steps N             stop after N applied rules\n"
@@ -50,6 +54,8 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         else if (a == "--input")       { if (!need(i)) return 1; opts.input_arg = argv[++i]; }
+        else if (a == "--stream")      { opts.stream = true; }
+        else if (a == "--until")       { if (!need(i)) return 1; opts.until_chars = argv[++i]; }
         else if (a == "--seed")        { if (!need(i)) return 1; opts.seed = std::atoi(argv[++i]); }
         else if (a == "--max-steps")   { if (!need(i)) return 1; opts.max_steps = std::strtoull(argv[++i], nullptr, 10); }
         else if (a == "--threads")     { if (!need(i)) return 1; opts.threads = std::atoi(argv[++i]); }
@@ -83,10 +89,17 @@ int main(int argc, char* argv[]) {
         std::cerr << "missing program path\n";
         return 1;
     }
-    if (opts.input_arg.empty() && !isatty(STDIN_FILENO)) opts.input_arg = "@-";
-    if (opts.input_arg.empty()) {
-        std::cerr << "no input source (pipe stdin or pass --input STR / @PATH)\n";
-        return 1;
+    if (opts.stream) {
+        if (!opts.input_arg.empty()) {
+            std::cerr << "--stream takes its bytes from stdin; drop --input\n";
+            return 1;
+        }
+    } else {
+        if (opts.input_arg.empty() && !isatty(STDIN_FILENO)) opts.input_arg = "@-";
+        if (opts.input_arg.empty()) {
+            std::cerr << "no input source (pipe stdin or pass --input STR / @PATH)\n";
+            return 1;
+        }
     }
     if (opts.dump_path.empty()) opts.dump_path = "-";
 

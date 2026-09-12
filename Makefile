@@ -118,9 +118,14 @@ clean:
 TESTS := $(shell find tests -name '*.input' 2>/dev/null | sort)
 
 .PHONY: test test-dumps test-idle test-menu test-lint test-params test-trace \
-        test-control update-tests
+        test-control test-stream update-tests
 
-test: test-dumps test-idle test-menu test-lint test-params test-trace test-control
+test: test-dumps test-idle test-menu test-lint test-params test-trace test-control test-stream
+
+# --stream reads trigger bytes as they arrive (closed loop); --until runs a
+# phase to quiescence from one byte. See tests/stream_input.py.
+test-stream: zahradnice-headless
+	@python3 tests/stream_input.py ./zahradnice-headless
 
 # #control actions and #program switching, which the headless runner used to
 # apply and then discard. See tests/control_actions.py.

@@ -2,6 +2,7 @@
 #include "status.h"
 
 #include <cstdio>
+#include <cctype>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -54,7 +55,7 @@ void dump_screen_by_ext(const HeadlessDisplay& d, const std::string& path) {
 
 int run_headless_input(const HeadlessOptions& opts) {
     std::string input_str;
-    if (!prepare_input_string(opts.input_arg, input_str)) return 1;
+    if (!opts.stream && !prepare_input_string(opts.input_arg, input_str)) return 1;
 
     const std::string initial_config = opts.config_path;
 
@@ -142,6 +143,30 @@ int run_headless_input(const HeadlessOptions& opts) {
     bool paused = false;
     int score = 0;
     size_t ip = 0;                  // event cursor, continuous across programs
+    bool exhausted = false;         // no more trigger bytes (string end / stdin EOF)
+    // One byte, one event, from the preloaded string or -- with --stream -- from
+    // stdin as it arrives, so a driver can decide the next byte from the trace
+    // of the last one (the closed loop that --input cannot give). Whitespace
+    // is skipped either way, so a stream may be written line by line.
+    auto next_trig = [&](wchar_t& t) -> bool {
+        if (opts.stream) {
+            int c;
+            while ((c = std::fgetc(stdin)) != EOF) {
+                if (std::isspace(c)) continue;
+                ++ip;
+                t = static_cast<wchar_t>(static_cast<unsigned char>(c));
+                return true;
+            }
+            exhausted = true;
+            return false;
+        }
+        if (ip < input_str.size()) {
+            t = static_cast<wchar_t>(static_cast<unsigned char>(input_str[ip++]));
+            return true;
+        }
+        exhausted = true;
+        return false;
+    };
     bool stopped = false;           // --max-steps reached
 
     std::string config = initial_config;
@@ -177,9 +202,8 @@ int run_headless_input(const HeadlessOptions& opts) {
         Grammar2D::Rule rule = {};
         rule.lhsa = last_lhsa;
 
-        while (ip < input_str.size()) {
-            wchar_t trig = static_cast<wchar_t>(
-                static_cast<unsigned char>(input_str[ip++]));
+        wchar_t trig;
+        while (next_trig(trig)) {
             char src = g.timing_chars.count(trig) ? 't' : 'k';
             // Paused, the curses loop blocks on the keyboard, so timing events
             // simply never happen; a keypress still gets through, which is how
@@ -193,6 +217,29 @@ int run_headless_input(const HeadlessOptions& opts) {
             rule.engine_action = false;
             bool applied = w.stepMultithreaded(trig, score, &rule, &sounds_dummy, src);
             if (applied) last_lhsa = rule.lhsa;
+            // --until: a trigger in the set is re-fed while it applies something,
+            // so one byte means "this phase, to quiescence" -- the run-until-no-
+            // rule-applies the harnesses used to approximate with over-long
+            // budgets. A control action or program switch ends the expansion and
+            // is handled below like any other applied rule.
+            if (applied && trig < 128 && !opts.until_chars.empty()
+                && opts.until_chars.find(static_cast<char>(trig)) != std::string::npos) {
+                uint64_t guard = 0;
+                while (applied && !rule.load && !rule.engine_action) {
+                    if (++guard > opts.until_cap) {
+                        std::cerr << "--until: trigger '" << static_cast<char>(trig)
+                                  << "' did not quiesce within " << opts.until_cap
+                                  << " applications\n";
+                        return 1;
+                    }
+                    if (opts.max_steps > 0 && w.get_event_step() >= opts.max_steps) break;
+                    rule.sound = 0;
+                    rule.load = false;
+                    rule.engine_action = false;
+                    applied = w.stepMultithreaded(trig, score, &rule, &sounds_dummy, src);
+                    if (applied) last_lhsa = rule.lhsa;
+                }
+            }
             if (!applied) {
                 if (opts.max_steps > 0 && w.get_event_step() >= opts.max_steps) {
                     stopped = true;
@@ -247,7 +294,7 @@ int run_headless_input(const HeadlessOptions& opts) {
                 break;
             }
         }
-        if (ip >= input_str.size()) break;   // input exhausted
+        if (exhausted) break;               // input exhausted
     }
     uint64_t events = w.get_event_step();
 
