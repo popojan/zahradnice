@@ -1,0 +1,6 @@
+fabric-tm-C=64-S=4-par3-s2 task=par3 n=20000 final_acc=0.693 undecided=0.006 ev/sample=1368.0 wall=4468.8s ev/s=6122
+  windows: 0.67 0.75 0.80 0.72 0.68
+  synapses:  uutttuut ttuuuttu
+fabric-tm-C=64-S=4-par3-s1 task=par3 n=20000 final_acc=0.766 undecided=0.006 ev/sample=1367.9 wall=4509.5s ev/s=6067
+  windows: 0.61 0.69 0.75 0.76 0.77
+  synapses:  ttuttutu uutuutut

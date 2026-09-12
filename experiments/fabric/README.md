@@ -128,6 +128,7 @@ last   ⡀                                         readout counter at col 0 (sta
 | teach | `p`/`n` ×1 | marks the readout `+`/`-`/`/` and **plants one feedback head per clause** in row H, its glyph encoding (feedback type, right/wrong). Type = f(label, polarity) is decided at generation time per row |
 | feedback | `f` ×(19C+5) | each head reads its clause's output on the first step, then walks east over the automata; at each automaton it reads the literal above and applies the Type I/II table as a pair of competing rules, **step** (weight π/(1−π)) versus **skip** (weight 1). The walk makes every automaton update at most once per sample for free |
 | clear | `c` ×(C+4) | clause outputs back to `1`, readout to state 0, typing head replanted |
+| test | `P`/`N` ×1 instead of `p`/`n` | the *silent teacher*: marks and scores the readout, plants no heads — the sample is evaluated, not learned from. `fabric_run.py --holdout 0.5 --test-every 4` draws every fourth sample from 128 inputs the fabric never trains on |
 
 Probabilities are rule weights: a step with probability π against a
 skip of weight 1 needs weight π/(1−π); π = 1 is a large weight with no
@@ -141,6 +142,12 @@ skip rule. All randomness is the engine's sampler.
 | AND | 0.95 | | | |
 | majority-of-8 | 0.78–0.79 | | | |
 | parity-3 | model: needs C≈64 (0.74–0.77 at 20k samples); fabric run in progress | | | |
+
+Held out (train on 128 of the 256 inputs, test on the other 128, C=16):
+XOR at S=2 scores 0.96–0.98 on **unseen** inputs, no gap; S=32 falls
+to chance on unseen inputs; random labels are at chance unseen and
+0.55–0.60 seen (16 clauses cannot memorise) — S is the generalisation
+dial, C the capacity. Parity-3 with C=64: 0.69–0.77 at 20k samples.
 
 731 rules for C=8, 851 for C=16 — the count does not grow with C.
 15–33k events/s on one core; ~200 events per sample at C=8.
@@ -179,7 +186,9 @@ fired/refused · `+ - /` correct / missed / false alarm.
 - `fabric_run.py CFG --task xor --n 6000 --seed 1 --screen 53,20 --phases i:18,o:120,T:1,f:310,c:20` —
   headless driver: generates samples, types them, feeds the phases,
   reads outcomes from the trace, prints windowed accuracy and the final
-  screen row of interest. Tasks: `and maj xor par3 thr`.
+  screen row of interest. Tasks: `and maj xor par3 thr rand` (`rand` = a seeded random labelling
+  of all inputs, the memorisation test). `--holdout F --test-every k`
+  gives train/test accuracy separately via the silent teacher.
 - `model_r01.py`, `model_r31.py`, `model_tm.py` — the same rules as
   plain arithmetic. Rule of the line: **a rung is built in glyphs only
   after its model learns**, and a glyph result is trusted only when it

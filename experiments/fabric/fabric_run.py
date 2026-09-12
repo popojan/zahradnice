@@ -20,10 +20,16 @@ ap.add_argument("--noteach", action="store_true", help="no teacher: measure deci
 ap.add_argument("--fixed", default=None, help="type this bit string every sample")
 ap.add_argument("--phases", default="i:300,T:10,c:14", help="per-sample phases after typing: char:count, T = teacher char")
 ap.add_argument("--screen", default="6,16")
+ap.add_argument("--holdout", type=float, default=0.0, help="fraction of the 2^nin inputs never used for training")
+ap.add_argument("--test-every", type=int, default=0, help="every k-th sample is a held-out test sample with the silent teacher P/N")
 a = ap.parse_args()
 
 rng = random.Random(a.seed * 7919 + 17)
 nin = a.nin
+space = list(range(1 << nin)); rng.shuffle(space)
+ntest = int(round(a.holdout * len(space)))
+test_set, train_set = space[:ntest], space[ntest:]
+randlab = {x: rng.randint(0, 1) for x in range(1 << nin)}
 if a.task == "thr":
     w = [rng.choice([-2, -1, 1, 2]) for _ in range(nin)]
     dots = sorted(sum(wi * ((x >> i) & 1) for i, wi in enumerate(w)) for x in range(1 << nin))
@@ -34,18 +40,24 @@ def label(bits):
     if a.task == "xor": return bits[0] ^ bits[1]
     if a.task == "par3": return bits[0] ^ bits[1] ^ bits[2]
     if a.task == "thr": return int(sum(wi * bi for wi, bi in zip(w, bits)) > b)
+    if a.task == "rand": return randlab[sum(bi << i for i, bi in enumerate(bits))]
     raise SystemExit("unknown task " + a.task)
 
-labels = []
+labels = []; is_test = []
 parts = ["b"]
-for _ in range(a.n):
-    bits = [rng.randint(0, 1) for _ in range(nin)] if a.fixed is None else [int(ch) for ch in a.fixed]
-    y = label(bits); labels.append(y)
+for t in range(a.n):
+    test = a.test_every > 0 and (t + 1) % a.test_every == 0
+    if a.fixed is not None: bits = [int(ch) for ch in a.fixed]
+    else:
+        pool = test_set if (test and test_set) else train_set
+        x = rng.choice(pool); bits = [(x >> i) & 1 for i in range(nin)]
+    y = label(bits); labels.append(y); is_test.append(test)
     parts.append("".join(str(x) for x in bits))
     for ph in a.phases.split(","):
         ch, cnt = ph.split(":"); cnt = int(cnt)
         if ch == "T":
-            if not a.noteach: parts.append(("p" if y else "n") * cnt)
+            if a.noteach: continue
+            parts.append((("P" if y else "N") if test else ("p" if y else "n")) * cnt)
         else:
             parts.append(ch * cnt)
 inp = "".join(parts)
@@ -74,9 +86,9 @@ if a.noteach:
     print("%s fixed=%s fired %d / %d = %.3f" % (tag, a.fixed, fired, a.n, fired / a.n)); raise SystemExit
 for line in open(tr, encoding="utf-8"):
     f = line.rstrip("\n").split("\t")
-    if f[0] != "apply" or f[4] not in ("p", "n"): continue
+    if f[0] != "apply" or f[4] not in ("p", "n", "P", "N"): continue
     head = f[10]
-    if head[4] in "+-/" and head[3] in "pn" and len(outcomes) < a.n and (head[2] in "01YN" or ord(head[2]) >= 0x2800):
+    if head[4] in "+-/" and head[3] in "pnPN" and len(outcomes) < a.n and (head[2] in "01YN" or ord(head[2]) >= 0x2800):
         # marking rules only: lhs is 0/1 or a counter glyph, rhs k/m/f
         outcomes.append(head[4])
         if ord(head[2]) >= 0x2800: undecided += 1
@@ -84,8 +96,13 @@ for line in open(tr, encoding="utf-8"):
 plants = sum(1 for line in open(tr, encoding="utf-8") if "\t==#c#" in line)
 assert len(outcomes) == a.n and plants >= a.n - 1, ("markings", len(outcomes), "plants", plants, "n", a.n)
 acc = lambda seg: sum(1 for o in seg if o == "+") / max(1, len(seg))
+tr = [o for o, t in zip(outcomes, is_test) if not t]; te = [o for o, t in zip(outcomes, is_test) if t]
 wins = [acc(outcomes[i:i + a.win]) for i in range(0, a.n, a.win)]
 final = acc(outcomes[-a.n // 4:])
+if te:
+    k = a.win // a.test_every
+    print("  train acc (windows): " + " ".join("%.2f" % acc(tr[i:i + a.win - k]) for i in range(0, len(tr), a.win - k)) + "  final %.3f" % acc(tr[-len(tr) // 4:]))
+    print("  TEST  acc (windows): " + " ".join("%.2f" % acc(te[i:i + k]) for i in range(0, len(te), k)) + "  final %.3f  (holdout %d inputs)" % (acc(te[-len(te) // 4:]), len(test_set)))
 screen = open(sc, encoding="utf-8").read().splitlines()
 syn = screen[2] if len(screen) > 2 else ""
 print("%s task=%s n=%d final_acc=%.3f undecided=%.3f ev/sample=%.1f wall=%.1fs ev/s=%.0f" %

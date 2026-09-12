@@ -179,3 +179,43 @@ accuracy 0.739 [0.587–0.851]; zahradnice on 4 seeds gives 0.736
 (`sibling/validate-tm8.txt`). CPU throughput 5.2k events/s across the
 32 replicas (≈6 ms per step of Python overhead), so the sibling is a
 replica machine for the CUDA box, not a single-run accelerator.
+
+## Train/test discipline and the capacity knob (session 2)
+
+Until here every run sampled the whole 8-bit input space with
+replacement (256 inputs, ~23 visits each in 6000 samples), so "accuracy"
+mixed memorisation with generalisation. Added: a **silent teacher**
+(triggers `P`/`N` mark and score the readout but plant no feedback
+heads), a **holdout split** of the input space (`--holdout 0.5`: 128
+inputs never trained on; `--test-every 4`: every fourth sample is drawn
+from them and scored silently), and a **random-labels task** (`rand`: a
+seeded random labelling of all 256 inputs — the memorisation ceiling
+test, Zhang et al. 2017 in miniature). C=16, 6000 samples, two seeds
+(`sweep-holdout.txt`):
+
+| task | S | train (last quarter) | **test, unseen inputs** |
+|---|---|---|---|
+| XOR | 2 | 0.98, 0.97 | **0.98, 0.96** |
+| XOR | 8 | 0.77, 0.82 | 0.77, 0.76 |
+| XOR | 32 | 0.61, 0.59 | 0.51, 0.53 |
+| threshold fn | 2 | 0.89, 0.86 | 0.80, 0.81 |
+| threshold fn | 8 | 0.90, 0.87 | 0.76, 0.78 |
+| random labels | 2 / 8 / 32 | 0.56 / 0.60 / 0.55 | 0.49 / 0.49 / 0.49 |
+
+Reading: at S=2 the XOR fabric generalises to inputs it never saw with
+no gap at all — its clauses are the two-literal rules decoded in
+`learned-xor-C16-S2-s2.screen`, which cover unseen inputs exactly like
+seen ones. Large S makes clauses near-minterms: with 16 of them the
+function is no longer covered (train falls to 0.6) and unseen inputs
+drop to chance — the memorisation regime, entered before the capacity
+to memorise exists. Threshold functions with weights ±1/±2 are not
+small DNFs, so 16 clauses approximate them with a ~0.1 gap. Random
+labels are at chance on unseen inputs by construction and at 0.55–0.60
+on seen ones: 16 clauses cannot memorise 64 positive minterms.
+**S is the capacity-versus-generalisation dial; C is the capacity.**
+The C=64 random-label runs (S=8, S=32, 4000 samples) are the capacity
+test proper — `sweep-holdout-c64.txt`.
+
+Parity-3, C=64, S=4, 20 000 samples, full-space protocol: 0.766 and
+0.693 (model predicted 0.74–0.77); 1370 events per sample, 6.1k
+events/s, 75 minutes per run — the line's first scale-limited result.

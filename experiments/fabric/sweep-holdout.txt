@@ -1,0 +1,69 @@
+  train acc (windows): 0.69 0.82 0.88 0.77  final 0.774
+  TEST  acc (windows): 0.58 0.70 0.84 0.77  final 0.771  (holdout 128 inputs)
+fabric-tm-C=16-S=8-xor-s1 task=xor n=6000 final_acc=0.773 undecided=0.023 ev/sample=291.7 wall=149.7s ev/s=11693
+  windows: 0.66 0.79 0.87 0.77
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.54 0.60 0.65 0.61  final 0.613
+  TEST  acc (windows): 0.46 0.50 0.53 0.51  final 0.509  (holdout 128 inputs)
+fabric-tm-C=16-S=32-xor-s1 task=xor n=6000 final_acc=0.587 undecided=0.024 ev/sample=288.9 wall=150.4s ev/s=11527
+  windows: 0.52 0.57 0.62 0.59
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.81 0.93 0.97 0.98  final 0.980
+  TEST  acc (windows): 0.80 0.95 0.95 0.98  final 0.976  (holdout 128 inputs)
+fabric-tm-C=16-S=2-xor-s2 task=xor n=6000 final_acc=0.979 undecided=0.012 ev/sample=285.6 wall=153.4s ev/s=11173
+  windows: 0.81 0.94 0.97 0.98
+  synapses:  uuuttuut tttuuttu
+  train acc (windows): 0.56 0.60 0.61 0.59  final 0.590
+  TEST  acc (windows): 0.54 0.58 0.59 0.53  final 0.525  (holdout 128 inputs)
+fabric-tm-C=16-S=32-xor-s2 task=xor n=6000 final_acc=0.574 undecided=0.025 ev/sample=289.1 wall=153.3s ev/s=11319
+  windows: 0.56 0.60 0.60 0.57
+  synapses:  uuuttuut tttuuttu
+  train acc (windows): 0.60 0.78 0.80 0.82  final 0.820
+  TEST  acc (windows): 0.62 0.73 0.81 0.76  final 0.763  (holdout 128 inputs)
+fabric-tm-C=16-S=8-xor-s2 task=xor n=6000 final_acc=0.806 undecided=0.028 ev/sample=293.5 wall=154.7s ev/s=11384
+  windows: 0.61 0.77 0.80 0.81
+  synapses:  uuuttuut tttuuttu
+  train acc (windows): 0.82 0.85 0.84 0.86  final 0.855
+  TEST  acc (windows): 0.81 0.86 0.84 0.81  final 0.808  (holdout 128 inputs)
+fabric-tm-C=16-S=2-thr-s2 task=thr n=6000 final_acc=0.843 undecided=0.016 ev/sample=283.4 wall=155.4s ev/s=10944
+  windows: 0.82 0.85 0.84 0.84
+  synapses:  ttuutuut uuttuttu
+  target w=[-2, -1, -2, -2, 1, 1, -1, -1] b=-3
+  train acc (windows): 0.85 0.87 0.84 0.89  final 0.891
+  TEST  acc (windows): 0.79 0.78 0.76 0.80  final 0.797  (holdout 128 inputs)
+fabric-tm-C=16-S=2-thr-s1 task=thr n=6000 final_acc=0.867 undecided=0.016 ev/sample=283.4 wall=157.8s ev/s=10775
+  windows: 0.83 0.85 0.82 0.87
+  synapses:  ttuuutuu uutttutt
+  target w=[1, 1, 2, -2, -2, -2, 1, 2] b=1
+  train acc (windows): 0.82 0.98 0.97 0.97  final 0.973
+  TEST  acc (windows): 0.83 0.98 0.97 0.95  final 0.955  (holdout 128 inputs)
+fabric-tm-C=16-S=2-xor-s1 task=xor n=6000 final_acc=0.969 undecided=0.011 ev/sample=284.2 wall=159.1s ev/s=10716
+  windows: 0.82 0.98 0.97 0.97
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.57 0.58 0.61 0.56  final 0.558
+  TEST  acc (windows): 0.56 0.53 0.51 0.49  final 0.491  (holdout 128 inputs)
+fabric-tm-C=16-S=2-rand-s1 task=rand n=6000 final_acc=0.541 undecided=0.035 ev/sample=291.8 wall=101.2s ev/s=17307
+  windows: 0.56 0.57 0.59 0.54
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.80 0.87 0.88 0.90  final 0.900
+  TEST  acc (windows): 0.69 0.74 0.76 0.76  final 0.757  (holdout 128 inputs)
+fabric-tm-C=16-S=8-thr-s1 task=thr n=6000 final_acc=0.865 undecided=0.018 ev/sample=286.9 wall=105.6s ev/s=16299
+  windows: 0.77 0.84 0.85 0.86
+  synapses:  ttuuutuu uutttutt
+  target w=[1, 1, 2, -2, -2, -2, 1, 2] b=1
+  train acc (windows): 0.47 0.56 0.57 0.54  final 0.545
+  TEST  acc (windows): 0.45 0.45 0.46 0.49  final 0.485  (holdout 128 inputs)
+fabric-tm-C=16-S=32-rand-s1 task=rand n=6000 final_acc=0.530 undecided=0.030 ev/sample=290.8 wall=102.9s ev/s=16956
+  windows: 0.47 0.53 0.54 0.53
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.55 0.60 0.63 0.60  final 0.598
+  TEST  acc (windows): 0.53 0.51 0.52 0.49  final 0.493  (holdout 128 inputs)
+fabric-tm-C=16-S=8-rand-s1 task=rand n=6000 final_acc=0.572 undecided=0.038 ev/sample=295.9 wall=117.4s ev/s=15122
+  windows: 0.55 0.58 0.60 0.57
+  synapses:  uutuuttu ttuttuut
+  train acc (windows): 0.78 0.85 0.86 0.87  final 0.874
+  TEST  acc (windows): 0.75 0.80 0.78 0.78  final 0.781  (holdout 128 inputs)
+fabric-tm-C=16-S=8-thr-s2 task=thr n=6000 final_acc=0.851 undecided=0.021 ev/sample=287.8 wall=121.1s ev/s=14255
+  windows: 0.77 0.84 0.84 0.85
+  synapses:  ttuutuut uuttuttu
+  target w=[-2, -1, -2, -2, 1, 1, -1, -1] b=-3
