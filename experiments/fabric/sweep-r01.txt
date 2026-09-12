@@ -1,0 +1,156 @@
+fabric-r01-k8-and-s4 task=and n=3000 final_acc=0.900 undecided=0.000 ev/sample=52.4 wall=1.9s ev/s=84322
+  windows: 0.85 0.89 0.94 0.89 0.90 0.91
+  synapses:  GG....A.g
+fabric-r01-k8-and-s1 task=and n=3000 final_acc=0.908 undecided=0.000 ev/sample=54.0 wall=1.9s ev/s=85929
+  windows: 0.85 0.92 0.90 0.89 0.91 0.90
+  synapses:  HG......g
+fabric-r01-k8-and-s2 task=and n=3000 final_acc=0.935 undecided=0.000 ev/sample=53.9 wall=1.9s ev/s=84022
+  windows: 0.87 0.93 0.92 0.89 0.92 0.94
+  synapses:  GH.aa..ag
+fabric-r01-k8-and-s3 task=and n=3000 final_acc=0.932 undecided=0.001 ev/sample=53.7 wall=1.9s ev/s=83484
+  windows: 0.88 0.90 0.92 0.91 0.93 0.94
+  synapses:  HHcA.B.Ag
+fabric-r01-k8-maj-s2 task=maj n=3000 final_acc=0.785 undecided=0.001 ev/sample=63.3 wall=2.1s ev/s=89892
+  windows: 0.74 0.73 0.80 0.79 0.79 0.77
+  synapses:  ABBBEACCg
+fabric-r01-k8-maj-s4 task=maj n=3000 final_acc=0.763 undecided=0.002 ev/sample=63.4 wall=2.1s ev/s=90274
+  windows: 0.74 0.76 0.74 0.76 0.77 0.76
+  synapses:  CBCADCCCg
+fabric-r01-k8-maj-s3 task=maj n=3000 final_acc=0.784 undecided=0.002 ev/sample=63.4 wall=2.1s ev/s=88547
+  windows: 0.76 0.79 0.72 0.76 0.79 0.77
+  synapses:  BCBEBDDCf
+fabric-r01-k8-maj-s1 task=maj n=3000 final_acc=0.759 undecided=0.001 ev/sample=63.5 wall=2.2s ev/s=87205
+  windows: 0.74 0.76 0.79 0.81 0.77 0.76
+  synapses:  CCBACCDCg
+fabric-r01-k8-thr-s2 task=thr n=3000 final_acc=0.903 undecided=0.001 ev/sample=54.5 wall=2.0s ev/s=81867
+  windows: 0.84 0.91 0.91 0.89 0.89 0.90
+  synapses:  EEhfhhFH.
+  target w=[1, 2, -2, -2, -2, -2, 2, 2] b=0
+fabric-r01-k8-thr-s1 task=thr n=3000 final_acc=0.873 undecided=0.001 ev/sample=55.5 wall=2.0s ev/s=81248
+  windows: 0.81 0.88 0.88 0.84 0.88 0.87
+  synapses:  cdGHGGgdc
+  target w=[-1, -1, 2, 2, 2, 2, -2, -1] b=2
+fabric-r01-k8-thr-s3 task=thr n=3000 final_acc=0.873 undecided=0.001 ev/sample=55.9 wall=2.0s ev/s=82047
+  windows: 0.81 0.87 0.87 0.88 0.86 0.88
+  synapses:  hGEhefFDD
+  target w=[-2, 2, 1, -2, -1, -1, 2, 1] b=0
+fabric-r01-k8-thr-s4 task=thr n=3000 final_acc=0.868 undecided=0.000 ev/sample=57.4 wall=2.1s ev/s=83640
+  windows: 0.81 0.87 0.86 0.86 0.84 0.87
+  synapses:  chFhEFChC
+  target w=[-1, -1, 1, -2, 1, 1, 1, -2] b=-1
+fabric-r01-k8-xor-s2 task=xor n=3000 final_acc=0.507 undecided=0.000 ev/sample=61.2 wall=2.1s ev/s=86529
+  windows: 0.53 0.51 0.51 0.53 0.51 0.49
+  synapses:  BcAa.aaaD
+fabric-r01-k8-xor-s4 task=xor n=3000 final_acc=0.515 undecided=0.000 ev/sample=60.0 wall=2.1s ev/s=87747
+  windows: 0.52 0.49 0.48 0.48 0.52 0.51
+  synapses:  bA.BbaaBE
+fabric-r01-k8-xor-s3 task=xor n=3000 final_acc=0.476 undecided=0.000 ev/sample=62.0 wall=2.1s ev/s=88701
+  windows: 0.50 0.52 0.52 0.49 0.49 0.45
+  synapses:  A.BAAAbaB
+fabric-r01-k8-xor-s1 task=xor n=3000 final_acc=0.501 undecided=0.000 ev/sample=62.7 wall=2.2s ev/s=87421
+  windows: 0.52 0.54 0.51 0.53 0.47 0.51
+  synapses:  ..Cc.bbAD
+fabric-r01-k16-and-s2 task=and n=3000 final_acc=0.968 undecided=0.030 ev/sample=97.6 wall=3.4s ev/s=87333
+  windows: 0.91 0.97 0.98 0.97 0.98 0.96
+  synapses:  HH.aA...g
+fabric-r01-k16-and-s1 task=and n=3000 final_acc=0.985 undecided=0.034 ev/sample=102.1 wall=3.5s ev/s=88004
+  windows: 0.88 0.99 0.97 0.97 0.97 0.98
+  synapses:  HHb.....f
+fabric-r01-k16-and-s4 task=and n=3000 final_acc=0.983 undecided=0.031 ev/sample=99.7 wall=3.5s ev/s=85507
+  windows: 0.89 0.98 0.93 0.97 0.97 0.99
+  synapses:  HH..AAaaf
+fabric-r01-k16-and-s3 task=and n=3000 final_acc=0.975 undecided=0.040 ev/sample=103.9 wall=3.7s ev/s=83948
+  windows: 0.92 0.95 0.95 0.96 0.99 0.97
+  synapses:  HH.a....g
+fabric-r01-k16-maj-s3 task=maj n=3000 final_acc=0.808 undecided=0.082 ev/sample=130.9 wall=4.4s ev/s=88530
+  windows: 0.80 0.81 0.78 0.81 0.84 0.80
+  synapses:  BBBBAFCCh
+fabric-r01-k16-maj-s1 task=maj n=3000 final_acc=0.809 undecided=0.087 ev/sample=134.2 wall=4.5s ev/s=88668
+  windows: 0.78 0.80 0.79 0.81 0.81 0.83
+  synapses:  BDBBCBCDg
+fabric-r01-k16-maj-s2 task=maj n=3000 final_acc=0.831 undecided=0.086 ev/sample=134.6 wall=4.6s ev/s=88238
+  windows: 0.80 0.79 0.82 0.81 0.81 0.83
+  synapses:  AABCDACBh
+fabric-r01-k16-maj-s4 task=maj n=3000 final_acc=0.801 undecided=0.086 ev/sample=133.1 wall=4.6s ev/s=86014
+  windows: 0.77 0.81 0.78 0.80 0.79 0.81
+  synapses:  DCBBDDADg
+fabric-r01-k16-thr-s2 task=thr n=3000 final_acc=0.960 undecided=0.048 ev/sample=105.1 wall=3.9s ev/s=81306
+  windows: 0.86 0.93 0.96 0.95 0.96 0.96
+  synapses:  FGhhhfGGA
+  target w=[1, 2, -2, -2, -2, -2, 2, 2] b=0
+fabric-r01-k16-thr-s1 task=thr n=3000 final_acc=0.912 undecided=0.052 ev/sample=110.6 wall=4.0s ev/s=82513
+  windows: 0.85 0.91 0.91 0.91 0.89 0.92
+  synapses:  deGHGHfcc
+  target w=[-1, -1, 2, 2, 2, 2, -2, -1] b=2
+fabric-r01-k16-thr-s3 task=thr n=3000 final_acc=0.900 undecided=0.054 ev/sample=109.7 wall=3.9s ev/s=83537
+  windows: 0.83 0.91 0.92 0.94 0.89 0.91
+  synapses:  gHFgdfGDC
+  target w=[-2, 2, 1, -2, -1, -1, 2, 1] b=0
+fabric-r01-k16-thr-s4 task=thr n=3000 final_acc=0.893 undecided=0.068 ev/sample=119.6 wall=4.4s ev/s=82044
+  windows: 0.86 0.90 0.90 0.90 0.88 0.90
+  synapses:  ceEgDFChE
+  target w=[-1, -1, 1, -2, 1, 1, 1, -2] b=-1
+fabric-r01-k16-xor-s2 task=xor n=3000 final_acc=0.511 undecided=0.070 ev/sample=125.6 wall=4.3s ev/s=86656
+  windows: 0.51 0.49 0.52 0.52 0.51 0.50
+  synapses:  Cb.....aC
+fabric-r01-k16-xor-s1 task=xor n=3000 final_acc=0.507 undecided=0.058 ev/sample=118.8 wall=4.3s ev/s=82807
+  windows: 0.50 0.51 0.51 0.53 0.48 0.52
+  synapses:  bAAc.a..C
+fabric-r01-k16-xor-s4 task=xor n=3000 final_acc=0.500 undecided=0.063 ev/sample=122.1 wall=4.4s ev/s=83468
+  windows: 0.50 0.49 0.47 0.48 0.52 0.48
+  synapses:  c.AAbabCD
+fabric-r01-k16-xor-s3 task=xor n=3000 final_acc=0.505 undecided=0.063 ev/sample=123.7 wall=4.8s ev/s=76574
+  windows: 0.52 0.48 0.49 0.45 0.48 0.50
+  synapses:  A.ABAbbaD
+fabric-r01-k32-and-s2 task=and n=3000 final_acc=0.977 undecided=0.222 ev/sample=178.3 wall=6.5s ev/s=81955
+  windows: 0.90 0.96 0.96 0.98 0.97 0.98
+  synapses:  GHa.....f
+fabric-r01-k32-and-s3 task=and n=3000 final_acc=0.984 undecided=0.292 ev/sample=188.7 wall=6.6s ev/s=85272
+  windows: 0.92 0.96 0.98 0.99 0.97 0.99
+  synapses:  HH..a...e
+fabric-r01-k32-and-s1 task=and n=3000 final_acc=0.973 undecided=0.224 ev/sample=178.4 wall=7.1s ev/s=75365
+  windows: 0.90 0.97 0.98 1.00 0.97 0.98
+  synapses:  HH.A.a.ae
+fabric-r01-k32-and-s4 task=and n=3000 final_acc=0.956 undecided=0.223 ev/sample=181.9 wall=6.9s ev/s=79027
+  windows: 0.91 0.97 0.97 0.95 0.96 0.96
+  synapses:  GH.aa.aaf
+fabric-r01-k32-maj-s2 task=maj n=3000 final_acc=0.816 undecided=0.315 ev/sample=214.9 wall=7.6s ev/s=84332
+  windows: 0.80 0.80 0.84 0.83 0.78 0.84
+  synapses:  CBCCDCDCg
+fabric-r01-k32-maj-s3 task=maj n=3000 final_acc=0.828 undecided=0.318 ev/sample=214.9 wall=7.7s ev/s=84020
+  windows: 0.79 0.84 0.83 0.85 0.85 0.84
+  synapses:  BCBDBDCCg
+fabric-r01-k32-maj-s1 task=maj n=3000 final_acc=0.815 undecided=0.305 ev/sample=214.1 wall=8.0s ev/s=80281
+  windows: 0.77 0.84 0.83 0.82 0.82 0.81
+  synapses:  DCABDBDDg
+fabric-r01-k32-maj-s4 task=maj n=3000 final_acc=0.832 undecided=0.311 ev/sample=215.6 wall=8.1s ev/s=79811
+  windows: 0.79 0.81 0.82 0.83 0.81 0.84
+  synapses:  CECBFDBDg
+fabric-r01-k32-thr-s2 task=thr n=3000 final_acc=0.951 undecided=0.226 ev/sample=182.0 wall=6.9s ev/s=78677
+  windows: 0.87 0.92 0.96 0.96 0.96 0.94
+  synapses:  GGggghHGC
+  target w=[1, 2, -2, -2, -2, -2, 2, 2] b=0
+fabric-r01-k32-thr-s1 task=thr n=3000 final_acc=0.917 undecided=0.229 ev/sample=184.1 wall=7.2s ev/s=76807
+  windows: 0.83 0.91 0.90 0.91 0.90 0.92
+  synapses:  dcFHGGgcb
+  target w=[-1, -1, 2, 2, 2, 2, -2, -1] b=2
+fabric-r01-k32-thr-s3 task=thr n=3000 final_acc=0.907 undecided=0.230 ev/sample=181.9 wall=6.8s ev/s=80120
+  windows: 0.83 0.91 0.92 0.92 0.90 0.92
+  synapses:  gHFgcdGEC
+  target w=[-2, 2, 1, -2, -1, -1, 2, 1] b=0
+fabric-r01-k32-thr-s4 task=thr n=3000 final_acc=0.943 undecided=0.257 ev/sample=195.1 wall=7.3s ev/s=79936
+  windows: 0.85 0.89 0.91 0.91 0.93 0.95
+  synapses:  deEgEFDhG
+  target w=[-1, -1, 1, -2, 1, 1, 1, -2] b=-1
+fabric-r01-k32-xor-s1 task=xor n=3000 final_acc=0.516 undecided=0.263 ev/sample=199.1 wall=6.5s ev/s=92362
+  windows: 0.51 0.50 0.54 0.52 0.48 0.54
+  synapses:  a.Ab..AAE
+fabric-r01-k32-xor-s3 task=xor n=3000 final_acc=0.492 undecided=0.253 ev/sample=199.7 wall=6.0s ev/s=99755
+  windows: 0.48 0.50 0.51 0.50 0.47 0.48
+  synapses:  BaA..abbE
+fabric-r01-k32-xor-s4 task=xor n=3000 final_acc=0.528 undecided=0.246 ev/sample=198.3 wall=6.0s ev/s=98553
+  windows: 0.50 0.49 0.47 0.49 0.52 0.53
+  synapses:  aBABaAa.F
+fabric-r01-k32-xor-s2 task=xor n=3000 final_acc=0.503 undecided=0.250 ev/sample=200.5 wall=6.7s ev/s=89302
+  windows: 0.52 0.49 0.55 0.54 0.51 0.49
+  synapses:  BcA...aaD
