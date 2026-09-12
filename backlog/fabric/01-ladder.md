@@ -266,3 +266,30 @@ parallelism at inference" answer.
 3. R2.2 + R3.1 (broadcast vs geometry, head to head on the same task).
 4. R4.1 (structural plasticity) — the first question no MLP can ask —
    and the R5.0 go/no-go.
+
+---
+
+## Status 2026-09-12 (session 1) — see `experiments/fabric/results.md`
+
+- **R0.1 done, faithful.** The neuron is a drift-diffusion counter
+  (gambler's ruin gives a sigmoid of gain K), not the mass-action unit
+  of foundations §2. AND 0.97–0.99, random threshold 0.89–0.96,
+  majority 0.80–0.83; substrate ≡ arithmetic model.
+- **R0.2 done**: XOR 0.50, as required.
+- **R3.1 demoted**: naive sign-backprop with binary units and ±1 steps
+  does not bootstrap even in arithmetic (every hidden unit is pushed to
+  solve XOR alone). The geometry claim stands; the rule does not. A
+  rung is now built in glyphs only after its arithmetic model learns.
+- **R1.1/R1.3 partial (model only)**: frozen random hidden units +
+  readout + re-rolling unused units — 8-input XOR 0.65–0.73.
+- **New rung, executed: the Tsetlin-shaped fabric** (clauses as
+  conjunction rows of include/exclude automata, feedback as step-vs-skip
+  rule weights, 1-bit bus): **8-input XOR 0.91–0.95 with 16 clauses**,
+  731–851 rules independent of C after the translation-invariant
+  rewrite (edition 1: 23k rules, 600 ev/s; edition 2: 12k ev/s).
+  Parity-3 not yet (needs ~64 clauses per the model).
+- Rule earned: **replicate data, not rules** — a family must read at
+  clause-independent offsets (weight sharing); the rule index and the
+  GPU sibling both depend on it.
+- Next: parity-3 at C=64; clause re-rolling (structural plasticity);
+  convolutional clauses on 8×8 bitmaps; then the sibling.

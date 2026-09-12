@@ -99,6 +99,15 @@ verifies it.
 
 ## 2. The neuron's nonlinearity is the sampler
 
+*Amended 2026-09-12 after R0.1:* the unit below is too soft to be a
+neuron (5:4 evidence gives P=0.53). The built neuron is a
+**drift-diffusion counter**: a state glyph walks ±1 with the masses
+below and decides at ±K, so P(fire) = 1/(1+((u+θ)/s)^K) — gambler's
+ruin turns linear odds into a sigmoid of gain K, at the price of ~K
+events per decision and 2K−1 glyphs (the rule index makes the state the
+anchor, so the rule count does not cost scan time). The rest of this
+section describes the one-step unit for the record.
+
 A neuron with satisfied (pre fired ∧ synapse +k) pairs of total mass
 *s* = Σk, inhibitory pairs of mass *u*, and a constant "refuse" rule of
 weight θ fires with probability
