@@ -1,0 +1,111 @@
+                          ~^^^
+           ^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^
+           ~^^^^
+           ~^^^^
+           ~^^^^
+           ~^^^^
+       ~~~~^^^
+AssertionError: (2329, 6000)
+AssertionError: (3929, 6000)
+AssertionError: (5999, 6000)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+fabric-tm-and-s1 task=and n=6000 final_acc=0.953 undecided=0.020 ev/sample=190.3 wall=98.5s ev/s=11596
+fabric-tm-and-s2 task=and n=6000 final_acc=0.903 undecided=0.027 ev/sample=190.7 wall=95.4s ev/s=11992
+fabric-tm-and-s3 task=and n=6000 final_acc=0.952 undecided=0.024 ev/sample=190.4 wall=104.9s ev/s=10891
+fabric-tm-and-s4 task=and n=6000 final_acc=0.915 undecided=0.033 ev/sample=191.5 wall=99.7s ev/s=11529
+fabric-tm-maj-s1 task=maj n=6000 final_acc=0.784 undecided=0.062 ev/sample=197.6 wall=91.4s ev/s=12975
+fabric-tm-maj-s2 task=maj n=6000 final_acc=0.794 undecided=0.060 ev/sample=197.0 wall=94.8s ev/s=12463
+fabric-tm-maj-s3 task=maj n=6000 final_acc=0.804 undecided=0.056 ev/sample=196.7 wall=93.6s ev/s=12615
+fabric-tm-maj-s4 task=maj n=6000 final_acc=0.763 undecided=0.060 ev/sample=197.5 wall=96.0s ev/s=12346
+fabric-tm-xor-s1 task=xor n=6000 final_acc=0.785 undecided=0.080 ev/sample=202.1 wall=92.7s ev/s=13079
+fabric-tm-xor-s2 task=xor n=6000 final_acc=0.802 undecided=0.072 ev/sample=200.8 wall=100.3s ev/s=12006
+fabric-tm-xor-s4 task=xor n=6000 final_acc=0.815 undecided=0.073 ev/sample=201.4 wall=102.0s ev/s=11846
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 77, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 78, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 78, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 78, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 78, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 79, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+    head = f[10]
+    head = f[10]
+    head = f[10]
+    head = f[10]
+    if f[0] != "apply" or f[4] not in ("p", "n"): continue
+    if head[4] in "+-/" and head[3] in "pn" and len(outcomes) < a.n and (head[2] in "01YN" or ord(head[2]) >= 0x2800):
+IndexError: list index out of range
+IndexError: list index out of range
+IndexError: list index out of range
+IndexError: list index out of range
+IndexError: list index out of range
+IndexError: string index out of range
+  synapses:  tuttutut utuututu
+  synapses:  tuttutut utuututu
+  synapses:  tuttutut utuututu
+  synapses:  tutuuutt ututttuu
+  synapses:  tutuuutt ututttuu
+  synapses:  tutuuutt ututttuu
+  synapses:  tuutuutu uttuttut
+  synapses:  tuutuutu uttuttut
+  synapses:  tuutuutu uttuttut
+  synapses:  tuuututu utttutut
+  synapses:  tuuututu utttutut
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  windows: 0.62 0.71 0.77 0.83 0.81 0.83
+  windows: 0.65 0.72 0.85 0.84 0.79 0.81
+  windows: 0.68 0.75 0.77 0.76 0.78 0.76
+  windows: 0.74 0.78 0.80 0.81 0.81 0.80
+  windows: 0.76 0.77 0.79 0.81 0.78 0.81
+  windows: 0.76 0.79 0.77 0.78 0.79 0.77
+  windows: 0.76 0.79 0.80 0.77 0.77 0.76
+  windows: 0.83 0.93 0.94 0.96 0.96 0.96
+  windows: 0.88 0.92 0.97 0.92 0.95 0.95
+  windows: 0.88 0.93 0.93 0.92 0.92 0.91
+  windows: 0.88 0.97 0.97 0.97 0.91 0.91
+           ^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: (5999, 6000)
+AssertionError: (5999, 6000)
+AssertionError: (5999, 6000)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+    assert len(outcomes) == a.n, (len(outcomes), a.n)
+fabric-tm16-par3-s1 task=par3 n=6000 final_acc=0.548 undecided=0.035 ev/sample=372.0 wall=340.1s ev/s=6564
+fabric-tm16-par3-s2 task=par3 n=6000 final_acc=0.530 undecided=0.034 ev/sample=371.9 wall=339.1s ev/s=6581
+fabric-tm16-par3-s3 task=par3 n=6000 final_acc=0.513 undecided=0.034 ev/sample=371.8 wall=344.5s ev/s=6475
+fabric-tm16-xor-s1 task=xor n=6000 final_acc=0.951 undecided=0.012 ev/sample=362.1 wall=345.6s ev/s=6286
+fabric-tm16-xor-s3 task=xor n=6000 final_acc=0.907 undecided=0.020 ev/sample=364.4 wall=330.9s ev/s=6607
+fabric-tm16-xor-s4 task=xor n=6000 final_acc=0.945 undecided=0.013 ev/sample=360.8 wall=332.9s ev/s=6503
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+  File "/home/jan/github/zahradnice/experiments/fabric/fabric_run.py", line 84, in <module>
+  synapses:  tuttutut utuututu
+  synapses:  tutuuutt ututttuu
+  synapses:  tuutuutu uttuttut
+  synapses:  tuutuutu uttuttut
+  synapses:  tuuututu utttutut
+  synapses:  tuuututu utttutut
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  windows: 0.52 0.53 0.48 0.52 0.51 0.51
+  windows: 0.54 0.59 0.59 0.54 0.55 0.54
+  windows: 0.58 0.57 0.58 0.59 0.55 0.54
+  windows: 0.72 0.93 0.96 0.94 0.95 0.94
+  windows: 0.73 0.91 0.93 0.90 0.91 0.90
+  windows: 0.75 0.93 0.98 0.97 0.96 0.94
