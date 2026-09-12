@@ -128,6 +128,7 @@ last   ⡀                                         readout counter at col 0 (sta
 | teach | `p`/`n` ×1 | marks the readout `+`/`-`/`/` and **plants one feedback head per clause** in row H, its glyph encoding (feedback type, right/wrong). Type = f(label, polarity) is decided at generation time per row |
 | feedback | `f` ×(19C+5) | each head reads its clause's output on the first step, then walks east over the automata; at each automaton it reads the literal above and applies the Type I/II table as a pair of competing rules, **step** (weight π/(1−π)) versus **skip** (weight 1). The walk makes every automaton update at most once per sample for free |
 | clear | `c` ×(C+4) | clause outputs back to `1`, readout to state 0, typing head replanted |
+| feedback, other S | `g`, `h`, … | the same walk with the weights of another S; the byte the driver sends is the S it chose (generate with `S=2,3,4,…`) |
 | test | `P`/`N` ×1 instead of `p`/`n` | the *silent teacher*: marks and scores the readout, plants no heads — the sample is evaluated, not learned from. `fabric_run.py --holdout 0.5 --test-every 4` draws every fourth sample from 128 inputs the fabric never trains on |
 
 Probabilities are rule weights: a step with probability π against a
@@ -189,6 +190,11 @@ fired/refused · `+ - /` correct / missed / false alarm.
   screen row of interest. Tasks: `and maj xor par3 thr rand` (`rand` = a seeded random labelling
   of all inputs, the memorisation test). `--holdout F --test-every k`
   gives train/test accuracy separately via the silent teacher.
+- `fabric_loop.py CFG --task xor --policy ucb|fixed:2|schedule:2@0,4@3000|random --epoch 200` —
+  closed-loop driver over the engine's `--stream` and `--until`: one byte
+  per phase, outcomes read from the trace as they land, S chosen per
+  sample when the cfg carries several feedback rule sets (`S=2,3,4,6,8`
+  at generation; the cfg's `# S triggers:` line maps S to its trigger).
 - `model_r01.py`, `model_r31.py`, `model_tm.py` — the same rules as
   plain arithmetic. Rule of the line: **a rung is built in glyphs only
   after its model learns**, and a glyph result is trusted only when it
@@ -224,6 +230,7 @@ K=16 OUT=fabric-r01-k16.cfg python3 gen_fabric.py
 python3 fabric_run.py fabric-r01-k16.cfg --task and --n 3000 --seed 1 --phases i:300,T:10,c:14
 C=16 S=2 OUT="fabric-tm-C=16-S=2.cfg" python3 gen_tm.py
 python3 fabric_run.py "fabric-tm-C=16-S=2.cfg" --task xor --n 6000 --seed 1 --screen 53,20 --phases i:18,o:120,T:1,f:310,c:20
+python3 fabric_loop.py "fabric-tm-C=16-Smulti.cfg" --task xor --policy fixed:2 --n 6000   # needs the engine's --stream/--until
 python3 sibling/torchfab.py "fabric-tm-C=8-S=4.cfg" --screen 29,20 --replicas 32 --n 1500 --explain-check 60
 ```
 

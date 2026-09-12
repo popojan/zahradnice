@@ -244,3 +244,30 @@ glyphs and rules (1145 rules at N=12), the cost of K is events per
 decision. S, by contrast, is not resolution — it is the inclusion
 threshold p > 1/S on a literal's conditional frequency, i.e. prior
 knowledge about pattern length versus noise (see README §2.2).
+
+## Finding S from data (session 2): scan in parallel, or choose online
+
+S is a rule weight, so several S can live in one rule table: `gen_tm.py`
+with `S=2,3,4,6,8` emits one feedback rule set per value, each on its own
+trigger (`f g h j k`), and the driver chooses S per sample by the byte it
+sends. Two engine flags made the driver closed-loop (`--stream`: bytes
+consumed as they arrive; `--until iofc`: one byte runs a phase to
+quiescence — no budgets, no undecided walks, 12 bytes per sample).
+`fabric_loop.py` tails the trace and reads each sample's outcome as it
+lands. C=16, 6000 samples, holdout 0.5, test every 4th (`sweep-sloop.txt`):
+
+| task | S=2 | S=3 | S=4 | S=6 | S=8 | random S | UCB over S (2 seeds) |
+|---|---|---|---|---|---|---|---|
+| XOR | **0.98** | 0.92 | 0.86 | 0.75 | 0.68 | 0.87 | 0.90, 0.94 |
+| threshold fn | 0.81 | 0.82 | 0.81 | 0.81 | 0.73 | — | 0.80, 0.80 |
+| prototype (Hamming ≤ 1 of 11110000 / 00001111) | — | — | — | — | — | — | 0.92, 0.94; arm means favour S=6–8 |
+
+The parallel scan is the reliable instrument (XOR wants S=2, threshold
+functions are flat up to S=6, long prototype patterns prefer larger S,
+all as the p > 1/S criterion says). Online UCB1 beats random and most
+fixed values but not the best one, for a reason the epoch log shows:
+the arm tried first (S=2) scores 0.50 on an untrained fabric and is
+penalised for being early, not for being bad — the reward is
+non-stationary. A discounted / sliding-window bandit or a reward on
+*improvement* is the fix; not built. Closed-loop throughput 14k
+events/s with 8 runs in parallel, 33k alone.

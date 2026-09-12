@@ -1,0 +1,48 @@
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=fixed:2  train 0.879  TEST 0.813  (375 test samples, last quarter)  14523 ev/s  117s
+  TEST windows: 0.76 0.79 0.81 0.81
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=fixed:6  train 0.871  TEST 0.752  (375 test samples, last quarter)  14803 ev/s  119s
+  TEST windows: 0.59 0.72 0.76 0.75
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=fixed:3  train 0.911  TEST 0.816  (375 test samples, last quarter)  14366 ev/s  119s
+  TEST windows: 0.81 0.78 0.79 0.82
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=fixed:3  train 0.946  TEST 0.923  (375 test samples, last quarter)  14507 ev/s  119s
+  TEST windows: 0.73 0.91 0.91 0.92
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=fixed:8  train 0.790  TEST 0.683  (375 test samples, last quarter)  14708 ev/s  119s
+  TEST windows: 0.61 0.75 0.74 0.68
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=fixed:4  train 0.910  TEST 0.808  (375 test samples, last quarter)  14325 ev/s  120s
+  TEST windows: 0.80 0.83 0.84 0.81
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=fixed:4  train 0.923  TEST 0.861  (375 test samples, last quarter)  14540 ev/s  120s
+  TEST windows: 0.66 0.87 0.89 0.86
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=fixed:2  train 0.976  TEST 0.981  (375 test samples, last quarter)  14281 ev/s  120s
+  TEST windows: 0.73 0.94 0.94 0.98
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=fixed:6  train 0.908  TEST 0.808  (375 test samples, last quarter)  14146 ev/s  121s
+  TEST windows: 0.71 0.78 0.81 0.81
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=fixed:8  train 0.890  TEST 0.731  (375 test samples, last quarter)  14249 ev/s  121s
+  TEST windows: 0.73 0.81 0.76 0.73
+fabric-tm-C=16-Smulti.cfg thr seed=1 policy=ucb  train 0.899  TEST 0.797  (375 test samples, last quarter)  14233 ev/s  120s
+  TEST windows: 0.74 0.79 0.80 0.80
+  epochs (S:test-acc): 2:0.64 3:0.79 4:0.76 6:0.79 8:0.75 3:0.76 6:0.73 4:0.85 8:0.77 2:0.76 4:0.79 3:0.77 6:0.75 8:0.87 2:0.79 4:0.84 8:0.81 3:0.68 6:0.79 2:0.82 4:0.85 8:0.82
+  arm use: S=2 x4 mean 0.75  S=3 x4 mean 0.75  S=4 x5 mean 0.82  S=6 x4 mean 0.76  S=8 x5 mean 0.80
+fabric-tm-C=16-Smulti.cfg proto seed=1 policy=ucb  train 0.935  TEST 0.920  (375 test samples, last quarter)  14005 ev/s  120s
+  TEST windows: 0.92 0.91 0.91 0.92
+  epochs (S:test-acc): 2:0.88 3:0.91 4:0.92 6:0.94 8:0.93 6:0.94 8:0.94 4:0.93 3:0.83 2:0.93 6:0.91 8:0.86 4:0.91 2:0.94 3:0.91 6:0.94 4:0.90 2:0.92 8:0.91 3:0.93 6:0.92 2:0.94
+  arm use: S=2 x5 mean 0.92  S=3 x4 mean 0.89  S=4 x4 mean 0.91  S=6 x5 mean 0.93  S=8 x4 mean 0.91
+fabric-tm-C=16-Smulti.cfg proto seed=2 policy=ucb  train 0.915  TEST 0.939  (375 test samples, last quarter)  14043 ev/s  120s
+  TEST windows: 0.89 0.91 0.91 0.94
+  epochs (S:test-acc): 2:0.86 3:0.91 4:0.86 6:0.93 8:0.90 6:0.92 3:0.96 8:0.87 2:0.85 4:0.91 3:0.96 6:0.95 4:0.88 8:0.93 2:0.83 3:0.94 6:0.93 8:0.89 4:0.94 2:0.97 3:0.98 6:0.88
+  arm use: S=2 x4 mean 0.88  S=3 x5 mean 0.95  S=4 x4 mean 0.90  S=6 x5 mean 0.92  S=8 x4 mean 0.90
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=ucb  train 0.924  TEST 0.899  (375 test samples, last quarter)  14266 ev/s  122s
+  TEST windows: 0.72 0.78 0.85 0.90
+  epochs (S:test-acc): 2:0.50 3:0.52 4:0.76 6:0.87 8:0.82 6:0.88 8:0.82 4:0.75 6:0.73 3:0.73 8:0.88 2:0.77 4:0.97 8:0.94 4:0.79 6:0.88 2:0.73 3:0.92 8:0.87 6:0.88 3:0.89 4:0.93
+  arm use: S=2 x3 mean 0.67  S=3 x4 mean 0.77  S=4 x5 mean 0.84  S=6 x5 mean 0.85  S=8 x5 mean 0.87
+fabric-tm-C=16-Smulti.cfg thr seed=2 policy=ucb  train 0.892  TEST 0.795  (375 test samples, last quarter)  14091 ev/s  121s
+  TEST windows: 0.79 0.87 0.82 0.79
+  epochs (S:test-acc): 2:0.70 3:0.81 4:0.80 6:0.75 8:0.93 8:0.80 3:0.91 4:0.85 6:0.91 2:0.88 8:0.82 3:0.82 6:0.81 4:0.85 2:0.88 8:0.79 3:0.81 4:0.80 6:0.73 2:0.75 3:0.82 8:0.81
+  arm use: S=2 x4 mean 0.80  S=3 x5 mean 0.83  S=4 x4 mean 0.83  S=6 x4 mean 0.80  S=8 x5 mean 0.83
+fabric-tm-C=16-Smulti.cfg xor seed=2 policy=ucb  train 0.962  TEST 0.941  (375 test samples, last quarter)  14273 ev/s  121s
+  TEST windows: 0.72 0.90 0.91 0.94
+  epochs (S:test-acc): 2:0.52 3:0.69 4:0.74 6:0.73 8:0.93 8:0.79 4:0.87 6:0.88 3:0.89 8:0.94 2:0.90 6:0.86 4:0.97 3:0.93 8:0.94 4:0.90 2:0.87 3:0.94 6:0.96 8:0.96 4:0.88 3:0.97
+  arm use: S=2 x3 mean 0.76  S=3 x5 mean 0.88  S=4 x5 mean 0.87  S=6 x4 mean 0.86  S=8 x5 mean 0.91
+fabric-tm-C=16-Smulti.cfg xor seed=1 policy=random  train 0.894  TEST 0.869  (375 test samples, last quarter)  32846 ev/s  53s
+  TEST windows: 0.73 0.88 0.93 0.87
+  epochs (S:test-acc): 4:0.59 3:0.58 3:0.80 3:0.75 4:0.87 3:0.79 4:0.78 8:0.93 2:0.88 8:0.97 2:0.90 6:0.94 8:0.94 3:0.97 6:0.94 6:0.87 6:0.88 6:0.88 6:0.79 2:0.87 4:0.97 8:0.84
+  arm use: S=2 x3 mean 0.88  S=3 x5 mean 0.78  S=4 x4 mean 0.80  S=6 x6 mean 0.88  S=8 x4 mean 0.92
