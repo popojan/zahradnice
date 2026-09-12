@@ -28,6 +28,9 @@ Features under consideration for future implementation:
 Technical analysis documents (no implementation required):
 - `screen-alternatives-comparison.md` - Comparison of screen system approaches
 
+### 🧵 `fabric/`
+Research line (2026-09): the rewriting substrate as a learning fabric — layers as bands, weights as glyphs, credit assignment without calculus, a schedule-independent rule family that makes a GPU port exact. `fabric/README.md` is the entry point; `01-ladder.md` is the experiment hierarchy.
+
 ### 🔬 `research/`
 Research documents exploring theoretical applications and advanced use cases:
 - `gravity-simulation-ideas.md` - Physics simulation possibilities in toroidal space
