@@ -199,7 +199,7 @@ fired/refused · `+ - /` correct / missed / false alarm.
   plain arithmetic. Rule of the line: **a rung is built in glyphs only
   after its model learns**, and a glyph result is trusted only when it
   matches its model.
-- `sibling/torchfab.py CFG --screen R,C --replicas B --task xor --n N` —
+- **tkadlec** (sibling repository, `~/github/tkadlec`; `torchfab.py CFG --screen R,C --replicas B --task xor --n N`) —
   a replica-parallel engine in torch that runs the *same cfg* with the
   engine's semantics (one weighted draw per replica per event). Its cfg
   parser is checked against `zahradnice-check explain`
@@ -231,7 +231,7 @@ python3 fabric_run.py fabric-r01-k16.cfg --task and --n 3000 --seed 1 --phases i
 C=16 S=2 OUT="fabric-tm-C=16-S=2.cfg" python3 gen_tm.py
 python3 fabric_run.py "fabric-tm-C=16-S=2.cfg" --task xor --n 6000 --seed 1 --screen 53,20 --phases i:18,o:120,T:1,f:310,c:20
 python3 fabric_loop.py "fabric-tm-C=16-Smulti.cfg" --task xor --policy fixed:2 --n 6000   # needs the engine's --stream/--until
-python3 sibling/torchfab.py "fabric-tm-C=8-S=4.cfg" --screen 29,20 --replicas 32 --n 1500 --explain-check 60
+python3 ~/github/tkadlec/torchfab.py "fabric-tm-C=8-S=4.cfg" --screen 29,20 --replicas 32 --n 1500 --explain-check 60 --check-bin ../../zahradnice-check
 ```
 
 Watch one live: `./zahradnice "experiments/fabric/fabric-tm-C=8-S=4.cfg"`

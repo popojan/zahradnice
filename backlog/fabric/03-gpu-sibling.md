@@ -97,7 +97,15 @@ test suite.
   §5(ii)). `backlog/research/pixel-rendering.md` covers a pixel view if
   one is ever wanted for the interactive case.
 
-## 7. Where it would live
+## 7. Where it lives (2026-09-12)
+
+**`~/github/tkadlec`** (working name, user to confirm): `torchfab.py`
+(replica-parallel engine + driver with holdout, silent teacher and
+quiescence phases), `validate.py`, `scan.py` (par3 / size / S scans),
+`cfgs/` copies with source commit, `CLAUDE.md` carrying the portable
+context. Validated on CPU (0.739 vs 0.736). Original plan kept below.
+
+## 7a. Where it would live (original)
 
 A sibling repository (the user's call), with this backlog directory
 as its founding document and `tests/fabric/` here holding the cfgs and
