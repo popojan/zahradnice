@@ -284,10 +284,12 @@ parallelism at inference" answer.
   readout + re-rolling unused units — 8-input XOR 0.65–0.73.
 - **New rung, executed: the Tsetlin-shaped fabric** (clauses as
   conjunction rows of include/exclude automata, feedback as step-vs-skip
-  rule weights, 1-bit bus): **8-input XOR 0.91–0.95 with 16 clauses**,
+  rule weights, 1-bit bus): **8-input XOR 0.96–0.99 with 16 clauses (S=2), 0.87–0.92 with 8**,
   731–851 rules independent of C after the translation-invariant
   rewrite (edition 1: 23k rules, 600 ev/s; edition 2: 12k ev/s).
-  Parity-3 not yet (needs ~64 clauses per the model).
+  Parity-3 not yet (needs ~64 clauses per the model). A wildcard-trigger
+  head stole typing events until keyed to its own trigger — phases must
+  be disjoint rule sets.
 - Rule earned: **replicate data, not rules** — a family must read at
   clause-independent offsets (weight sharing); the rule index and the
   GPU sibling both depend on it.

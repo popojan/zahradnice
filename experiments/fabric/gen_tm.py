@@ -14,8 +14,8 @@ Layout (row 0 = status; per clause c three rows A/B/H at 2+3c):
 
 Triggers: b build | 0/1 type (writes the bit and its literals into every clause) |
 i evaluate (clause 1 -> 0 if an included literal is untrue) | o readout walk |
-p/n teacher: mark the neuron and plant a feedback head per clause (head glyph = feedback
-type x right/wrong); the head reads the clause output on its first step, then walks
+p/n teacher (one event): mark the neuron and plant a feedback head per clause (head glyph =
+feedback type x right/wrong) | f: the head reads the clause output on its first step, then walks
 along the automata applying Tsetlin Type I / II feedback as step-vs-skip rule weights |
 c clear (neuron, clause outputs, head replant).
 Params: C N S K THETA Q NIN.
@@ -75,7 +75,7 @@ out.append("#threads 1")
 out.append("^Bul")
 
 # build (anchor = row 1, col 0)
-rhs = {(0, c): "_" for c in range(1, NIN + 1)}; rhs[(0, SEP)] = "|"
+rhs = {(0, c): "_" for c in range(1, NIN + 1)}; rhs[(0, SEP)] = "|"; rhs[(0, 1)] = ">"   # typing head for sample 1
 for c in range(C):
     b = rowB(c) - 1
     rhs[(b, 0)] = "1"; rhs[(b, SEP)] = "|"
@@ -133,11 +133,11 @@ def wt(pi):
     return pi / (1 - pi)
 for (typ, wrong), g in PLANT.items():
     for o in (1, 0):
-        rule(header(g, "?", "~"), {(-1, 0): str(o)}, {(0, 1): WALK[(typ, wrong, o)]})
+        rule(header(g, "f", "~"), {(-1, 0): str(o)}, {(0, 1): WALK[(typ, wrong, o)]})
 for (typ, wrong, o), g in WALK.items():
     q = 1.0 if wrong else Q
-    rule(header(g, "?", "~"), {(-1, 0): "|"}, {(0, 1): g})           # skip the separator column
-    rule(header(g, "?", "~"), {(-1, 0): "~"}, {})                     # past the last automaton: die
+    rule(header(g, "f", "~"), {(-1, 0): "|"}, {(0, 1): g})           # skip the separator column
+    rule(header(g, "f", "~"), {(-1, 0): "~"}, {})                     # past the last automaton: die
     for s in range(1, 2 * N + 1):
         a = fresh(s); up = fresh(min(2 * N, s + 1)); dn = fresh(max(1, s - 1))
         for lit in "tu":
@@ -151,9 +151,9 @@ for (typ, wrong, o), g in WALK.items():
             w = wt(pi)
             lhs = {(-2, 0): lit, (-1, 0): a}
             if w is not None and tgt != a:
-                rule(header(g, "?", "~", weight=w), lhs, {(-1, 0): tgt, (0, 1): g})
+                rule(header(g, "f", "~", weight=w), lhs, {(-1, 0): tgt, (0, 1): g})
             if pi < 1:
-                rule(header(g, "?", "~", weight=1), lhs, {(0, 1): g})
+                rule(header(g, "f", "~", weight=1), lhs, {(0, 1): g})
 
 # clear
 out.append("# clear")

@@ -81,7 +81,8 @@ for line in open(tr, encoding="utf-8"):
         outcomes.append(head[4])
         if ord(head[2]) >= 0x2800: undecided += 1
         if len(outcomes) == a.n: break
-assert len(outcomes) == a.n, (len(outcomes), a.n)
+plants = sum(1 for line in open(tr, encoding="utf-8") if "\t==#c#" in line)
+assert len(outcomes) == a.n and plants >= a.n - 1, ("markings", len(outcomes), "plants", plants, "n", a.n)
 acc = lambda seg: sum(1 for o in seg if o == "+") / max(1, len(seg))
 wins = [acc(outcomes[i:i + a.win]) for i in range(0, a.n, a.win)]
 final = acc(outcomes[-a.n // 4:])

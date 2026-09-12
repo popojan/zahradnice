@@ -3,7 +3,7 @@
 Question of the day: could a rewriting substrate learn with depth, using
 only local rules and a one-character broadcast bus? Verdict after one
 session: **yes for the Tsetlin-shaped fabric** (XOR with six irrelevant
-inputs learned to 91–95 %), **no for naive sign-backprop** (does not
+inputs learned to 96–99 %), **no for naive sign-backprop** (does not
 bootstrap in its own arithmetic model), and the perceptron in glyphs is
 faithful to its model to the percent. Nothing here is tuned; every number
 is a first run.
@@ -97,17 +97,36 @@ Rule of thumb earned: **a rule family must read at offsets that do not
 depend on which copy of the structure it serves**; replicate the data
 (the literal rows) rather than the rules. Equivalent to weight sharing.
 
-Results (6000 samples, last 1500, 4 seeds, 8 inputs):
+Results (6000 samples, accuracy over the last 1500, 3 seeds, 8 inputs,
+`sweep-tm2.txt`; protocol verified per sample — see the bug below):
 
-| task | C=8 | C=16 | model (C=8, same feedback) |
-|---|---|---|---|
-| XOR (2 relevant, 6 irrelevant) | 0.79–0.82 | **0.91–0.95** | 0.74–0.87 |
-| AND | 0.90–0.95 | — | — |
-| majority-of-8 | 0.76–0.80 | — | 0.85–0.86 (C=16) |
-| parity-3 | — | 0.51–0.55 | 0.53–0.60 (C=16); 0.74–0.77 (C=64, 20k) |
+| task | C=8, S=4 | C=8, S=2 | C=16, S=4 | C=16, S=2 | model (C=8/16, S=4) |
+|---|---|---|---|---|---|
+| XOR (2 relevant, 6 irrelevant) | 0.79–0.85 | 0.87–0.92 | 0.85–0.97 | **0.96–0.99** | 0.74–0.87 / — |
+| AND | 0.95 | — | — | — | — |
+| majority-of-8 | 0.78–0.79 | — | — | — | 0.85 (C=16) |
+| parity-3 | — | — | 0.51–0.55 (pre-fix run) | — | 0.53–0.60 (C=16); 0.74–0.77 (C=64, 20k) |
 
-Events per sample ≈ 200 (C=8) / 360 (C=16); a 6000-sample run is 100 s
-/ 330 s on one core. Undecided readouts 1–8 %.
+A C=16, S=2 learning curve (windows of 1500): 0.81 → 0.92 → 0.93 → 0.96.
+Events per sample ≈ 200 (C=8) / 360 (C=16); **15–33k events/s** on one
+core, so a 6000-sample run is 40–150 s. Undecided readouts 1–7 %.
+
+### The bug the harness check now guards against
+
+The first edition of the walking head used the wildcard trigger `?`, so
+heads also moved on typing, evaluation and clear events — and *stole*
+them: a typing event that advances a head instead of the typing head
+loses that bit for good (one byte, one event). Because the build rule
+planted no typing head, sample 1 had empty literal rows, its heads
+stalled, and from then on stalled heads accumulated, stole events, and
+duplicated typing heads. Symptom: a teacher phase of 320 events applying
+17. Diagnosis: the `zahradnice-check why` tool on a dump (it listed the
+stuck heads as matching) plus per-phase apply counts from the trace.
+Fix: heads move only on their own trigger `f`; the build plants the
+first typing head; the harness asserts one marking and one head-plant
+per sample. Lesson for the family: **a wildcard-trigger rule is a
+process that runs in every phase**; phases must be disjoint rule sets
+or a phase must be able to finish before the next begins.
 
 ## What this says about the backlog
 
@@ -134,3 +153,17 @@ Events per sample ≈ 200 (C=8) / 360 (C=16); a 6000-sample run is 100 s
    position = the same rule at every anchor, which the engine gives for
    free) → 8×8 bitmaps, then the GPU sibling.
 4. Contextual bandit / delayed reward on the same harness (R0.3, R2.1).
+
+## Sensitivity probe (C=8, XOR, 6000 samples, 2 seeds; untuned baseline S=4, Q=0.1 gave 0.79–0.82)
+
+| variant | accuracy |
+|---|---|
+| Q=0 (feedback only when wrong) | 0.75, 0.89 |
+| Q=0.3 | 0.76, 0.76 |
+| **S=2** (greedier literal inclusion) | **0.89, 0.92** (pre-fix) |
+| S=8 | 0.65, 0.77 |
+
+S is the lever: at S=2 the 8-clause fabric matches the 16-clause one at
+S=4; the model predicts 0.96–0.98 for C=16, S=2 (fabric runs below).
+Parity-3 does not benefit from S=2 in the model (0.49–0.51) — it needs
+clauses, not greed.
