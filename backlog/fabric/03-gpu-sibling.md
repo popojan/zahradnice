@@ -99,7 +99,7 @@ test suite.
 
 ## 7. Where it lives (2026-09-12)
 
-**`~/github/tkadlec`** (working name, user to confirm): `torchfab.py`
+**`~/github/loom`** (`popojan/loom`; `loomml` and `tsetloom` free on GitHub and PyPI as reserves): `torchfab.py`
 (replica-parallel engine + driver with holdout, silent teacher and
 quiescence phases), `validate.py`, `scan.py` (par3 / size / S scans),
 `cfgs/` copies with source commit, `CLAUDE.md` carrying the portable
