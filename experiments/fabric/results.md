@@ -213,8 +213,14 @@ small DNFs, so 16 clauses approximate them with a ~0.1 gap. Random
 labels are at chance on unseen inputs by construction and at 0.55–0.60
 on seen ones: 16 clauses cannot memorise 64 positive minterms.
 **S is the capacity-versus-generalisation dial; C is the capacity.**
-The C=64 random-label runs (S=8, S=32, 4000 samples) are the capacity
-test proper — `sweep-holdout-c64.txt`.
+The C=64 random-label runs (S=8 and S=32, 4000 samples,
+`sweep-holdout-c64.txt`) are the capacity test proper: train accuracy
+0.71 for both (still rising, 0.56 → 0.71 over the run), test 0.49–0.52.
+Memorisation capacity grows with C (0.55–0.60 at C=16, 0.71 at C=64
+against 64 positive training minterms) while unseen inputs stay at
+chance by construction — the learning rule *can* fit random labels
+given clauses, which is the Zhang-et-al. observation reproduced in
+glyphs, and S did not matter once C was the bottleneck.
 
 Parity-3, C=64, S=4, 20 000 samples, full-space protocol: 0.766 and
 0.693 (model predicted 0.74–0.77); 1370 events per sample, 6.1k
