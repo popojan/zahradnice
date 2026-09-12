@@ -20,6 +20,9 @@ ap.add_argument("--noteach", action="store_true", help="no teacher: measure deci
 ap.add_argument("--fixed", default=None, help="type this bit string every sample")
 ap.add_argument("--phases", default="i:300,T:10,c:14", help="per-sample phases after typing: char:count, T = teacher char")
 ap.add_argument("--screen", default="6,16")
+ap.add_argument("--until", default="", help="engine --until CHARS: these phase triggers run to quiescence from one byte")
+ap.add_argument("--every", default="", help="N:CHARS — after every N-th sample also feed CHARS (e.g. 1000:r)")
+ap.add_argument("--warmup", default="", help="bytes fed once after build (e.g. r for the initial re-roll)")
 ap.add_argument("--holdout", type=float, default=0.0, help="fraction of the 2^nin inputs never used for training")
 ap.add_argument("--test-every", type=int, default=0, help="every k-th sample is a held-out test sample with the silent teacher P/N")
 a = ap.parse_args()
@@ -44,7 +47,8 @@ def label(bits):
     raise SystemExit("unknown task " + a.task)
 
 labels = []; is_test = []
-parts = ["b"]
+parts = ["b" + a.warmup]
+every_n, every_chars = (int(a.every.split(":")[0]), a.every.split(":")[1]) if a.every else (0, "")
 for t in range(a.n):
     test = a.test_every > 0 and (t + 1) % a.test_every == 0
     if a.fixed is not None: bits = [int(ch) for ch in a.fixed]
@@ -60,6 +64,7 @@ for t in range(a.n):
             parts.append((("P" if y else "N") if test else ("p" if y else "n")) * cnt)
         else:
             parts.append(ch * cnt)
+    if every_n and (t + 1) % every_n == 0: parts.append(every_chars)
 inp = "".join(parts)
 
 tag = "%s-%s-s%d" % (os.path.splitext(os.path.basename(a.cfg))[0], a.task, a.seed)
@@ -68,7 +73,7 @@ inpath = os.path.join(d, tag + ".in"); tr = os.path.join(d, tag + ".trace"); sc 
 open(inpath, "w").write(inp)
 t0 = time.time()
 r = subprocess.run([a.bin, a.cfg, "--seed", str(a.seed), "--screen", a.screen, "--input", "@" + inpath,
-                    "--trace", tr, "--dump-screen", sc], capture_output=True, text=True)
+                    "--trace", tr, "--dump-screen", sc] + (["--until", a.until] if a.until else []), capture_output=True, text=True)
 wall = time.time() - t0
 ev = None
 for line in r.stderr.splitlines():
