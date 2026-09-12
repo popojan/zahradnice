@@ -64,6 +64,9 @@ fast. The sessions belong to tiers 4–5.
   rejected list.
 - `03-gpu-sibling.md` — data model, step, learning, validation
   contract, size; when and where to start it.
+- `05-fpga.md` — the fabric in silicon: what maps, sizing (hobby boards
+  vs MNIST, learning vs inference), boards and prices, plan, triggers.
+  Parked.
 - `04-related-work.md` — Tsetlin machines, ReCA, supermasks, three-
   factor rules, DFA, Forward-Forward, sign-symmetry, NCAs, hardware
   niche; fit per rung; citations from memory, verify before use.

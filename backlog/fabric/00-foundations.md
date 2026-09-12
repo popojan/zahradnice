@@ -108,6 +108,16 @@ events per decision and 2K−1 glyphs (the rule index makes the state the
 anchor, so the rule count does not cost scan time). The rest of this
 section describes the one-step unit for the record.
 
+*Pointer, not a plan:* the fixed ±K barriers are textbook biased
+gambler's ruin (one line). If decision-time control is ever wanted —
+bounds that collapse toward a deadline instead of a hard budget — the
+walk meets a *sloped* barrier and its hitting probabilities become
+lattice-path survival problems; the machinery for those (fair-coin
+survival under a Beatty barrier, Sparre Andersen, Cramér tilting for
+the biased case) is worked out in the orbit repository's
+`docs/papers/lattice-paths-beatty-barrier.tex`. Same family, not
+needed for fixed K.
+
 A neuron with satisfied (pre fired ∧ synapse +k) pairs of total mass
 *s* = Σk, inhibitory pairs of mass *u*, and a constant "refuse" rule of
 weight θ fires with probability
