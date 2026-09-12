@@ -100,9 +100,9 @@ Its two feedback types, in words:
 | knob | meaning | effect |
 |---|---|---|
 | **C** | number of clauses (hidden AND units); half positive, half negative polarity | capacity and redundancy. XOR needs 2+2 clauses in principle; 8–16 in practice because learning finds them stochastically. Parity-3 needs 8 three-literal clauses; the model wants C≈64 |
-| **S** | Granmo's *specificity*: include prob (S−1)/S, exclude prob 1/S | how many literals a clause keeps. Small S = general clauses (few literals): right for XOR among six irrelevant bits (S=2 gave 0.96–0.99). Large S = specific clauses. Roughly, a literal true in ≥ (S−1)/S of the samples a clause sees gets included |
-| **N** | automaton states per action (2N states per literal) | inertia against noise in the feedback |
-| **K** | gain of the readout counter (§1) | sharpness of the vote; K=8 here |
+| **S** | Granmo's *specificity*: include prob (S−1)/S, exclude prob 1/S. **Not a resolution**: a literal gets included when its frequency among the clause's matches exceeds 1/S | how many literals a clause keeps. Small S = general clauses (few literals): right for XOR among six irrelevant bits (S=2 gave 0.96–0.99). Large S = specific clauses. Roughly, a literal true in ≥ (S−1)/S of the samples a clause sees gets included |
+| **N** | automaton states per action (2N states per literal) | inertia against noise in the feedback. N=4 let one XOR run collapse; N=8 and 12 are fine — more never hurt |
+| **K** | gain of the readout counter (§1) | sharpness of the vote; K=4/8/16 gave 0.93/0.97/0.98 on XOR — more never hurt, costs events |
 | **θ** | base down-mass of the readout | the vote's threshold; θ=1 |
 | **Q** | feedback probability when the prediction was *right* (always 1 when wrong) | our stand-in for the TM's margin-based feedback probability (T−v)/2T, which needs the vote as a number; Q=0.1 |
 | NIN | input bits | 8 in every experiment so far |

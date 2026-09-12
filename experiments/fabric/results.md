@@ -225,3 +225,22 @@ glyphs, and S did not matter once C was the bottleneck.
 Parity-3, C=64, S=4, 20 000 samples, full-space protocol: 0.766 and
 0.693 (model predicted 0.74–0.77); 1370 events per sample, 6.1k
 events/s, 75 minutes per run — the line's first scale-limited result.
+
+## Resolution knobs N and K (session 2, "for peace of mind")
+
+C=16, S=2, XOR with holdout, 6000 samples, two seeds (`sweep-nk.txt`):
+
+| knob | value | test accuracy (unseen inputs) | note |
+|---|---|---|---|
+| N (automaton states per action) | 4 | 0.59, 0.93 | one seed collapsed mid-run (0.67 → 0.59): too little inertia, automata flip on noise |
+| | 8 (baseline) | 0.96, 0.98 | |
+| | 12 | 0.97, 0.99 | |
+| K (readout gain) | 4 | 0.92, 0.95 | softer vote; no undecided walks |
+| | 8 (baseline) | 0.96, 0.98 | |
+| | 16 | 0.98, 0.98 | 3–5 % undecided within the 240-event budget |
+
+More resolution never hurt; too little did (N=4). The cost of N is
+glyphs and rules (1145 rules at N=12), the cost of K is events per
+decision. S, by contrast, is not resolution — it is the inclusion
+threshold p > 1/S on a literal's conditional frequency, i.e. prior
+knowledge about pattern length versus noise (see README §2.2).
