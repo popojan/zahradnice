@@ -25,7 +25,9 @@ ap.add_argument("--every", default="", help="N:CHARS — after every N-th sample
 ap.add_argument("--warmup", default="", help="bytes fed once after build (e.g. r for the initial re-roll)")
 ap.add_argument("--holdout", type=float, default=0.0, help="fraction of the 2^nin inputs never used for training")
 ap.add_argument("--test-every", type=int, default=0, help="every k-th sample is a held-out test sample with the silent teacher P/N")
+ap.add_argument("--teach", nargs=2, default=["np", "NP"], metavar=("TRAIN", "SILENT"), help="teacher trigger per class and the silent twins, class 0 first (K classes)")
 a = ap.parse_args()
+TRAIN, SILENT = a.teach; K = len(TRAIN)
 
 rng = random.Random(a.seed * 7919 + 17)
 nin = a.nin
@@ -44,6 +46,8 @@ def label(bits):
     if a.task == "par3": return bits[0] ^ bits[1] ^ bits[2]
     if a.task == "thr": return int(sum(wi * bi for wi, bi in zip(w, bits)) > b)
     if a.task == "rand": return randlab[sum(bi << i for i, bi in enumerate(bits))]
+    if a.task == "modk": return sum(bi << i for i, bi in enumerate(bits)) % K
+    if a.task == "firstk": return next((j for j in range(K - 1) if bits[j]), K - 1)
     raise SystemExit("unknown task " + a.task)
 
 labels = []; is_test = []
@@ -61,7 +65,7 @@ for t in range(a.n):
         ch, cnt = ph.split(":"); cnt = int(cnt)
         if ch == "T":
             if a.noteach: continue
-            parts.append((("P" if y else "N") if test else ("p" if y else "n")) * cnt)
+            parts.append((SILENT[y] if test else TRAIN[y]) * cnt)
         else:
             parts.append(ch * cnt)
     if every_n and (t + 1) % every_n == 0: parts.append(every_chars)
@@ -91,9 +95,9 @@ if a.noteach:
     print("%s fixed=%s fired %d / %d = %.3f" % (tag, a.fixed, fired, a.n, fired / a.n)); raise SystemExit
 for line in open(tr, encoding="utf-8"):
     f = line.rstrip("\n").split("\t")
-    if f[0] != "apply" or f[4] not in ("p", "n", "P", "N"): continue
+    if f[0] != "apply" or f[4] not in TRAIN + SILENT: continue
     head = f[10]
-    if head[4] in "+-/" and head[3] in "pnPN" and len(outcomes) < a.n and (head[2] in "01YN" or ord(head[2]) >= 0x2800):
+    if head[4] in "+-/" and head[3] in TRAIN + SILENT and len(outcomes) < a.n and (head[2] in "01YN" or ord(head[2]) >= 0x2800):
         # marking rules only: lhs is 0/1 or a counter glyph, rhs k/m/f
         outcomes.append(head[4])
         if ord(head[2]) >= 0x2800: undecided += 1
