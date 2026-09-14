@@ -236,3 +236,17 @@ python3 ~/github/loom/torchfab.py "fabric-tm-C=8-S=4.cfg" --screen 29,20 --repli
 
 Watch one live: `./zahradnice "experiments/fabric/fabric-tm-C=8-S=4.cfg"`
 needs a terminal ≥ 28 rows; press `b`, then type bits and phases by hand.
+
+**Watch it learn by itself:** `./zahradnice experiments/fabric/keep-free.cfg` (53 rows;
+SPACE starts; also from the main menu under Evolution → Learning fabric). The keep fabric
+with no phases and no driver, `gen_keep_free.py`: one timing trigger, a head that deals eight
+random bits (two rules of equal weight), rows that check their literals as the bits arrive and
+decide — undecided, matched, failed — tokens that ride the lanes into the P, N and DONE
+registers, a readout that compares when DONE reads H, a rule that reads the label (XOR of bits
+1 and 2) off the input row and teaches, a head that walks the rows, and a reset that deals the
+next sample. Nothing happens but rewriting; the order never matters because every rule waits
+for its inputs to be decided. XOR is learned in about eight minutes at `#timing T 2`; headless
+it is 255 events per sample and 100 % from about the thousandth sample on (loom
+`results/keep.md`, "No phases"). Two glyph collisions were found building it — `E` is synapse
++5, `B` is synapse +2 and was the build anchor — so the generator asserts every marker glyph
+against the synapse alphabet.
